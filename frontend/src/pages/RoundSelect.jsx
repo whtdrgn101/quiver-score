@@ -1,0 +1,146 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { getRounds, createSession } from '../api/scoring';
+import { listSetups } from '../api/setups';
+
+export default function RoundSelect() {
+  const [rounds, setRounds] = useState([]);
+  const [setups, setSetups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedSetup, setSelectedSetup] = useState('');
+  const [location, setLocation] = useState('');
+  const [weather, setWeather] = useState('');
+  const [notes, setNotes] = useState('');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    Promise.all([getRounds(), listSetups()])
+      .then(([roundsRes, setupsRes]) => {
+        setRounds(roundsRes.data);
+        setSetups(setupsRes.data);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const startSession = async () => {
+    const data = { template_id: selectedTemplate.id };
+    if (selectedSetup) data.setup_profile_id = selectedSetup;
+    if (location.trim()) data.location = location.trim();
+    if (weather.trim()) data.weather = weather.trim();
+    if (notes.trim()) data.notes = notes.trim();
+    const res = await createSession(data);
+    navigate(`/score/${res.data.id}`);
+  };
+
+  if (loading) return <p className="text-gray-500">Loading rounds...</p>;
+
+  const grouped = rounds.reduce((acc, r) => {
+    (acc[r.organization] = acc[r.organization] || []).push(r);
+    return acc;
+  }, {});
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-6">Select a Round</h1>
+
+      {selectedTemplate && (
+        <div className="bg-white rounded-lg shadow p-4 mb-6 border-2 border-emerald-500">
+          <h2 className="font-medium mb-2">{selectedTemplate.name}</h2>
+          {setups.length > 0 && (
+            <div className="mb-3">
+              <label className="block text-sm text-gray-500 mb-1">Setup Profile (optional)</label>
+              <select
+                value={selectedSetup}
+                onChange={(e) => setSelectedSetup(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">No setup</option>
+                {setups.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="block text-sm text-gray-500 mb-1">Location (optional)</label>
+              <input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Indoor Range"
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                maxLength={200}
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-500 mb-1">Weather (optional)</label>
+              <input
+                value={weather}
+                onChange={(e) => setWeather(e.target.value)}
+                placeholder="e.g. Sunny, 72F"
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+                maxLength={100}
+              />
+            </div>
+          </div>
+          <div className="mb-3">
+            <label className="block text-sm text-gray-500 mb-1">Notes (optional)</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Pre-session notes..."
+              rows={2}
+              className="w-full border rounded-lg px-3 py-2 text-sm"
+              maxLength={1000}
+            />
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={startSession}
+              className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
+            >
+              Start Scoring
+            </button>
+            <button
+              onClick={() => { setSelectedTemplate(null); setSelectedSetup(''); setLocation(''); setWeather(''); setNotes(''); }}
+              className="border px-4 py-2 rounded-lg text-sm"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {Object.entries(grouped).map(([org, templates]) => (
+        <div key={org} className="mb-6">
+          <h2 className="text-lg font-semibold text-gray-700 mb-2">{org}</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {templates.map((t) => {
+              const stage = t.stages[0];
+              const maxScore = stage ? stage.num_ends * stage.arrows_per_end * stage.max_score_per_arrow : 0;
+              const totalArrows = t.stages.reduce((s, st) => s + st.num_ends * st.arrows_per_end, 0);
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => { setSelectedTemplate(t); setSelectedSetup(''); }}
+                  className={`bg-white rounded-lg shadow p-4 text-left hover:shadow-md border-2 transition-all ${
+                    selectedTemplate?.id === t.id ? 'border-emerald-500' : 'border-transparent hover:border-emerald-500'
+                  }`}
+                >
+                  <div className="font-medium">{t.name}</div>
+                  <div className="text-sm text-gray-500 mt-1">{t.description}</div>
+                  <div className="flex gap-3 mt-2 text-xs text-gray-400">
+                    <span>{totalArrows} arrows</span>
+                    <span>Max {maxScore}</span>
+                    {stage?.distance && <span>{stage.distance}</span>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
