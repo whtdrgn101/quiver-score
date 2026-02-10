@@ -6,18 +6,21 @@ import { useAuth } from '../hooks/useAuth';
 export default function Login() {
   const [form, setForm] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const { loginUser } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSubmitting(true);
     try {
       const res = await login(form);
       await loginUser(res.data);
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.detail || 'Login failed');
+      setSubmitting(false);
     }
   };
 
@@ -42,8 +45,8 @@ export default function Login() {
           className="w-full border rounded px-3 py-2"
           required
         />
-        <button type="submit" className="w-full bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700">
-          Sign In
+        <button type="submit" disabled={submitting} className="w-full bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+          {submitting ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
       <p className="text-center mt-4 text-gray-600">
