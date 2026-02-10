@@ -52,6 +52,10 @@ jobs:
 
       - name: Deploy API to Cloud Run
         id: deploy-api
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
         run: |
           gcloud run deploy quiverscore-api \
             --image $API_IMAGE:${{ github.sha }} \
@@ -60,7 +64,7 @@ jobs:
             --allow-unauthenticated \
             --min-instances 0 \
             --max-instances 2 \
-            --set-env-vars "DATABASE_URL=${{ secrets.DATABASE_URL }},SECRET_KEY=${{ secrets.SECRET_KEY }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }}" \
+            --update-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}" \
             --format "value(status.url)" > /tmp/api_url.txt
           echo "api_url=$(cat /tmp/api_url.txt)" >> "$GITHUB_OUTPUT"
 
@@ -73,4 +77,4 @@ jobs:
             --allow-unauthenticated \
             --min-instances 0 \
             --max-instances 2 \
-            --set-env-vars "API_URL=${{ steps.deploy-api.outputs.api_url }},PORT=8080"
+            --update-env-vars "^@@^API_URL=${{ steps.deploy-api.outputs.api_url }}@@PORT=8080"
