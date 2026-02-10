@@ -77,4 +77,4 @@ jobs:
             --allow-unauthenticated \
             --min-instances 0 \
             --max-instances 2 \
-            --update-env-vars "^@@^API_URL=${{ steps.deploy-api.outputs.api_url }}@@PORT=8080"
+            --update-env-vars "API_URL=${{ steps.deploy-api.outputs.api_url }}"
