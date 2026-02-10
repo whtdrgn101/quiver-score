@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getSetup, updateSetup, addEquipmentToSetup, removeEquipmentFromSetup } from '../api/setups';
 import { listEquipment } from '../api/equipment';
@@ -19,16 +19,24 @@ export default function SetupDetail() {
   const [form, setForm] = useState({});
   const [showAddEquipment, setShowAddEquipment] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const [setupRes, eqRes] = await Promise.all([
       getSetup(setupId),
       listEquipment(),
     ]);
     setSetup(setupRes.data);
     setAllEquipment(eqRes.data);
-  };
+  }, [setupId]);
 
-  useEffect(() => { load(); }, [setupId]);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getSetup(setupId), listEquipment()]).then(([setupRes, eqRes]) => {
+      if (cancelled) return;
+      setSetup(setupRes.data);
+      setAllEquipment(eqRes.data);
+    });
+    return () => { cancelled = true; };
+  }, [setupId]);
 
   if (!setup) return <p className="text-gray-500">Loading...</p>;
 

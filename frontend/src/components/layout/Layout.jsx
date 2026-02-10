@@ -10,16 +10,18 @@ export default function Layout() {
   const [activeSession, setActiveSession] = useState(null);
 
   useEffect(() => {
-    if (!user) {
-      setActiveSession(null);
-      return;
-    }
+    if (!user) return;
+    let cancelled = false;
     getSessions()
       .then((res) => {
+        if (cancelled) return;
         const inProgress = res.data.find((s) => s.status === 'in_progress');
         setActiveSession(inProgress || null);
       })
-      .catch(() => setActiveSession(null));
+      .catch(() => {
+        if (!cancelled) setActiveSession(null);
+      });
+    return () => { cancelled = true; };
   }, [user, location.pathname]);
 
   const handleLogout = () => {

@@ -23,7 +23,7 @@ export default function ScoreSession() {
   }, [loadSession]);
 
   const template = session?.template;
-  const stages = template?.stages ?? [];
+  const stages = useMemo(() => template?.stages ?? [], [template]);
   const isMultiStage = stages.length > 1;
 
   // Find the current stage: first stage where submitted ends < stage.num_ends
