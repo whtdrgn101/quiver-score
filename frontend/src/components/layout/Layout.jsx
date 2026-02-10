@@ -1,14 +1,33 @@
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { getSessions } from '../../api/scoring';
 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [activeSession, setActiveSession] = useState(null);
+
+  useEffect(() => {
+    if (!user) {
+      setActiveSession(null);
+      return;
+    }
+    getSessions()
+      .then((res) => {
+        const inProgress = res.data.find((s) => s.status === 'in_progress');
+        setActiveSession(inProgress || null);
+      })
+      .catch(() => setActiveSession(null));
+  }, [user, location.pathname]);
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  const showBanner = activeSession && !location.pathname.startsWith('/score/');
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -31,6 +50,23 @@ export default function Layout() {
           )}
         </div>
       </nav>
+      {showBanner && (
+        <div className="bg-yellow-50 border-b border-yellow-200">
+          <div className="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between">
+            <div className="text-sm text-yellow-800">
+              <span className="font-medium">{activeSession.template_name}</span>
+              {' — '}
+              {activeSession.total_score} pts · {activeSession.total_arrows} arrows
+            </div>
+            <Link
+              to={`/score/${activeSession.id}`}
+              className="text-sm font-medium bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+            >
+              Resume
+            </Link>
+          </div>
+        </div>
+      )}
       <main className="max-w-5xl mx-auto px-4 py-6">
         <Outlet />
       </main>

@@ -1,16 +1,19 @@
 # QuiverScore
 
-Target archery score tracking application. Record scores across official round formats, track equipment setups, and monitor your progress over time.
+Target archery score tracking application. Record scores across official round formats, track equipment setups, and monitor your progress over time. Installable as a PWA on mobile devices.
 
 ## Features
 
 - **Score Tracking** — Tap-based arrow entry with real-time running totals, X counts, and scorecard display
-- **5 Official Round Templates** — WA Indoor 18m (Recurve & Compound), WA 720 70m, Vegas 300, NFAA Indoor 300
+- **6 Official Round Templates** — WA Indoor 18m (Recurve & Compound), WA 720 70m, WA 1440 (multi-stage), Vegas 300, NFAA Indoor 300
+- **Multi-Stage Rounds** — Dynamic stage progression for rounds like WA 1440 with multiple distances
 - **Equipment Management** — Track bows, risers, limbs, arrows, sights, and accessories with custom specs
 - **Setup Profiles** — Group equipment into named setups and link them to scoring sessions
 - **Dashboard Stats** — Personal best, average by round type, recent score trend, total arrows/X count
+- **Session Resume** — Banner notification to resume in-progress scoring sessions
 - **User Profiles** — Display name, bio, avatar (file upload or URL), bow type, classification
 - **Session Metadata** — Location, weather, and notes on every scoring session
+- **PWA Support** — Install on mobile, offline app shell caching, auto-updating service worker
 
 ## Tech Stack
 
@@ -21,9 +24,11 @@ Target archery score tracking application. Record scores across official round f
 | **Migrations** | Alembic |
 | **Auth** | JWT (access + refresh tokens), bcrypt |
 | **Frontend** | React 19, React Router 6, Tailwind CSS 4, Vite 7 |
+| **PWA** | vite-plugin-pwa, Workbox |
 | **HTTP Client** | Axios |
 | **Containerization** | Docker, Docker Compose |
 | **CI/CD** | GitHub Actions |
+| **Hosting** | Google Cloud Run (scale-to-zero) |
 
 ## Project Structure
 
@@ -47,7 +52,7 @@ quiverscore/
 │   │   ├── dependencies.py  # Auth dependency (get_current_user)
 │   │   └── main.py          # FastAPI app, CORS, lifespan
 │   ├── alembic/             # Database migrations
-│   ├── tests/               # pytest async tests (27 tests)
+│   ├── tests/               # pytest async tests
 │   ├── Dockerfile
 │   └── pyproject.toml
 ├── frontend/
@@ -64,16 +69,17 @@ quiverscore/
 │   │   │   └── Profile      #   User profile + password change
 │   │   ├── contexts/        # Auth context (token management)
 │   │   ├── hooks/           # useAuth hook
-│   │   └── components/      # Layout shell (nav, sidebar)
+│   │   └── components/      # Layout shell (nav, resume banner)
 │   ├── Dockerfile           # Multi-stage build (Node → Nginx)
-│   ├── nginx.conf           # SPA fallback + API reverse proxy
+│   ├── nginx.conf           # SPA fallback + API proxy (local compose)
+│   ├── nginx.conf.template  # Parameterized config (Cloud Run)
 │   └── package.json
 ├── docker-compose.yml       # Local development
-├── docker-compose.prod.yml  # Production (EC2)
+├── docker-compose.prod.yml  # Local prod testing
 ├── .env.example             # Required environment variables
 └── .github/workflows/
     ├── ci.yml               # Test + lint + build on PR and push
-    └── deploy.yml           # SSH deploy to EC2 on merge to main
+    └── deploy.yml           # Build + deploy to Cloud Run on merge to main
 ```
 
 ## API Endpoints
@@ -169,59 +175,93 @@ docker compose exec api uv run alembic upgrade head
 docker compose exec api uv run alembic current
 ```
 
-## Production Deployment (EC2 + Docker Compose)
+## Production Deployment (Google Cloud Run)
 
-### EC2 Setup
+Cloud Run provides scale-to-zero hosting — **$0 when idle**.
 
-1. Launch an EC2 instance (Amazon Linux 2023 or Ubuntu 22.04, t3.small or larger)
-2. Install Docker and Docker Compose:
+### GCP Setup
+
+1. **Create a GCP project** and enable the Cloud Run and Artifact Registry APIs:
+
    ```bash
-   # Amazon Linux 2023
-   sudo yum install -y docker
-   sudo systemctl enable --now docker
-   sudo usermod -aG docker $USER
-   sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-   sudo chmod +x /usr/local/bin/docker-compose
+   gcloud services enable run.googleapis.com artifactregistry.googleapis.com
    ```
-3. Clone the repo:
+
+2. **Create an Artifact Registry repository**:
+
    ```bash
-   git clone https://github.com/whtdrgn101/quiver-score.git ~/quiver-score
+   gcloud artifacts repositories create quiverscore \
+     --repository-format=docker \
+     --location=us-central1
    ```
-4. Create a `.env` file from the example:
+
+3. **Create a service account** for GitHub Actions deployment:
+
    ```bash
-   cd ~/quiver-score
-   cp .env.example .env
-   # Edit .env with real values:
-   #   POSTGRES_PASSWORD — strong random password
-   #   SECRET_KEY — generate with: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
-   #   CORS_ORIGINS — your domain, e.g. ["https://quiverscore.com"]
+   gcloud iam service-accounts create github-deploy
+   # Grant necessary roles
+   gcloud projects add-iam-policy-binding $PROJECT_ID \
+     --member="serviceAccount:github-deploy@$PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/run.admin"
+   gcloud projects add-iam-policy-binding $PROJECT_ID \
+     --member="serviceAccount:github-deploy@$PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/artifactregistry.writer"
+   gcloud projects add-iam-policy-binding $PROJECT_ID \
+     --member="serviceAccount:github-deploy@$PROJECT_ID.iam.gserviceaccount.com" \
+     --role="roles/iam.serviceAccountUser"
    ```
-5. Start the application:
+
+4. **Export a service account key** and add it as a GitHub secret:
+
    ```bash
-   docker compose -f docker-compose.prod.yml up -d
+   gcloud iam service-accounts keys create key.json \
+     --iam-account=github-deploy@$PROJECT_ID.iam.gserviceaccount.com
+   # Add contents of key.json as GCP_SA_KEY secret in GitHub
    ```
-6. Open port 80 (and optionally 443) in the EC2 security group.
 
-### CI/CD Pipeline
+### Database
 
-Automated deployment is configured via GitHub Actions. On every push to `main`:
+Use a managed PostgreSQL service for the database:
 
-1. **CI job** runs backend tests (pytest) and frontend build (lint + vite build)
-2. **Deploy job** SSHs into the EC2 instance, pulls latest code, and rebuilds containers
+- **[Neon](https://neon.tech)** — Free tier with generous limits, scale-to-zero
+- **[Supabase](https://supabase.com)** — Free tier PostgreSQL with dashboard
 
-To enable deployment, add these **GitHub repository secrets** (Settings > Secrets and variables > Actions):
+Set the `DATABASE_URL` secret to the async connection string:
+```
+postgresql+asyncpg://user:pass@host:5432/dbname
+```
+
+### GitHub Secrets
+
+Add these secrets in **Settings > Secrets and variables > Actions**:
 
 | Secret | Description |
 |--------|-------------|
-| `EC2_HOST` | Public IP or hostname of your EC2 instance |
-| `EC2_USER` | SSH username (`ec2-user` for Amazon Linux, `ubuntu` for Ubuntu) |
-| `EC2_SSH_KEY` | Private SSH key (the full PEM file contents) |
+| `GCP_PROJECT_ID` | Your GCP project ID |
+| `GCP_REGION` | Deployment region (e.g., `us-central1`) |
+| `GCP_SA_KEY` | Service account key JSON |
+| `DATABASE_URL` | PostgreSQL async connection string |
+| `SECRET_KEY` | JWT signing key — generate with `python3 -c "import secrets; print(secrets.token_urlsafe(32))"` |
+| `CORS_ORIGINS` | Allowed origins JSON array (e.g., `["https://quiverscore-frontend-xxx.run.app"]`) |
 
-The deploy job uses `docker compose -f docker-compose.prod.yml` which builds the frontend into an Nginx container that also reverse-proxies `/api/` requests to the backend.
+### Deploying
 
-### Stopping to Save Costs
+Deployment is fully automated. Push to `main` and GitHub Actions will:
 
-Since this runs on EC2, you can stop the instance from the AWS console when not in use. Your data persists in the Docker volume. Just start the instance and `docker compose -f docker-compose.prod.yml up -d` again.
+1. Run CI tests
+2. Build and push Docker images to Artifact Registry
+3. Deploy API and frontend services to Cloud Run
+
+### Local Prod Testing
+
+To test the production Docker setup locally:
+
+```bash
+cp .env.example .env
+# Edit .env with real values
+docker compose -f docker-compose.prod.yml up --build
+# App available at http://localhost
+```
 
 ## Environment Variables
 
@@ -232,9 +272,7 @@ Since this runs on EC2, you can stop the instance from the AWS console when not 
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | Access token TTL |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `30` | Refresh token TTL |
 | `CORS_ORIGINS` | `["http://localhost:5173"]` | Allowed origins (JSON array) |
-| `POSTGRES_USER` | — | PostgreSQL username (prod compose) |
-| `POSTGRES_PASSWORD` | — | PostgreSQL password (prod compose) |
-| `POSTGRES_DB` | — | PostgreSQL database name (prod compose) |
+| `PORT` | `8000` (API) / `8080` (frontend) | Server port (set by Cloud Run) |
 
 ## License
 

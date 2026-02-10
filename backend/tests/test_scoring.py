@@ -20,7 +20,7 @@ async def test_list_rounds(client, db_session):
     resp = await client.get("/api/v1/rounds")
     assert resp.status_code == 200
     rounds = resp.json()
-    assert len(rounds) == 5
+    assert len(rounds) == 6
     names = [r["name"] for r in rounds]
     assert "NFAA Indoor 300" in names
 
@@ -225,3 +225,55 @@ async def test_session_stats(client, db_session):
     assert len(stats["avg_by_round_type"]) == 1
     assert stats["avg_by_round_type"][0]["template_name"] == "Vegas 300"
     assert len(stats["recent_trend"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_multi_stage_session(client, db_session):
+    await _seed_templates(db_session)
+    token = await _register_and_get_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    rounds = (await client.get("/api/v1/rounds")).json()
+    wa1440 = next(r for r in rounds if r["name"] == "WA 1440 (Recurve)")
+    assert len(wa1440["stages"]) == 4
+
+    stage1 = wa1440["stages"][0]  # 90m
+    stage2 = wa1440["stages"][1]  # 70m
+    assert stage1["distance"] == "90m"
+    assert stage2["distance"] == "70m"
+
+    # Create session
+    resp = await client.post("/api/v1/sessions", json={
+        "template_id": wa1440["id"],
+    }, headers=headers)
+    assert resp.status_code == 201
+    session_id = resp.json()["id"]
+
+    # Submit an end to stage 1 (90m): 6 arrows
+    resp = await client.post(f"/api/v1/sessions/{session_id}/ends", json={
+        "stage_id": stage1["id"],
+        "arrows": [
+            {"score_value": "X"}, {"score_value": "10"}, {"score_value": "9"},
+            {"score_value": "8"}, {"score_value": "7"}, {"score_value": "6"},
+        ],
+    }, headers=headers)
+    assert resp.status_code == 201
+    assert resp.json()["end_total"] == 50
+
+    # Submit an end to stage 2 (70m): 6 arrows
+    resp = await client.post(f"/api/v1/sessions/{session_id}/ends", json={
+        "stage_id": stage2["id"],
+        "arrows": [
+            {"score_value": "X"}, {"score_value": "X"}, {"score_value": "10"},
+            {"score_value": "10"}, {"score_value": "9"}, {"score_value": "9"},
+        ],
+    }, headers=headers)
+    assert resp.status_code == 201
+    assert resp.json()["end_total"] == 58
+
+    # Verify session totals aggregate across stages
+    resp = await client.get(f"/api/v1/sessions/{session_id}", headers=headers)
+    session = resp.json()
+    assert session["total_score"] == 108
+    assert session["total_arrows"] == 12
+    assert session["total_x_count"] == 3

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSession, submitEnd, completeSession } from '../api/scoring';
 
@@ -22,6 +22,31 @@ export default function ScoreSession() {
     loadSession();
   }, [loadSession]);
 
+  const template = session?.template;
+  const stages = template?.stages ?? [];
+  const isMultiStage = stages.length > 1;
+
+  // Find the current stage: first stage where submitted ends < stage.num_ends
+  const getCurrentStage = useCallback(() => {
+    if (!session || !stages.length) return null;
+    for (const stage of stages) {
+      const endsForStage = session.ends.filter((e) => e.stage_id === stage.id).length;
+      if (endsForStage < stage.num_ends) return stage;
+    }
+    return null; // all stages complete
+  }, [session, stages]);
+
+  const currentStage = useMemo(() => getCurrentStage(), [getCurrentStage]);
+
+  const totalEnds = useMemo(
+    () => stages.reduce((sum, s) => sum + s.num_ends, 0),
+    [stages]
+  );
+  const maxScore = useMemo(
+    () => stages.reduce((sum, s) => sum + s.num_ends * s.arrows_per_end * s.max_score_per_arrow, 0),
+    [stages]
+  );
+
   if (loading || !session) return <p className="text-gray-500">Loading...</p>;
 
   if (session.status === 'completed') {
@@ -29,14 +54,15 @@ export default function ScoreSession() {
     return null;
   }
 
-  const template = session.template;
-  // For now, use first stage (Phase 2 will add multi-stage)
-  const stage = template.stages[0];
-  const arrowsPerEnd = stage.arrows_per_end;
-  const totalEnds = stage.num_ends;
-  const maxScore = totalEnds * arrowsPerEnd * stage.max_score_per_arrow;
-  const endNumber = session.ends.length + 1;
-  const isRoundComplete = session.ends.length >= totalEnds;
+  const stage = currentStage;
+  const arrowsPerEnd = stage?.arrows_per_end ?? 0;
+  const isRoundComplete = !stage;
+
+  // End number within current stage and overall
+  const stageEndCount = stage
+    ? session.ends.filter((e) => e.stage_id === stage.id).length
+    : 0;
+  const overallEndNumber = session.ends.length + 1;
 
   const handleScore = (value) => {
     if (currentArrows.length >= arrowsPerEnd) return;
@@ -48,7 +74,7 @@ export default function ScoreSession() {
   };
 
   const handleSubmitEnd = async () => {
-    if (currentArrows.length !== arrowsPerEnd) return;
+    if (currentArrows.length !== arrowsPerEnd || !stage) return;
     setSubmitting(true);
     try {
       await submitEnd(sessionId, {
@@ -78,10 +104,9 @@ export default function ScoreSession() {
     return 'bg-gray-700 text-white';
   };
 
-  const currentEndTotal = currentArrows.reduce(
-    (sum, v) => sum + (stage.value_score_map[v] || 0),
-    0
-  );
+  const currentEndTotal = stage
+    ? currentArrows.reduce((sum, v) => sum + (stage.value_score_map[v] || 0), 0)
+    : 0;
 
   return (
     <div className="max-w-lg mx-auto">
@@ -89,9 +114,14 @@ export default function ScoreSession() {
       <div className="text-center mb-4">
         <h1 className="text-xl font-bold">{template.name}</h1>
         <div className="text-gray-500 text-sm">
-          {stage.distance}
-          {session.setup_profile_name && ` · ${session.setup_profile_name}`}
+          {!isMultiStage && stage && stage.distance}
+          {session.setup_profile_name && `${!isMultiStage && stage ? ' · ' : ''}${session.setup_profile_name}`}
         </div>
+        {isMultiStage && stage && (
+          <div className="text-emerald-600 text-sm font-medium mt-1">
+            Stage {stage.stage_order}: {stage.distance} — End {stageEndCount + 1} of {stage.num_ends}
+          </div>
+        )}
       </div>
 
       {/* Score summary */}
@@ -102,7 +132,7 @@ export default function ScoreSession() {
         </div>
         <div className="text-right">
           <div className="text-sm text-gray-500">
-            End {Math.min(endNumber, totalEnds)} of {totalEnds}
+            End {Math.min(overallEndNumber, totalEnds)} of {totalEnds}
           </div>
           <div className="text-sm text-gray-500">
             {session.total_x_count}X · {session.total_arrows} arrows
@@ -136,7 +166,7 @@ export default function ScoreSession() {
           {/* Current end arrows */}
           <div className="bg-white rounded-lg shadow p-4 mb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-500">End {endNumber}</span>
+              <span className="text-sm font-medium text-gray-500">End {overallEndNumber}</span>
               <span className="text-sm font-medium">
                 {currentEndTotal > 0 && `+${currentEndTotal}`}
               </span>
@@ -193,7 +223,7 @@ export default function ScoreSession() {
         </>
       )}
 
-      {/* End history */}
+      {/* End history / Scorecard */}
       {session.ends.length > 0 && (
         <div className="mt-6">
           <h2 className="text-sm font-semibold text-gray-500 mb-2">Scorecard</h2>
@@ -208,30 +238,45 @@ export default function ScoreSession() {
                 </tr>
               </thead>
               <tbody>
-                {session.ends.map((end, i) => {
-                  const runningTotal = session.ends
-                    .slice(0, i + 1)
-                    .reduce((s, e) => s + e.end_total, 0);
-                  return (
-                    <tr key={end.id} className="border-t">
-                      <td className="px-3 py-2">{end.end_number}</td>
-                      <td className="px-3 py-2 text-center">
-                        <div className="flex gap-1 justify-center">
-                          {end.arrows.map((a) => (
-                            <span
-                              key={a.id}
-                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${getScoreColor(a.score_value)}`}
-                            >
-                              {a.score_value}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium">{end.end_total}</td>
-                      <td className="px-3 py-2 text-right text-gray-500">{runningTotal}</td>
-                    </tr>
-                  );
-                })}
+                {(() => {
+                  let lastStageId = null;
+                  let runningTotal = 0;
+                  const rows = [];
+                  session.ends.forEach((end) => {
+                    runningTotal += end.end_total;
+                    if (isMultiStage && end.stage_id !== lastStageId) {
+                      const stageInfo = stages.find((s) => s.id === end.stage_id);
+                      rows.push(
+                        <tr key={`stage-${end.stage_id}`} className="bg-emerald-50">
+                          <td colSpan={4} className="px-3 py-1 text-xs font-semibold text-emerald-700">
+                            {stageInfo?.name} — {stageInfo?.distance}
+                          </td>
+                        </tr>
+                      );
+                    }
+                    lastStageId = end.stage_id;
+                    rows.push(
+                      <tr key={end.id} className="border-t">
+                        <td className="px-3 py-2">{end.end_number}</td>
+                        <td className="px-3 py-2 text-center">
+                          <div className="flex gap-1 justify-center">
+                            {end.arrows.map((a) => (
+                              <span
+                                key={a.id}
+                                className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${getScoreColor(a.score_value)}`}
+                              >
+                                {a.score_value}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-right font-medium">{end.end_total}</td>
+                        <td className="px-3 py-2 text-right text-gray-500">{runningTotal}</td>
+                      </tr>
+                    );
+                  });
+                  return rows;
+                })()}
               </tbody>
             </table>
           </div>

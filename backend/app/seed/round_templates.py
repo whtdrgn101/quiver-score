@@ -89,15 +89,64 @@ TEMPLATES = [
             }
         ],
     },
+    {
+        "name": "WA 1440 (Recurve)",
+        "organization": "WA",
+        "description": "World Archery 1440 round: 144 arrows across 4 distances (90m, 70m, 50m, 30m), 36 arrows per distance",
+        "stages": [
+            {
+                "stage_order": 1,
+                "name": "90m",
+                "distance": "90m",
+                "num_ends": 6,
+                "arrows_per_end": 6,
+                "allowed_values": ["X", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1", "M"],
+                "value_score_map": {"X": 10, "10": 10, "9": 9, "8": 8, "7": 7, "6": 6, "5": 5, "4": 4, "3": 3, "2": 2, "1": 1, "M": 0},
+                "max_score_per_arrow": 10,
+            },
+            {
+                "stage_order": 2,
+                "name": "70m",
+                "distance": "70m",
+                "num_ends": 6,
+                "arrows_per_end": 6,
+                "allowed_values": ["X", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1", "M"],
+                "value_score_map": {"X": 10, "10": 10, "9": 9, "8": 8, "7": 7, "6": 6, "5": 5, "4": 4, "3": 3, "2": 2, "1": 1, "M": 0},
+                "max_score_per_arrow": 10,
+            },
+            {
+                "stage_order": 3,
+                "name": "50m",
+                "distance": "50m",
+                "num_ends": 6,
+                "arrows_per_end": 6,
+                "allowed_values": ["X", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1", "M"],
+                "value_score_map": {"X": 10, "10": 10, "9": 9, "8": 8, "7": 7, "6": 6, "5": 5, "4": 4, "3": 3, "2": 2, "1": 1, "M": 0},
+                "max_score_per_arrow": 10,
+            },
+            {
+                "stage_order": 4,
+                "name": "30m",
+                "distance": "30m",
+                "num_ends": 6,
+                "arrows_per_end": 6,
+                "allowed_values": ["X", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1", "M"],
+                "value_score_map": {"X": 10, "10": 10, "9": 9, "8": 8, "7": 7, "6": 6, "5": 5, "4": 4, "3": 3, "2": 2, "1": 1, "M": 0},
+                "max_score_per_arrow": 10,
+            },
+        ],
+    },
 ]
 
 
 async def seed_round_templates(db: AsyncSession):
-    result = await db.execute(select(RoundTemplate).limit(1))
-    if result.scalar_one_or_none():
-        return  # already seeded
+    result = await db.execute(select(RoundTemplate.name))
+    existing_names = {row[0] for row in result.all()}
 
+    added = False
     for tpl in TEMPLATES:
+        if tpl["name"] in existing_names:
+            continue
         template = RoundTemplate(
             name=tpl["name"],
             organization=tpl["organization"],
@@ -110,5 +159,7 @@ async def seed_round_templates(db: AsyncSession):
         for stage_data in tpl["stages"]:
             stage = RoundTemplateStage(template_id=template.id, **stage_data)
             db.add(stage)
+        added = True
 
-    await db.commit()
+    if added:
+        await db.commit()
