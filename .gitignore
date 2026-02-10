@@ -38,3 +38,4 @@ htmlcov/
 
 # Docker
 pgdata/
+key.json
