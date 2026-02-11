@@ -86,6 +86,30 @@ class SessionOut(BaseModel):
     notes: str | None
     location: str | None
     weather: str | None
+    share_token: str | None = None
+    started_at: datetime
+    completed_at: datetime | None
+    ends: list[EndOut]
+
+    model_config = {"from_attributes": True}
+
+
+class ShareLinkOut(BaseModel):
+    share_token: str
+    url: str
+
+
+class SharedSessionOut(BaseModel):
+    archer_name: str
+    archer_avatar: str | None = None
+    template_name: str
+    template: RoundTemplateOut | None = None
+    total_score: int
+    total_x_count: int
+    total_arrows: int
+    notes: str | None
+    location: str | None
+    weather: str | None
     started_at: datetime
     completed_at: datetime | None
     ends: list[EndOut]

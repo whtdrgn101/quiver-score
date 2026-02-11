@@ -2,12 +2,15 @@ import base64
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
-from app.schemas.user import AvatarUrlUpload, UserOut, UserUpdate
+from app.models.scoring import ScoringSession
+from app.schemas.user import AvatarUrlUpload, UserOut, UserUpdate, PublicProfileOut, PublicSessionSummary
+from app.core.exceptions import NotFoundError
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -86,3 +89,58 @@ async def delete_avatar(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+@router.get("/{username}", response_model=PublicProfileOut)
+async def get_public_profile(
+    username: str,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(User).where(User.username == username))
+    user = result.scalar_one_or_none()
+    if not user or not user.profile_public:
+        raise NotFoundError("Profile not found")
+
+    # Compute stats from completed sessions
+    completed = [s for s in user.scoring_sessions if s.status == "completed"]
+    total_sessions = len(user.scoring_sessions)
+    completed_sessions = len(completed)
+    total_arrows = sum(s.total_arrows for s in completed)
+    total_x_count = sum(s.total_x_count for s in completed)
+
+    personal_best_score = None
+    personal_best_template = None
+    if completed:
+        best = max(completed, key=lambda s: s.total_score)
+        personal_best_score = best.total_score
+        personal_best_template = best.template.name if best.template else None
+
+    # Recent 5 completed sessions
+    recent = sorted(completed, key=lambda s: s.completed_at or s.started_at, reverse=True)[:5]
+    recent_sessions = [
+        PublicSessionSummary(
+            template_name=s.template.name if s.template else None,
+            total_score=s.total_score,
+            total_x_count=s.total_x_count,
+            total_arrows=s.total_arrows,
+            completed_at=s.completed_at,
+            share_token=s.share_token,
+        )
+        for s in recent
+    ]
+
+    return PublicProfileOut(
+        username=user.username,
+        display_name=user.display_name,
+        bow_type=user.bow_type,
+        bio=user.bio,
+        avatar=user.avatar,
+        created_at=user.created_at,
+        total_sessions=total_sessions,
+        completed_sessions=completed_sessions,
+        total_arrows=total_arrows,
+        total_x_count=total_x_count,
+        personal_best_score=personal_best_score,
+        personal_best_template=personal_best_template,
+        recent_sessions=recent_sessions,
+    )

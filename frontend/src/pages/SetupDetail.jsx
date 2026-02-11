@@ -38,7 +38,7 @@ export default function SetupDetail() {
     return () => { cancelled = true; };
   }, [setupId]);
 
-  if (!setup) return <p className="text-gray-500">Loading...</p>;
+  if (!setup) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
 
   const linkedIds = new Set(setup.equipment.map((e) => e.id));
   const available = allEquipment.filter((e) => !linkedIds.has(e.id));
@@ -85,28 +85,28 @@ export default function SetupDetail() {
       <Link to="/setups" className="text-emerald-600 text-sm hover:underline">&larr; Back to Setups</Link>
 
       {editing ? (
-        <form onSubmit={handleSave} className="bg-white rounded-lg shadow p-4 mt-4 space-y-3">
+        <form onSubmit={handleSave} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mt-4 space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Name</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Name</label>
             <input
               required
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Description</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Description</label>
             <input
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             {TUNING_FIELDS.map((f) => (
               <div key={f.key}>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
+                <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
                   {f.label} ({f.unit})
                 </label>
                 <input
@@ -114,7 +114,7 @@ export default function SetupDetail() {
                   step="any"
                   value={form[f.key]}
                   onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
                 />
               </div>
             ))}
@@ -123,26 +123,26 @@ export default function SetupDetail() {
             <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
               Save
             </button>
-            <button type="button" onClick={() => setEditing(false)} className="border px-4 py-2 rounded-lg text-sm">
+            <button type="button" onClick={() => setEditing(false)} className="border dark:border-gray-600 px-4 py-2 rounded-lg text-sm dark:text-gray-300">
               Cancel
             </button>
           </div>
         </form>
       ) : (
-        <div className="bg-white rounded-lg shadow p-4 mt-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mt-4">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-xl font-bold">{setup.name}</h1>
-              {setup.description && <p className="text-sm text-gray-500">{setup.description}</p>}
+              <h1 className="text-xl font-bold dark:text-white">{setup.name}</h1>
+              {setup.description && <p className="text-sm text-gray-500 dark:text-gray-400">{setup.description}</p>}
             </div>
             <button onClick={startEdit} className="text-sm text-emerald-600 hover:underline">Edit</button>
           </div>
           {TUNING_FIELDS.some((f) => setup[f.key] != null) && (
-            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t">
+            <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t dark:border-gray-700">
               {TUNING_FIELDS.filter((f) => setup[f.key] != null).map((f) => (
                 <div key={f.key} className="text-center">
                   <div className="text-xs text-gray-400">{f.label}</div>
-                  <div className="font-medium text-sm">{setup[f.key]}{f.unit}</div>
+                  <div className="font-medium text-sm dark:text-gray-200">{setup[f.key]}{f.unit}</div>
                 </div>
               ))}
             </div>
@@ -153,7 +153,7 @@ export default function SetupDetail() {
       {/* Equipment */}
       <div className="mt-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">Equipment</h2>
+          <h2 className="text-lg font-semibold dark:text-white">Equipment</h2>
           {available.length > 0 && (
             <button
               onClick={() => setShowAddEquipment(!showAddEquipment)}
@@ -165,12 +165,12 @@ export default function SetupDetail() {
         </div>
 
         {showAddEquipment && (
-          <div className="bg-gray-50 rounded-lg p-3 mb-3 space-y-1">
+          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-3 space-y-1">
             {available.map((eq) => (
               <button
                 key={eq.id}
                 onClick={() => handleAddEquipment(eq.id)}
-                className="w-full text-left px-3 py-2 rounded hover:bg-white text-sm flex justify-between items-center"
+                className="w-full text-left px-3 py-2 rounded hover:bg-white dark:hover:bg-gray-700 text-sm flex justify-between items-center dark:text-gray-200"
               >
                 <span>{eq.name}</span>
                 <span className="text-xs text-gray-400 capitalize">{eq.category}</span>
@@ -184,10 +184,10 @@ export default function SetupDetail() {
         ) : (
           <div className="space-y-2">
             {setup.equipment.map((eq) => (
-              <div key={eq.id} className="bg-white rounded-lg shadow p-3 flex items-center justify-between">
+              <div key={eq.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex items-center justify-between">
                 <div>
-                  <div className="font-medium text-sm">{eq.name}</div>
-                  <div className="text-xs text-gray-500 capitalize">
+                  <div className="font-medium text-sm dark:text-gray-100">{eq.name}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 capitalize">
                     {eq.category}
                     {eq.brand && ` · ${eq.brand}`}
                   </div>

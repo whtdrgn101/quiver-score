@@ -23,6 +23,7 @@ class ScoringSession(Base):
     location: Mapped[str | None] = mapped_column(String(200))
     weather: Mapped[str | None] = mapped_column(String(100))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    share_token: Mapped[str | None] = mapped_column(String(32), nullable=True, unique=True, index=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     user: Mapped["User"] = relationship(back_populates="scoring_sessions")

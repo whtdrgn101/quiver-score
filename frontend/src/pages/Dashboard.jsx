@@ -75,6 +75,7 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [welcomeDismissed, setWelcomeDismissed] = useState(() => localStorage.getItem('welcome_dismissed') === 'true');
 
   useEffect(() => {
     Promise.all([getSessions(), getStats()])
@@ -85,13 +86,18 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
+  const dismissWelcome = () => {
+    setWelcomeDismissed(true);
+    localStorage.setItem('welcome_dismissed', 'true');
+  };
+
   const recent = sessions.slice(0, 5);
   const isEmpty = !loading && (!stats || stats.total_sessions === 0);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Welcome, {user?.display_name || user?.username}</h1>
+        <h1 className="text-2xl font-bold dark:text-white">Welcome, {user?.display_name || user?.username}</h1>
         {!isEmpty && (
           <Link
             to="/rounds"
@@ -102,15 +108,43 @@ export default function Dashboard() {
         )}
       </div>
 
+      {/* Welcome card for new users */}
+      {!welcomeDismissed && !loading && (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6 border-l-4 border-emerald-500 relative">
+          <button
+            onClick={dismissWelcome}
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            aria-label="Dismiss"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">Welcome to QuiverScore!</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">Get started by setting up your profile, adding your equipment, or jumping straight into scoring.</p>
+          <div className="flex flex-wrap gap-3">
+            <Link to="/rounds" className="inline-flex items-center gap-1 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
+              Score a Round
+            </Link>
+            <Link to="/equipment" className="inline-flex items-center gap-1 border border-emerald-600 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400 px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/30">
+              Add Equipment
+            </Link>
+            <Link to="/profile" className="inline-flex items-center gap-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700">
+              Set Up Profile
+            </Link>
+          </div>
+        </div>
+      )}
+
       {isEmpty ? (
-        <div className="bg-white rounded-xl shadow p-12 text-center">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-12 text-center">
           <svg className="w-16 h-16 mx-auto text-emerald-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10" strokeWidth="1.5" />
             <circle cx="12" cy="12" r="6" strokeWidth="1.5" />
             <circle cx="12" cy="12" r="2" fill="currentColor" />
           </svg>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">No sessions yet</h2>
-          <p className="text-gray-500 mb-6">Ready to start tracking your archery scores?</p>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">No sessions yet</h2>
+          <p className="text-gray-500 dark:text-gray-400 mb-6">Ready to start tracking your archery scores?</p>
           <Link
             to="/rounds"
             className="inline-block bg-emerald-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-emerald-700 transition-colors"
@@ -141,12 +175,12 @@ export default function Dashboard() {
           {/* Score by Round Type */}
           {stats?.avg_by_round_type?.length > 0 && (
             <div className="mb-8">
-              <h2 className="text-lg font-semibold mb-3">Score by Round Type</h2>
+              <h2 className="text-lg font-semibold mb-3 dark:text-white">Score by Round Type</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {stats.avg_by_round_type.map((rt) => (
-                  <div key={rt.template_name} className="bg-white rounded-lg shadow p-4 flex justify-between items-center">
+                  <div key={rt.template_name} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex justify-between items-center">
                     <div>
-                      <div className="font-medium">{rt.template_name}</div>
+                      <div className="font-medium dark:text-gray-100">{rt.template_name}</div>
                       <div className="text-xs text-gray-400">{rt.count} session{rt.count !== 1 ? 's' : ''}</div>
                     </div>
                     <div className="text-xl font-bold text-emerald-600">{rt.avg_score}</div>
@@ -159,24 +193,24 @@ export default function Dashboard() {
           {/* Recent Trend */}
           {stats?.recent_trend?.length > 0 && (
             <div className="mb-8">
-              <h2 className="text-lg font-semibold mb-3">Recent Trend</h2>
-              <div className="bg-white rounded-lg shadow overflow-hidden">
+              <h2 className="text-lg font-semibold mb-3 dark:text-white">Recent Trend</h2>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
                     <tr>
-                      <th className="px-3 py-2 text-left">Date</th>
-                      <th className="px-3 py-2 text-left">Round</th>
-                      <th className="px-3 py-2 text-right">Score</th>
-                      <th className="px-3 py-2 text-right">%</th>
+                      <th className="px-3 py-2 text-left dark:text-gray-300">Date</th>
+                      <th className="px-3 py-2 text-left dark:text-gray-300">Round</th>
+                      <th className="px-3 py-2 text-right dark:text-gray-300">Score</th>
+                      <th className="px-3 py-2 text-right dark:text-gray-300">%</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stats.recent_trend.map((t, i) => (
-                      <tr key={i} className="border-t">
-                        <td className="px-3 py-2">{new Date(t.date).toLocaleDateString()}</td>
-                        <td className="px-3 py-2">{t.template_name}</td>
-                        <td className="px-3 py-2 text-right font-medium">{t.score}/{t.max_score}</td>
-                        <td className="px-3 py-2 text-right text-gray-500">
+                      <tr key={i} className="border-t dark:border-gray-700">
+                        <td className="px-3 py-2 dark:text-gray-300">{new Date(t.date).toLocaleDateString()}</td>
+                        <td className="px-3 py-2 dark:text-gray-300">{t.template_name}</td>
+                        <td className="px-3 py-2 text-right font-medium dark:text-gray-100">{t.score}/{t.max_score}</td>
+                        <td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400">
                           {t.max_score > 0 ? ((t.score / t.max_score) * 100).toFixed(1) : 0}%
                         </td>
                       </tr>
@@ -187,11 +221,11 @@ export default function Dashboard() {
             </div>
           )}
 
-          <h2 className="text-lg font-semibold mb-3">Recent Sessions</h2>
+          <h2 className="text-lg font-semibold mb-3 dark:text-white">Recent Sessions</h2>
           {loading ? (
-            <p className="text-gray-500">Loading...</p>
+            <p className="text-gray-500 dark:text-gray-400">Loading...</p>
           ) : recent.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
               No sessions yet. Start your first scoring session!
             </div>
           ) : (
@@ -200,21 +234,21 @@ export default function Dashboard() {
                 <Link
                   key={s.id}
                   to={s.status === 'in_progress' ? `/score/${s.id}` : `/sessions/${s.id}`}
-                  className="block bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow"
+                  className="block bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
                 >
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="font-medium">{s.template_name || 'Round'}</span>
+                      <span className="font-medium dark:text-gray-100">{s.template_name || 'Round'}</span>
                       <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
-                        s.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700'
+                        s.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
                       }`}>
                         {s.status}
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-xl font-bold">{s.total_score}</span>
+                      <span className="text-xl font-bold dark:text-white">{s.total_score}</span>
                       {s.total_x_count > 0 && (
-                        <span className="text-gray-500 text-sm ml-1">({s.total_x_count}X)</span>
+                        <span className="text-gray-500 dark:text-gray-400 text-sm ml-1">({s.total_x_count}X)</span>
                       )}
                     </div>
                   </div>

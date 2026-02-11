@@ -53,3 +53,17 @@ def verify_reset_token(token: str) -> str | None:
     if payload is None or payload.get("type") != "password_reset":
         return None
     return payload.get("sub")
+
+
+def create_email_verification_token(email: str) -> str:
+    return create_token(
+        {"sub": email, "type": "email_verification"},
+        timedelta(hours=settings.EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS),
+    )
+
+
+def verify_email_verification_token(token: str) -> str | None:
+    payload = decode_token(token)
+    if payload is None or payload.get("type") != "email_verification":
+        return None
+    return payload.get("sub")

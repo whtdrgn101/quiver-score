@@ -66,7 +66,7 @@ export default function Equipment() {
     load();
   };
 
-  if (loading) return <p className="text-gray-500">Loading...</p>;
+  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
 
   const grouped = CATEGORIES.reduce((acc, cat) => {
     const catItems = items.filter((i) => i.category === cat);
@@ -77,7 +77,7 @@ export default function Equipment() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Equipment</h1>
+        <h1 className="text-2xl font-bold dark:text-white">Equipment</h1>
         <button
           onClick={() => { resetForm(); setShowForm(true); }}
           className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
@@ -87,14 +87,14 @@ export default function Equipment() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-4 mb-6 space-y-3">
+        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Category</label>
+              <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Category</label>
               <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
@@ -102,38 +102,38 @@ export default function Equipment() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Name</label>
+              <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Name</label>
               <input
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
                 placeholder="e.g. Hoyt Formula Xi"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Brand</label>
+              <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Brand</label>
               <input
                 value={form.brand}
                 onChange={(e) => setForm({ ...form, brand: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-600 mb-1">Model</label>
+              <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Model</label>
               <input
                 value={form.model}
                 onChange={(e) => setForm({ ...form, model: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Notes</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Notes</label>
             <textarea
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
               rows={2}
             />
           </div>
@@ -141,7 +141,7 @@ export default function Equipment() {
             <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
               {editingId ? 'Update' : 'Add'}
             </button>
-            <button type="button" onClick={resetForm} className="border px-4 py-2 rounded-lg text-sm">
+            <button type="button" onClick={resetForm} className="border dark:border-gray-600 px-4 py-2 rounded-lg text-sm dark:text-gray-300">
               Cancel
             </button>
           </div>
@@ -153,15 +153,15 @@ export default function Equipment() {
       ) : (
         Object.entries(grouped).map(([cat, catItems]) => (
           <div key={cat} className="mb-6">
-            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">
+            <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
               {CATEGORY_LABELS[cat]}
             </h2>
             <div className="space-y-2">
               {catItems.map((item) => (
-                <div key={item.id} className="bg-white rounded-lg shadow p-3 flex items-center justify-between">
+                <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex items-center justify-between">
                   <div>
-                    <div className="font-medium">{item.name}</div>
-                    <div className="text-sm text-gray-500">
+                    <div className="font-medium dark:text-gray-100">{item.name}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
                       {[item.brand, item.model].filter(Boolean).join(' · ')}
                     </div>
                   </div>

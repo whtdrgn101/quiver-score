@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     SENDGRID_FROM_EMAIL: str = "noreply@quiverscore.com"
     FRONTEND_URL: str = "http://localhost:5173"
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
+    EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 24
 
     model_config = {"env_file": ".env"}
 

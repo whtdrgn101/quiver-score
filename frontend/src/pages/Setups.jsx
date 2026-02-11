@@ -35,12 +35,12 @@ export default function Setups() {
     load();
   };
 
-  if (loading) return <p className="text-gray-500">Loading...</p>;
+  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Setup Profiles</h1>
+        <h1 className="text-2xl font-bold dark:text-white">Setup Profiles</h1>
         <button
           onClick={() => setShowForm(true)}
           className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
@@ -50,30 +50,30 @@ export default function Setups() {
       </div>
 
       {showForm && (
-        <form onSubmit={handleCreate} className="bg-white rounded-lg shadow p-4 mb-6 space-y-3">
+        <form onSubmit={handleCreate} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Name</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Name</label>
             <input
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
               placeholder="e.g. Indoor Recurve"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">Description</label>
+            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Description</label>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
             />
           </div>
           <div className="flex gap-2">
             <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
               Create
             </button>
-            <button type="button" onClick={() => setShowForm(false)} className="border px-4 py-2 rounded-lg text-sm">
+            <button type="button" onClick={() => setShowForm(false)} className="border dark:border-gray-600 px-4 py-2 rounded-lg text-sm dark:text-gray-300">
               Cancel
             </button>
           </div>
@@ -85,13 +85,13 @@ export default function Setups() {
       ) : (
         <div className="space-y-2">
           {setups.map((s) => (
-            <div key={s.id} className="bg-white rounded-lg shadow p-4 flex items-center justify-between">
+            <div key={s.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex items-center justify-between">
               <button
                 onClick={() => navigate(`/setups/${s.id}`)}
                 className="text-left flex-1"
               >
-                <div className="font-medium">{s.name}</div>
-                <div className="text-sm text-gray-500">
+                <div className="font-medium dark:text-gray-100">{s.name}</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   {s.description || 'No description'}
                   {' · '}
                   {s.equipment_count} piece{s.equipment_count !== 1 ? 's' : ''}

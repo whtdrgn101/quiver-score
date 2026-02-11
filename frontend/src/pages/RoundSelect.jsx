@@ -33,7 +33,7 @@ export default function RoundSelect() {
     navigate(`/score/${res.data.id}`);
   };
 
-  if (loading) return <p className="text-gray-500">Loading rounds...</p>;
+  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading rounds...</p>;
 
   const grouped = rounds.reduce((acc, r) => {
     (acc[r.organization] = acc[r.organization] || []).push(r);
@@ -42,18 +42,18 @@ export default function RoundSelect() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Select a Round</h1>
+      <h1 className="text-2xl font-bold mb-6 dark:text-white">Select a Round</h1>
 
       {selectedTemplate && (
-        <div className="bg-white rounded-lg shadow p-4 mb-6 border-2 border-emerald-500">
-          <h2 className="font-medium mb-2">{selectedTemplate.name}</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 border-2 border-emerald-500">
+          <h2 className="font-medium mb-2 dark:text-white">{selectedTemplate.name}</h2>
           {setups.length > 0 && (
             <div className="mb-3">
-              <label className="block text-sm text-gray-500 mb-1">Setup Profile (optional)</label>
+              <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Setup Profile (optional)</label>
               <select
                 value={selectedSetup}
                 onChange={(e) => setSelectedSetup(e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
               >
                 <option value="">No setup</option>
                 {setups.map((s) => (
@@ -64,34 +64,34 @@ export default function RoundSelect() {
           )}
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="block text-sm text-gray-500 mb-1">Location (optional)</label>
+              <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Location (optional)</label>
               <input
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="e.g. Indoor Range"
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
                 maxLength={200}
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-500 mb-1">Weather (optional)</label>
+              <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Weather (optional)</label>
               <input
                 value={weather}
                 onChange={(e) => setWeather(e.target.value)}
                 placeholder="e.g. Sunny, 72F"
-                className="w-full border rounded-lg px-3 py-2 text-sm"
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
                 maxLength={100}
               />
             </div>
           </div>
           <div className="mb-3">
-            <label className="block text-sm text-gray-500 mb-1">Notes (optional)</label>
+            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Notes (optional)</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Pre-session notes..."
               rows={2}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
               maxLength={1000}
             />
           </div>
@@ -104,7 +104,7 @@ export default function RoundSelect() {
             </button>
             <button
               onClick={() => { setSelectedTemplate(null); setSelectedSetup(''); setLocation(''); setWeather(''); setNotes(''); }}
-              className="border px-4 py-2 rounded-lg text-sm"
+              className="border dark:border-gray-600 px-4 py-2 rounded-lg text-sm dark:text-gray-300"
             >
               Cancel
             </button>
@@ -114,7 +114,7 @@ export default function RoundSelect() {
 
       {Object.entries(grouped).map(([org, templates]) => (
         <div key={org} className="mb-6">
-          <h2 className="text-lg font-semibold text-gray-700 mb-2">{org}</h2>
+          <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">{org}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {templates.map((t) => {
               const stage = t.stages[0];
@@ -124,12 +124,12 @@ export default function RoundSelect() {
                 <button
                   key={t.id}
                   onClick={() => { setSelectedTemplate(t); setSelectedSetup(''); }}
-                  className={`bg-white rounded-lg shadow p-4 text-left hover:shadow-md border-2 transition-all ${
+                  className={`bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-left hover:shadow-md border-2 transition-all ${
                     selectedTemplate?.id === t.id ? 'border-emerald-500' : 'border-transparent hover:border-emerald-500'
                   }`}
                 >
-                  <div className="font-medium">{t.name}</div>
-                  <div className="text-sm text-gray-500 mt-1">{t.description}</div>
+                  <div className="font-medium dark:text-gray-100">{t.name}</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t.description}</div>
                   <div className="flex gap-3 mt-2 text-xs text-gray-400">
                     <span>{totalArrows} arrows</span>
                     <span>Max {maxScore}</span>

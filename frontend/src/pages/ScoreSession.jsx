@@ -26,14 +26,13 @@ export default function ScoreSession() {
   const stages = useMemo(() => template?.stages ?? [], [template]);
   const isMultiStage = stages.length > 1;
 
-  // Find the current stage: first stage where submitted ends < stage.num_ends
   const getCurrentStage = useCallback(() => {
     if (!session || !stages.length) return null;
     for (const stage of stages) {
       const endsForStage = session.ends.filter((e) => e.stage_id === stage.id).length;
       if (endsForStage < stage.num_ends) return stage;
     }
-    return null; // all stages complete
+    return null;
   }, [session, stages]);
 
   const currentStage = useMemo(() => getCurrentStage(), [getCurrentStage]);
@@ -47,7 +46,7 @@ export default function ScoreSession() {
     [stages]
   );
 
-  if (loading || !session) return <p className="text-gray-500">Loading...</p>;
+  if (loading || !session) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
 
   if (session.status === 'completed') {
     navigate(`/sessions/${sessionId}`);
@@ -58,7 +57,6 @@ export default function ScoreSession() {
   const arrowsPerEnd = stage?.arrows_per_end ?? 0;
   const isRoundComplete = !stage;
 
-  // End number within current stage and overall
   const stageEndCount = stage
     ? session.ends.filter((e) => e.stage_id === stage.id).length
     : 0;
@@ -94,7 +92,6 @@ export default function ScoreSession() {
     navigate(`/sessions/${sessionId}`);
   };
 
-  // Score colors for visual feedback
   const getScoreColor = (value) => {
     if (value === 'X' || value === '10') return 'bg-yellow-400 text-black';
     if (value === '9') return 'bg-yellow-300 text-black';
@@ -112,8 +109,8 @@ export default function ScoreSession() {
     <div className="max-w-lg mx-auto">
       {/* Header */}
       <div className="text-center mb-4">
-        <h1 className="text-xl font-bold">{template.name}</h1>
-        <div className="text-gray-500 text-sm">
+        <h1 className="text-xl font-bold dark:text-white">{template.name}</h1>
+        <div className="text-gray-500 dark:text-gray-400 text-sm">
           {!isMultiStage && stage && stage.distance}
           {session.setup_profile_name && `${!isMultiStage && stage ? ' · ' : ''}${session.setup_profile_name}`}
         </div>
@@ -125,16 +122,16 @@ export default function ScoreSession() {
       </div>
 
       {/* Score summary */}
-      <div className="bg-white rounded-lg shadow p-4 mb-4 flex justify-between items-center">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4 flex justify-between items-center">
         <div>
-          <div className="text-3xl font-bold">{session.total_score}</div>
+          <div className="text-3xl font-bold dark:text-white">{session.total_score}</div>
           <div className="text-gray-400 text-xs">/ {maxScore}</div>
         </div>
         <div className="text-right">
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
             End {Math.min(overallEndNumber, totalEnds)} of {totalEnds}
           </div>
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-gray-500 dark:text-gray-400">
             {session.total_x_count}X · {session.total_arrows} arrows
           </div>
         </div>
@@ -142,15 +139,15 @@ export default function ScoreSession() {
 
       {isRoundComplete ? (
         <div className="text-center">
-          <p className="text-lg mb-4">Round complete!</p>
+          <p className="text-lg mb-4 dark:text-white">Round complete!</p>
           <div className="text-left mb-4">
-            <label className="block text-sm text-gray-500 mb-1">Session Notes (optional)</label>
+            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Session Notes (optional)</label>
             <textarea
               value={finalNotes}
               onChange={(e) => setFinalNotes(e.target.value)}
               placeholder="How did the session go?"
               rows={3}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
               maxLength={1000}
             />
           </div>
@@ -164,10 +161,10 @@ export default function ScoreSession() {
       ) : (
         <>
           {/* Current end arrows */}
-          <div className="bg-white rounded-lg shadow p-4 mb-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-500">End {overallEndNumber}</span>
-              <span className="text-sm font-medium">
+              <span className="text-sm font-medium text-gray-500 dark:text-gray-400">End {overallEndNumber}</span>
+              <span className="text-sm font-medium dark:text-gray-300">
                 {currentEndTotal > 0 && `+${currentEndTotal}`}
               </span>
             </div>
@@ -178,7 +175,7 @@ export default function ScoreSession() {
                   className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${
                     currentArrows[i]
                       ? getScoreColor(currentArrows[i])
-                      : 'border-2 border-dashed border-gray-300'
+                      : 'border-2 border-dashed border-gray-300 dark:border-gray-600'
                   }`}
                 >
                   {currentArrows[i] || ''}
@@ -208,7 +205,7 @@ export default function ScoreSession() {
             <button
               onClick={handleUndo}
               disabled={currentArrows.length === 0}
-              className="flex-1 py-3 rounded-lg border border-gray-300 font-medium disabled:opacity-30"
+              className="flex-1 py-3 rounded-lg border border-gray-300 dark:border-gray-600 font-medium disabled:opacity-30 dark:text-gray-300"
             >
               Undo
             </button>
@@ -226,15 +223,15 @@ export default function ScoreSession() {
       {/* End history / Scorecard */}
       {session.ends.length > 0 && (
         <div className="mt-6">
-          <h2 className="text-sm font-semibold text-gray-500 mb-2">Scorecard</h2>
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">Scorecard</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                  <th className="px-3 py-2 text-left">End</th>
-                  <th className="px-3 py-2 text-center">Arrows</th>
-                  <th className="px-3 py-2 text-right">Total</th>
-                  <th className="px-3 py-2 text-right">RT</th>
+                  <th className="px-3 py-2 text-left dark:text-gray-300">End</th>
+                  <th className="px-3 py-2 text-center dark:text-gray-300">Arrows</th>
+                  <th className="px-3 py-2 text-right dark:text-gray-300">Total</th>
+                  <th className="px-3 py-2 text-right dark:text-gray-300">RT</th>
                 </tr>
               </thead>
               <tbody>
@@ -247,8 +244,8 @@ export default function ScoreSession() {
                     if (isMultiStage && end.stage_id !== lastStageId) {
                       const stageInfo = stages.find((s) => s.id === end.stage_id);
                       rows.push(
-                        <tr key={`stage-${end.stage_id}`} className="bg-emerald-50">
-                          <td colSpan={4} className="px-3 py-1 text-xs font-semibold text-emerald-700">
+                        <tr key={`stage-${end.stage_id}`} className="bg-emerald-50 dark:bg-emerald-900/30">
+                          <td colSpan={4} className="px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                             {stageInfo?.name} — {stageInfo?.distance}
                           </td>
                         </tr>
@@ -256,8 +253,8 @@ export default function ScoreSession() {
                     }
                     lastStageId = end.stage_id;
                     rows.push(
-                      <tr key={end.id} className="border-t">
-                        <td className="px-3 py-2">{end.end_number}</td>
+                      <tr key={end.id} className="border-t dark:border-gray-700">
+                        <td className="px-3 py-2 dark:text-gray-300">{end.end_number}</td>
                         <td className="px-3 py-2 text-center">
                           <div className="flex gap-1 justify-center">
                             {end.arrows.map((a) => (
@@ -270,8 +267,8 @@ export default function ScoreSession() {
                             ))}
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-right font-medium">{end.end_total}</td>
-                        <td className="px-3 py-2 text-right text-gray-500">{runningTotal}</td>
+                        <td className="px-3 py-2 text-right font-medium dark:text-gray-100">{end.end_total}</td>
+                        <td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400">{runningTotal}</td>
                       </tr>
                     );
                   });

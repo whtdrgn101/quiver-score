@@ -9,13 +9,14 @@ from app.models.user import User
 from app.dependencies import get_current_user
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, RefreshRequest, PasswordChange,
-    ForgotPasswordRequest, ResetPasswordRequest, MessageResponse,
+    ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest, MessageResponse,
 )
 from app.core.security import (
     hash_password, verify_password, create_access_token, create_refresh_token,
     decode_token, create_reset_token, verify_reset_token,
+    create_email_verification_token, verify_email_verification_token,
 )
-from app.core.email import send_password_reset_email
+from app.core.email import send_password_reset_email, send_verification_email
 from app.core.exceptions import AuthError, ConflictError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -29,15 +30,20 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     if result.scalar_one_or_none():
         raise ConflictError("Email or username already registered")
 
+    verification_token = create_email_verification_token(body.email)
+
     user = User(
         email=body.email,
         username=body.username,
         hashed_password=hash_password(body.password),
         display_name=body.display_name or body.username,
+        email_verification_token=verification_token,
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
+
+    send_verification_email(user.email, verification_token)
 
     return TokenResponse(
         access_token=create_access_token(str(user.id)),
@@ -78,6 +84,38 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
         access_token=create_access_token(str(user.id)),
         refresh_token=create_refresh_token(str(user.id)),
     )
+
+
+@router.post("/verify-email", response_model=MessageResponse)
+async def verify_email(body: VerifyEmailRequest, db: AsyncSession = Depends(get_db)):
+    email = verify_email_verification_token(body.token)
+    if not email:
+        raise AuthError("Invalid or expired verification token")
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise AuthError("Invalid or expired verification token")
+
+    user.email_verified = True
+    user.email_verification_token = None
+    await db.commit()
+    return MessageResponse(detail="Email verified successfully.")
+
+
+@router.post("/resend-verification", response_model=MessageResponse)
+async def resend_verification(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if user.email_verified:
+        return MessageResponse(detail="Email is already verified.")
+
+    token = create_email_verification_token(user.email)
+    user.email_verification_token = token
+    await db.commit()
+    send_verification_email(user.email, token)
+    return MessageResponse(detail="Verification email sent.")
 
 
 @router.post("/change-password", status_code=status.HTTP_200_OK)
