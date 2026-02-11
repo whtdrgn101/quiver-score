@@ -44,7 +44,7 @@ export default function SessionDetail() {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    } catch { /* ignored */ }
   };
 
   const handleRevoke = async () => {
@@ -52,7 +52,7 @@ export default function SessionDetail() {
       await revokeShareLink(sessionId);
       setShareUrl('');
       setSession({ ...session, share_token: null });
-    } catch {}
+    } catch { /* ignored */ }
   };
 
   const handleCopy = async () => {

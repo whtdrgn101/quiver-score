@@ -5,13 +5,10 @@ import { verifyEmail } from '../api/auth';
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
-  const [status, setStatus] = useState('verifying'); // verifying, success, error
+  const [status, setStatus] = useState(() => token ? 'verifying' : 'error');
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      return;
-    }
+    if (!token) return;
     verifyEmail({ token })
       .then(() => setStatus('success'))
       .catch(() => setStatus('error'));
