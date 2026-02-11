@@ -15,6 +15,7 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.46",
     "uvicorn[standard]>=0.40.0",
     "httpx>=0.28.1",
+    "sendgrid>=6.11.0",
 ]
 
 [dependency-groups]

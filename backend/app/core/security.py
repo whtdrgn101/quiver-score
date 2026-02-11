@@ -39,3 +39,17 @@ def decode_token(token: str) -> dict | None:
         return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except JWTError:
         return None
+
+
+def create_reset_token(email: str) -> str:
+    return create_token(
+        {"sub": email, "type": "password_reset"},
+        timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES),
+    )
+
+
+def verify_reset_token(token: str) -> str | None:
+    payload = decode_token(token)
+    if payload is None or payload.get("type") != "password_reset":
+        return None
+    return payload.get("sub")

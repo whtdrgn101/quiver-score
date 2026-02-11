@@ -7,8 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.user import User
 from app.dependencies import get_current_user
-from app.schemas.auth import RegisterRequest, LoginRequest, TokenResponse, RefreshRequest, PasswordChange
-from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token, decode_token
+from app.schemas.auth import (
+    RegisterRequest, LoginRequest, TokenResponse, RefreshRequest, PasswordChange,
+    ForgotPasswordRequest, ResetPasswordRequest, MessageResponse,
+)
+from app.core.security import (
+    hash_password, verify_password, create_access_token, create_refresh_token,
+    decode_token, create_reset_token, verify_reset_token,
+)
+from app.core.email import send_password_reset_email
 from app.core.exceptions import AuthError, ConflictError
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -85,3 +92,27 @@ async def change_password(
     user.hashed_password = hash_password(body.new_password)
     await db.commit()
     return {"detail": "Password changed successfully"}
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+    if user:
+        token = create_reset_token(user.email)
+        send_password_reset_email(user.email, token)
+    return MessageResponse(detail="If that email is registered, you'll receive a reset link shortly.")
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+    email = verify_reset_token(body.token)
+    if not email:
+        raise AuthError("Invalid or expired reset token")
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise AuthError("Invalid or expired reset token")
+    user.hashed_password = hash_password(body.new_password)
+    await db.commit()
+    return MessageResponse(detail="Password reset successfully. You can now sign in.")

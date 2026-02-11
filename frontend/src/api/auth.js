@@ -14,3 +14,5 @@ export const uploadAvatar = (file) => {
 export const uploadAvatarUrl = (url) => client.post('/users/me/avatar-url', { url });
 export const deleteAvatar = () => client.delete('/users/me/avatar');
 export const changePassword = (data) => client.post('/auth/change-password', data);
+export const forgotPassword = (data) => client.post('/auth/forgot-password', data);
+export const resetPassword = (data) => client.post('/auth/reset-password', data);

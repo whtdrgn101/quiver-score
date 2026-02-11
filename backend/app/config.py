@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
     ALGORITHM: str = "HS256"
+    SENDGRID_API_KEY: str = ""
+    SENDGRID_FROM_EMAIL: str = "noreply@quiverscore.com"
+    FRONTEND_URL: str = "http://localhost:5173"
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 60
 
     model_config = {"env_file": ".env"}
 

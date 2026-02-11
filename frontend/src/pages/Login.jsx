@@ -48,6 +48,9 @@ export default function Login() {
         <button type="submit" disabled={submitting} className="w-full bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
           {submitting ? 'Signing in...' : 'Sign In'}
         </button>
+        <p className="text-right">
+          <Link to="/forgot-password" className="text-sm text-emerald-600 hover:underline">Forgot your password?</Link>
+        </p>
       </form>
       <p className="text-center mt-4 text-gray-600">
         No account? <Link to="/register" className="text-emerald-600 hover:underline">Register</Link>

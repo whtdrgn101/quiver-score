@@ -3,7 +3,7 @@ import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { getSessions } from '../../api/scoring';
 
-export default function Layout() {
+export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -109,7 +109,7 @@ export default function Layout() {
         </div>
       )}
       <main className="max-w-5xl mx-auto px-4 py-6">
-        <Outlet />
+        {children || <Outlet />}
       </main>
     </div>
   );
