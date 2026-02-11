@@ -34,7 +34,7 @@ export default function Register() {
           placeholder="Email"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
-          className="w-full border rounded px-3 py-2"
+          className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
           required
         />
         <input
@@ -42,7 +42,7 @@ export default function Register() {
           placeholder="Username"
           value={form.username}
           onChange={(e) => setForm({ ...form, username: e.target.value })}
-          className="w-full border rounded px-3 py-2"
+          className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
           required
         />
         <input
@@ -50,14 +50,14 @@ export default function Register() {
           placeholder="Display Name (optional)"
           value={form.display_name}
           onChange={(e) => setForm({ ...form, display_name: e.target.value })}
-          className="w-full border rounded px-3 py-2"
+          className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
         />
         <input
           type="password"
           placeholder="Password"
           value={form.password}
           onChange={(e) => setForm({ ...form, password: e.target.value })}
-          className="w-full border rounded px-3 py-2"
+          className="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
           required
         />
         <button type="submit" disabled={submitting} className="w-full bg-emerald-600 text-white py-2 rounded hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">

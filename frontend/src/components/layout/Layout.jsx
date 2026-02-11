@@ -8,6 +8,11 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [activeSession, setActiveSession] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!user) return;
@@ -38,8 +43,9 @@ export default function Layout() {
           <Link to="/" className="text-xl font-bold tracking-tight">
             QuiverScore
           </Link>
+          {/* Desktop nav */}
           {user && (
-            <div className="flex items-center gap-4">
+            <div className="hidden md:flex items-center gap-4">
               <Link to="/" className="hover:text-emerald-200">Dashboard</Link>
               <Link to="/equipment" className="hover:text-emerald-200">Equipment</Link>
               <Link to="/setups" className="hover:text-emerald-200">Setups</Link>
@@ -50,7 +56,40 @@ export default function Layout() {
               </button>
             </div>
           )}
+
+          {/* Hamburger button - mobile only */}
+          {user && (
+            <button
+              className="md:hidden p-1"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Toggle menu"
+            >
+              {menuOpen ? (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
+            </button>
+          )}
         </div>
+
+        {/* Mobile dropdown */}
+        {user && menuOpen && (
+          <div className="md:hidden bg-emerald-800 px-4 pb-3 space-y-2">
+            <Link to="/" className="block py-2 hover:text-emerald-200">Dashboard</Link>
+            <Link to="/equipment" className="block py-2 hover:text-emerald-200">Equipment</Link>
+            <Link to="/setups" className="block py-2 hover:text-emerald-200">Setups</Link>
+            <Link to="/history" className="block py-2 hover:text-emerald-200">History</Link>
+            <Link to="/profile" className="block py-2 text-emerald-200 hover:text-white">{user.display_name || user.username}</Link>
+            <button onClick={handleLogout} className="block w-full text-left py-2 text-sm bg-emerald-900 px-3 rounded hover:bg-emerald-950">
+              Logout
+            </button>
+          </div>
+        )}
       </nav>
       {showBanner && (
         <div className="bg-yellow-50 border-b border-yellow-200">
