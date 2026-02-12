@@ -48,7 +48,7 @@ export default function ClubSettings() {
     }
   };
 
-  useEffect(() => { load(); }, [clubId]);
+  useEffect(() => { load(); }, [clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const flash = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };
 

@@ -12,20 +12,21 @@ export default function ClubEventDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = () => {
+  useEffect(() => {
+    let cancelled = false;
     Promise.all([
       getEvent(clubId, eventId),
       getClub(clubId),
     ])
       .then(([eventRes, clubRes]) => {
+        if (cancelled) return;
         setEvent(eventRes.data);
         setMyRole(clubRes.data.my_role);
       })
-      .catch((err) => setError(err.response?.data?.detail || 'Failed to load event'))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => { load(); }, [clubId, eventId]);
+      .catch((err) => { if (!cancelled) setError(err.response?.data?.detail || 'Failed to load event'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [clubId, eventId]);
 
   const handleRSVP = async (status) => {
     try {

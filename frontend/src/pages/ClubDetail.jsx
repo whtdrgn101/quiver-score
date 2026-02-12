@@ -14,11 +14,12 @@ export default function ClubDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
     getClub(clubId)
-      .then((res) => setClub(res.data))
+      .then((res) => { if (!cancelled) setClub(res.data); })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [clubId]);
 
   useEffect(() => {
