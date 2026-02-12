@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getClub, getLeaderboard, getActivity, getEvents } from '../api/clubs';
+import { getClub, getLeaderboard, getActivity, getEvents, getTeams, getTeam } from '../api/clubs';
+import { useAuth } from '../hooks/useAuth';
 
-const TABS = ['members', 'leaderboard', 'activity', 'events'];
+const TABS = ['members', 'teams', 'leaderboard', 'activity', 'events'];
 
 export default function ClubDetail() {
   const { clubId } = useParams();
+  const { user } = useAuth();
   const [club, setClub] = useState(null);
   const [tab, setTab] = useState('members');
   const [leaderboard, setLeaderboard] = useState([]);
   const [activity, setActivity] = useState([]);
   const [events, setEvents] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,6 +33,8 @@ export default function ClubDetail() {
       getActivity(clubId).then((res) => setActivity(res.data)).catch(() => {});
     } else if (tab === 'events') {
       getEvents(clubId).then((res) => setEvents(res.data)).catch(() => {});
+    } else if (tab === 'teams') {
+      getTeams(clubId).then((res) => setTeams(res.data)).catch(() => {});
     }
   }, [club, tab, clubId]);
 
@@ -73,6 +78,7 @@ export default function ClubDetail() {
         ))}
       </div>
 
+      {tab === 'teams' && <TeamsTab teams={teams} clubId={clubId} isAdmin={isAdmin} userId={user?.id} />}
       {tab === 'members' && <MembersTab members={club.members} />}
       {tab === 'leaderboard' && <LeaderboardTab leaderboard={leaderboard} />}
       {tab === 'activity' && <ActivityTab activity={activity} />}
@@ -166,6 +172,89 @@ function ActivityTab({ activity }) {
           </p>
         </div>
       ))}
+    </div>
+  );
+}
+
+function TeamsTab({ teams, clubId, isAdmin, userId }) {
+  const isTeamLeader = teams.some((t) => t.leader.user_id === userId);
+  const [expandedTeam, setExpandedTeam] = useState(null);
+  const [teamDetail, setTeamDetail] = useState(null);
+
+  const toggleTeam = (teamId) => {
+    if (expandedTeam === teamId) {
+      setExpandedTeam(null);
+      setTeamDetail(null);
+    } else {
+      setExpandedTeam(teamId);
+      getTeam(clubId, teamId).then((res) => setTeamDetail(res.data)).catch(() => {});
+    }
+  };
+
+  return (
+    <div>
+      {(isAdmin || isTeamLeader) && (
+        <Link
+          to={`/clubs/${clubId}/settings`}
+          className="inline-block mb-4 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
+        >
+          {isAdmin ? '+ Manage Teams' : 'Manage My Team'}
+        </Link>
+      )}
+      {!teams?.length ? (
+        <p className="text-gray-400">No teams yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {teams.map((team) => (
+            <div key={team.id} className="bg-white dark:bg-gray-800 rounded-lg shadow">
+              <button
+                onClick={() => toggleTeam(team.id)}
+                className="w-full p-4 text-left"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-medium dark:text-white">{team.name}</h3>
+                    {team.description && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{team.description}</p>
+                    )}
+                  </div>
+                  <div className="text-right text-sm">
+                    <div className="text-gray-500 dark:text-gray-400">
+                      {team.member_count} member{team.member_count !== 1 ? 's' : ''}
+                    </div>
+                    <div className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
+                      Led by {team.leader.display_name || team.leader.username}
+                    </div>
+                  </div>
+                </div>
+              </button>
+              {expandedTeam === team.id && teamDetail && (
+                <div className="border-t dark:border-gray-700 p-4">
+                  {!teamDetail.members?.length ? (
+                    <p className="text-sm text-gray-400">No members yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {teamDetail.members.map((m) => (
+                        <div key={m.user_id} className="flex items-center justify-between text-sm">
+                          <div>
+                            <span className="dark:text-white">{m.display_name || m.username}</span>
+                            <span className="text-gray-400 ml-2">@{m.username}</span>
+                          </div>
+                          {m.user_id === team.leader.user_id && (
+                            <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 px-2 py-0.5 rounded-full">
+                              Leader
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

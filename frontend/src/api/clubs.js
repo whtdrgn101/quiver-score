@@ -28,3 +28,11 @@ export const getEvent = (clubId, eventId) => client.get(`/clubs/${clubId}/events
 export const updateEvent = (clubId, eventId, data) => client.patch(`/clubs/${clubId}/events/${eventId}`, data);
 export const deleteEvent = (clubId, eventId) => client.delete(`/clubs/${clubId}/events/${eventId}`);
 export const rsvpEvent = (clubId, eventId, data) => client.post(`/clubs/${clubId}/events/${eventId}/rsvp`, data);
+
+export const getTeams = (clubId) => client.get(`/clubs/${clubId}/teams`);
+export const getTeam = (clubId, teamId) => client.get(`/clubs/${clubId}/teams/${teamId}`);
+export const createTeam = (clubId, data) => client.post(`/clubs/${clubId}/teams`, data);
+export const updateTeam = (clubId, teamId, data) => client.patch(`/clubs/${clubId}/teams/${teamId}`, data);
+export const deleteTeam = (clubId, teamId) => client.delete(`/clubs/${clubId}/teams/${teamId}`);
+export const addTeamMember = (clubId, teamId, userId) => client.post(`/clubs/${clubId}/teams/${teamId}/members/${userId}`);
+export const removeTeamMember = (clubId, teamId, userId) => client.delete(`/clubs/${clubId}/teams/${teamId}/members/${userId}`);

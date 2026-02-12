@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { updateProfile, uploadAvatar, uploadAvatarUrl, deleteAvatar, changePassword } from '../api/auth';
+import { updateProfile, uploadAvatar, uploadAvatarUrl, deleteAvatar, changePassword, getMyClubsWithTeams } from '../api/auth';
 
 export default function Profile() {
   const { user, updateUser } = useAuth();
@@ -21,6 +22,11 @@ export default function Profile() {
   const [pwForm, setPwForm] = useState({ current_password: '', new_password: '', confirm: '' });
   const [pwMessage, setPwMessage] = useState('');
   const [copied, setCopied] = useState(false);
+  const [myClubs, setMyClubs] = useState([]);
+
+  useEffect(() => {
+    getMyClubsWithTeams().then((res) => setMyClubs(res.data)).catch(() => {});
+  }, []);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -257,6 +263,47 @@ export default function Profile() {
           {message && <span className="text-sm text-gray-600 dark:text-gray-400">{message}</span>}
         </div>
       </form>
+
+      {/* Clubs & Teams */}
+      {myClubs.length > 0 && (
+        <div className="mt-8 border-t dark:border-gray-700 pt-6">
+          <h2 className="text-lg font-semibold dark:text-white mb-3">My Clubs & Teams</h2>
+          <div className="space-y-3">
+            {myClubs.map((club) => (
+              <Link
+                key={club.club_id}
+                to={`/clubs/${club.club_id}`}
+                className="block bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium dark:text-white">{club.club_name}</span>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    club.role === 'owner'
+                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                      : club.role === 'admin'
+                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                  }`}>
+                    {club.role}
+                  </span>
+                </div>
+                {club.teams.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {club.teams.map((team) => (
+                      <span
+                        key={team.team_id}
+                        className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-full"
+                      >
+                        {team.team_name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Change Password */}
       <div className="mt-8 border-t dark:border-gray-700 pt-6">

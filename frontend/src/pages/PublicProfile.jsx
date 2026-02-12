@@ -117,6 +117,43 @@ export default function PublicProfile() {
           </div>
         )}
 
+        {/* Clubs & Teams */}
+        {profile.clubs?.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold mb-3 dark:text-white">Clubs & Teams</h2>
+            <div className="space-y-2">
+              {profile.clubs.map((club) => (
+                <div key={club.club_id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium dark:text-white">{club.club_name}</span>
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      club.role === 'owner'
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                        : club.role === 'admin'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                          : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                    }`}>
+                      {club.role}
+                    </span>
+                  </div>
+                  {club.teams.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {club.teams.map((team) => (
+                        <span
+                          key={team.team_id}
+                          className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-full"
+                        >
+                          {team.team_name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <p className="text-center text-xs text-gray-400 mt-8">
           Member since {new Date(profile.created_at).toLocaleDateString()}
         </p>

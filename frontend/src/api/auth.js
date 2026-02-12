@@ -19,3 +19,4 @@ export const resetPassword = (data) => client.post('/auth/reset-password', data)
 export const verifyEmail = (data) => client.post('/auth/verify-email', data);
 export const resendVerification = () => client.post('/auth/resend-verification');
 export const getPublicProfile = (username) => client.get(`/users/${username}`);
+export const getMyClubsWithTeams = () => client.get('/users/me/clubs');

@@ -23,6 +23,7 @@ class Club(Base):
     members: Mapped[list["ClubMember"]] = relationship(back_populates="club", lazy="selectin", cascade="all, delete-orphan")
     invite_codes: Mapped[list["ClubInvite"]] = relationship(lazy="noload", cascade="all, delete-orphan")
     events: Mapped[list["ClubEvent"]] = relationship(lazy="noload", cascade="all, delete-orphan")
+    teams: Mapped[list["ClubTeam"]] = relationship(lazy="noload", cascade="all, delete-orphan")
 
 
 class ClubMember(Base):
@@ -68,6 +69,34 @@ class ClubEvent(Base):
 
     template: Mapped["RoundTemplate"] = relationship(lazy="selectin")
     participants: Mapped[list["ClubEventParticipant"]] = relationship(lazy="selectin", cascade="all, delete-orphan")
+
+
+class ClubTeam(Base):
+    __tablename__ = "club_teams"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    club_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clubs.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text)
+    leader_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    club: Mapped["Club"] = relationship(lazy="selectin", overlaps="teams")
+    leader: Mapped["User"] = relationship(lazy="selectin")
+    members: Mapped[list["ClubTeamMember"]] = relationship(back_populates="team", lazy="selectin", cascade="all, delete-orphan")
+
+
+class ClubTeamMember(Base):
+    __tablename__ = "club_team_members"
+    __table_args__ = (UniqueConstraint("team_id", "user_id", name="uq_team_user"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    team_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("club_teams.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    team: Mapped["ClubTeam"] = relationship(back_populates="members")
+    user: Mapped["User"] = relationship(lazy="selectin")
 
 
 class ClubEventParticipant(Base):

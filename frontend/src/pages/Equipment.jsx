@@ -76,15 +76,24 @@ export default function Equipment() {
     setItems(eqRes.data);
   }, []);
 
+  const collapseSetup = useCallback(() => {
+    setExpandedSetupId(null);
+    setExpandedSetup(null);
+    setSetupEditing(false);
+    setShowAddEquipment(false);
+  }, []);
+
   useEffect(() => {
-    if (expandedSetupId) {
-      loadSetupDetail(expandedSetupId);
-    } else {
-      setExpandedSetup(null);
-      setSetupEditing(false);
-      setShowAddEquipment(false);
-    }
-  }, [expandedSetupId, loadSetupDetail]);
+    if (!expandedSetupId) return;
+    let cancelled = false;
+    Promise.all([getSetup(expandedSetupId), listEquipment()]).then(([setupRes, eqRes]) => {
+      if (!cancelled) {
+        setExpandedSetup(setupRes.data);
+        setItems(eqRes.data);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [expandedSetupId]);
 
   // Equipment handlers
   const resetForm = () => {
@@ -142,7 +151,7 @@ export default function Equipment() {
   const handleDeleteSetup = async (id) => {
     if (!confirm('Delete this setup profile?')) return;
     await deleteSetup(id);
-    if (expandedSetupId === id) setExpandedSetupId(null);
+    if (expandedSetupId === id) collapseSetup();
     loadSetups();
   };
 
@@ -417,7 +426,7 @@ export default function Equipment() {
                 <div key={s.id}>
                   <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex items-center justify-between">
                     <button
-                      onClick={() => setExpandedSetupId(expandedSetupId === s.id ? null : s.id)}
+                      onClick={() => expandedSetupId === s.id ? collapseSetup() : setExpandedSetupId(s.id)}
                       className="text-left flex-1"
                     >
                       <div className="font-medium dark:text-gray-100">{s.name}</div>
@@ -429,7 +438,7 @@ export default function Equipment() {
                     </button>
                     <div className="flex items-center gap-2 ml-4">
                       <button
-                        onClick={() => setExpandedSetupId(expandedSetupId === s.id ? null : s.id)}
+                        onClick={() => expandedSetupId === s.id ? collapseSetup() : setExpandedSetupId(s.id)}
                         className="text-sm text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                       >
                         {expandedSetupId === s.id ? (

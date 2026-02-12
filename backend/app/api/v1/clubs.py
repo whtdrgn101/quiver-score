@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.core.exceptions import AuthError, ConflictError, NotFoundError, ValidationError
-from app.models.club import Club, ClubEvent, ClubEventParticipant, ClubInvite, ClubMember
+from app.models.club import Club, ClubEvent, ClubEventParticipant, ClubInvite, ClubMember, ClubTeam, ClubTeamMember
 from app.models.scoring import PersonalRecord, ScoringSession
 from app.models.user import User
 from app.schemas.club import (
@@ -30,6 +30,11 @@ from app.schemas.club import (
     JoinResult,
     LeaderboardEntry,
     LeaderboardOut,
+    TeamCreate,
+    TeamDetailOut,
+    TeamMemberOut,
+    TeamOut,
+    TeamUpdate,
 )
 
 router = APIRouter(prefix="/clubs", tags=["clubs"])
@@ -701,6 +706,53 @@ async def rsvp_event(
     return await _event_out(event, db)
 
 
+def _team_member_out(tm) -> TeamMemberOut:
+    return TeamMemberOut(
+        user_id=tm.user_id,
+        username=tm.user.username,
+        display_name=tm.user.display_name,
+        avatar=tm.user.avatar,
+        joined_at=tm.joined_at,
+    )
+
+
+def _team_out(team: ClubTeam) -> TeamOut:
+    return TeamOut(
+        id=team.id,
+        club_id=team.club_id,
+        name=team.name,
+        description=team.description,
+        leader=TeamMemberOut(
+            user_id=team.leader.id,
+            username=team.leader.username,
+            display_name=team.leader.display_name,
+            avatar=team.leader.avatar,
+            joined_at=team.created_at,
+        ),
+        member_count=len(team.members),
+        created_at=team.created_at,
+    )
+
+
+def _team_detail_out(team: ClubTeam) -> TeamDetailOut:
+    return TeamDetailOut(
+        id=team.id,
+        club_id=team.club_id,
+        name=team.name,
+        description=team.description,
+        leader=TeamMemberOut(
+            user_id=team.leader.id,
+            username=team.leader.username,
+            display_name=team.leader.display_name,
+            avatar=team.leader.avatar,
+            joined_at=team.created_at,
+        ),
+        member_count=len(team.members),
+        created_at=team.created_at,
+        members=[_team_member_out(m) for m in team.members],
+    )
+
+
 async def _event_out(event: ClubEvent, db: AsyncSession) -> EventOut:
     now = datetime.now(timezone.utc)
     is_past = event.event_date < now
@@ -760,3 +812,196 @@ async def _event_out(event: ClubEvent, db: AsyncSession) -> EventOut:
         participants=participants,
         created_at=event.created_at,
     )
+
+
+# ── Teams ────────────────────────────────────────────────────────────
+
+
+@router.post("/{club_id}/teams", response_model=TeamOut, status_code=status.HTTP_201_CREATED)
+async def create_team(
+    club_id: uuid.UUID,
+    body: TeamCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    member = await _get_club_member(db, club_id, user.id)
+    if member.role not in ("owner", "admin"):
+        raise AuthError("Only owners and admins can create teams")
+
+    # Validate leader is a club member
+    leader_member = await db.execute(
+        select(ClubMember).where(ClubMember.club_id == club_id, ClubMember.user_id == body.leader_id)
+    )
+    if not leader_member.scalar_one_or_none():
+        raise ValidationError("Leader must be an existing club member")
+
+    team = ClubTeam(
+        club_id=club_id,
+        name=body.name,
+        description=body.description,
+        leader_id=body.leader_id,
+    )
+    db.add(team)
+    await db.commit()
+    await db.refresh(team)
+    return _team_out(team)
+
+
+@router.get("/{club_id}/teams", response_model=list[TeamOut])
+async def list_teams(
+    club_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_club_member(db, club_id, user.id)
+    result = await db.execute(
+        select(ClubTeam).where(ClubTeam.club_id == club_id).order_by(ClubTeam.name)
+    )
+    teams = result.scalars().all()
+    return [_team_out(t) for t in teams]
+
+
+@router.get("/{club_id}/teams/{team_id}", response_model=TeamDetailOut)
+async def get_team(
+    club_id: uuid.UUID,
+    team_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_club_member(db, club_id, user.id)
+    result = await db.execute(
+        select(ClubTeam).where(ClubTeam.id == team_id, ClubTeam.club_id == club_id)
+    )
+    team = result.scalar_one_or_none()
+    if not team:
+        raise NotFoundError("Team not found")
+    return _team_detail_out(team)
+
+
+@router.patch("/{club_id}/teams/{team_id}", response_model=TeamOut)
+async def update_team(
+    club_id: uuid.UUID,
+    team_id: uuid.UUID,
+    body: TeamUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    member = await _get_club_member(db, club_id, user.id)
+    if member.role not in ("owner", "admin"):
+        raise AuthError("Only owners and admins can update teams")
+
+    result = await db.execute(
+        select(ClubTeam).where(ClubTeam.id == team_id, ClubTeam.club_id == club_id)
+    )
+    team = result.scalar_one_or_none()
+    if not team:
+        raise NotFoundError("Team not found")
+
+    if body.name is not None:
+        team.name = body.name
+    if body.description is not None:
+        team.description = body.description
+    if body.leader_id is not None:
+        leader_member = await db.execute(
+            select(ClubMember).where(ClubMember.club_id == club_id, ClubMember.user_id == body.leader_id)
+        )
+        if not leader_member.scalar_one_or_none():
+            raise ValidationError("Leader must be an existing club member")
+        team.leader_id = body.leader_id
+
+    await db.commit()
+    await db.refresh(team)
+    return _team_out(team)
+
+
+@router.delete("/{club_id}/teams/{team_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_team(
+    club_id: uuid.UUID,
+    team_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    member = await _get_club_member(db, club_id, user.id)
+    if member.role not in ("owner", "admin"):
+        raise AuthError("Only owners and admins can delete teams")
+
+    result = await db.execute(
+        select(ClubTeam).where(ClubTeam.id == team_id, ClubTeam.club_id == club_id)
+    )
+    team = result.scalar_one_or_none()
+    if not team:
+        raise NotFoundError("Team not found")
+    await db.delete(team)
+    await db.commit()
+
+
+@router.post("/{club_id}/teams/{team_id}/members/{user_id}", status_code=status.HTTP_201_CREATED)
+async def add_team_member(
+    club_id: uuid.UUID,
+    team_id: uuid.UUID,
+    user_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    caller = await _get_club_member(db, club_id, user.id)
+
+    result = await db.execute(
+        select(ClubTeam).where(ClubTeam.id == team_id, ClubTeam.club_id == club_id)
+    )
+    team = result.scalar_one_or_none()
+    if not team:
+        raise NotFoundError("Team not found")
+
+    # Permission check: owner/admin or team leader
+    if caller.role not in ("owner", "admin") and team.leader_id != user.id:
+        raise AuthError("Only owners, admins, or the team leader can manage team members")
+
+    # Validate target is a club member
+    target_member = await db.execute(
+        select(ClubMember).where(ClubMember.club_id == club_id, ClubMember.user_id == user_id)
+    )
+    if not target_member.scalar_one_or_none():
+        raise ValidationError("User must be an existing club member")
+
+    # Check not already on team
+    existing = await db.execute(
+        select(ClubTeamMember).where(ClubTeamMember.team_id == team_id, ClubTeamMember.user_id == user_id)
+    )
+    if existing.scalar_one_or_none():
+        raise ConflictError("User is already a member of this team")
+
+    tm = ClubTeamMember(team_id=team_id, user_id=user_id)
+    db.add(tm)
+    await db.commit()
+    return {"detail": "Member added to team"}
+
+
+@router.delete("/{club_id}/teams/{team_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_team_member(
+    club_id: uuid.UUID,
+    team_id: uuid.UUID,
+    user_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    caller = await _get_club_member(db, club_id, user.id)
+
+    result = await db.execute(
+        select(ClubTeam).where(ClubTeam.id == team_id, ClubTeam.club_id == club_id)
+    )
+    team = result.scalar_one_or_none()
+    if not team:
+        raise NotFoundError("Team not found")
+
+    # Permission check: owner/admin or team leader
+    if caller.role not in ("owner", "admin") and team.leader_id != user.id:
+        raise AuthError("Only owners, admins, or the team leader can manage team members")
+
+    existing = await db.execute(
+        select(ClubTeamMember).where(ClubTeamMember.team_id == team_id, ClubTeamMember.user_id == user_id)
+    )
+    tm = existing.scalar_one_or_none()
+    if not tm:
+        raise NotFoundError("User is not a member of this team")
+    await db.delete(tm)
+    await db.commit()

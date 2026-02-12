@@ -8,8 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
+from app.models.club import Club, ClubMember, ClubTeam, ClubTeamMember
 from app.models.scoring import ScoringSession
-from app.schemas.user import AvatarUrlUpload, UserOut, UserUpdate, PublicProfileOut, PublicSessionSummary
+from app.schemas.user import AvatarUrlUpload, ProfileClubOut, ProfileClubTeamOut, UserOut, UserUpdate, PublicProfileOut, PublicSessionSummary
 from app.core.exceptions import NotFoundError
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -91,6 +92,39 @@ async def delete_avatar(
     return user
 
 
+@router.get("/me/clubs", response_model=list[ProfileClubOut])
+async def get_my_clubs_with_teams(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    memberships_result = await db.execute(
+        select(ClubMember).where(ClubMember.user_id == user.id)
+    )
+    memberships = memberships_result.scalars().all()
+    clubs_out = []
+    for membership in memberships:
+        club_result = await db.execute(select(Club).where(Club.id == membership.club_id))
+        club = club_result.scalar_one_or_none()
+        if not club:
+            continue
+        team_memberships = await db.execute(
+            select(ClubTeamMember).where(ClubTeamMember.user_id == user.id)
+        )
+        team_members = team_memberships.scalars().all()
+        teams_out = []
+        for tm in team_members:
+            team_result = await db.execute(
+                select(ClubTeam).where(ClubTeam.id == tm.team_id, ClubTeam.club_id == club.id)
+            )
+            team = team_result.scalar_one_or_none()
+            if team:
+                teams_out.append(ProfileClubTeamOut(team_id=team.id, team_name=team.name))
+        clubs_out.append(ProfileClubOut(
+            club_id=club.id, club_name=club.name, role=membership.role, teams=teams_out,
+        ))
+    return clubs_out
+
+
 @router.get("/{username}", response_model=PublicProfileOut)
 async def get_public_profile(
     username: str,
@@ -129,6 +163,34 @@ async def get_public_profile(
         for s in recent
     ]
 
+    # Clubs and teams
+    memberships_result = await db.execute(
+        select(ClubMember).where(ClubMember.user_id == user.id)
+    )
+    memberships = memberships_result.scalars().all()
+    clubs_out = []
+    for membership in memberships:
+        club_result = await db.execute(select(Club).where(Club.id == membership.club_id))
+        club = club_result.scalar_one_or_none()
+        if not club:
+            continue
+        # Find teams in this club the user belongs to
+        team_memberships = await db.execute(
+            select(ClubTeamMember).where(ClubTeamMember.user_id == user.id)
+        )
+        team_members = team_memberships.scalars().all()
+        teams_out = []
+        for tm in team_members:
+            team_result = await db.execute(
+                select(ClubTeam).where(ClubTeam.id == tm.team_id, ClubTeam.club_id == club.id)
+            )
+            team = team_result.scalar_one_or_none()
+            if team:
+                teams_out.append(ProfileClubTeamOut(team_id=team.id, team_name=team.name))
+        clubs_out.append(ProfileClubOut(
+            club_id=club.id, club_name=club.name, role=membership.role, teams=teams_out,
+        ))
+
     return PublicProfileOut(
         username=user.username,
         display_name=user.display_name,
@@ -143,4 +205,5 @@ async def get_public_profile(
         personal_best_score=personal_best_score,
         personal_best_template=personal_best_template,
         recent_sessions=recent_sessions,
+        clubs=clubs_out,
     )

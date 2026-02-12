@@ -41,6 +41,7 @@ class PublicProfileOut(BaseModel):
     personal_best_score: int | None = None
     personal_best_template: str | None = None
     recent_sessions: list["PublicSessionSummary"]
+    clubs: list["ProfileClubOut"] = []
 
     model_config = {"from_attributes": True}
 
@@ -52,6 +53,18 @@ class PublicSessionSummary(BaseModel):
     total_arrows: int
     completed_at: datetime | None
     share_token: str | None
+
+
+class ProfileClubTeamOut(BaseModel):
+    team_id: uuid.UUID
+    team_name: str
+
+
+class ProfileClubOut(BaseModel):
+    club_id: uuid.UUID
+    club_name: str
+    role: str
+    teams: list[ProfileClubTeamOut]
 
 
 class AvatarUrlUpload(BaseModel):

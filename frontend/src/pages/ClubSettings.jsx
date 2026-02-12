@@ -5,6 +5,8 @@ import {
   createInvite, getInvites, deactivateInvite,
   promoteMember, demoteMember, removeMember,
   createEvent,
+  getTeams, getTeam, createTeam, updateTeam, deleteTeam,
+  addTeamMember, removeTeamMember,
 } from '../api/clubs';
 import { getRounds } from '../api/scoring';
 import { useAuth } from '../hooks/useAuth';
@@ -30,16 +32,26 @@ export default function ClubSettings() {
   const [showEventForm, setShowEventForm] = useState(false);
   const [eventForm, setEventForm] = useState({ name: '', description: '', template_id: '', event_date: '', location: '' });
 
+  // Teams
+  const [teamsList, setTeamsList] = useState([]);
+  const [showTeamForm, setShowTeamForm] = useState(false);
+  const [teamForm, setTeamForm] = useState({ name: '', description: '', leader_id: '' });
+  const [editingTeam, setEditingTeam] = useState(null);
+  const [expandedTeam, setExpandedTeam] = useState(null);
+  const [teamDetail, setTeamDetail] = useState(null);
+
   const load = async () => {
     try {
-      const [clubRes, inviteRes, roundRes] = await Promise.all([
+      const [clubRes, inviteRes, roundRes, teamsRes] = await Promise.all([
         getClub(clubId),
         getInvites(clubId).catch(() => ({ data: [] })),
         getRounds(),
+        getTeams(clubId).catch(() => ({ data: [] })),
       ]);
       setClub(clubRes.data);
       setInvites(inviteRes.data);
       setRounds(roundRes.data);
+      setTeamsList(teamsRes.data);
       setEditForm({ name: clubRes.data.name, description: clubRes.data.description || '' });
     } catch {
       setError('Failed to load club settings');
@@ -150,6 +162,105 @@ export default function ClubSettings() {
     }
   };
 
+  const handleCreateTeam = async (e) => {
+    e.preventDefault();
+    try {
+      await createTeam(clubId, {
+        name: teamForm.name,
+        leader_id: teamForm.leader_id,
+        ...(teamForm.description && { description: teamForm.description }),
+      });
+      setShowTeamForm(false);
+      setTeamForm({ name: '', description: '', leader_id: '' });
+      flash('Team created');
+      const res = await getTeams(clubId);
+      setTeamsList(res.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to create team');
+    }
+  };
+
+  const handleUpdateTeam = async (e) => {
+    e.preventDefault();
+    try {
+      const data = {};
+      if (teamForm.name) data.name = teamForm.name;
+      if (teamForm.description !== undefined) data.description = teamForm.description;
+      if (teamForm.leader_id) data.leader_id = teamForm.leader_id;
+      await updateTeam(clubId, editingTeam, data);
+      setEditingTeam(null);
+      setTeamForm({ name: '', description: '', leader_id: '' });
+      flash('Team updated');
+      const res = await getTeams(clubId);
+      setTeamsList(res.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to update team');
+    }
+  };
+
+  const handleDeleteTeam = async (teamId) => {
+    if (!confirm('Delete this team?')) return;
+    try {
+      await deleteTeam(clubId, teamId);
+      flash('Team deleted');
+      const res = await getTeams(clubId);
+      setTeamsList(res.data);
+      if (expandedTeam === teamId) {
+        setExpandedTeam(null);
+        setTeamDetail(null);
+      }
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to delete team');
+    }
+  };
+
+  const toggleExpandTeam = async (teamId) => {
+    if (expandedTeam === teamId) {
+      setExpandedTeam(null);
+      setTeamDetail(null);
+    } else {
+      setExpandedTeam(teamId);
+      try {
+        const res = await getTeam(clubId, teamId);
+        setTeamDetail(res.data);
+      } catch {
+        setTeamDetail(null);
+      }
+    }
+  };
+
+  const handleAddTeamMember = async (teamId, userId) => {
+    try {
+      await addTeamMember(clubId, teamId, userId);
+      flash('Member added to team');
+      const res = await getTeam(clubId, teamId);
+      setTeamDetail(res.data);
+      const teamsRes = await getTeams(clubId);
+      setTeamsList(teamsRes.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to add member');
+    }
+  };
+
+  const handleRemoveTeamMember = async (teamId, userId) => {
+    try {
+      await removeTeamMember(clubId, teamId, userId);
+      flash('Member removed from team');
+      const res = await getTeam(clubId, teamId);
+      setTeamDetail(res.data);
+      const teamsRes = await getTeams(clubId);
+      setTeamsList(teamsRes.data);
+    } catch (err) {
+      setError(err.response?.data?.detail || 'Failed to remove member');
+    }
+  };
+
+  const startEditTeam = (team) => {
+    setEditingTeam(team.id);
+    setTeamForm({ name: team.name, description: team.description || '', leader_id: team.leader.user_id });
+    setShowTeamForm(false);
+  };
+
   const copyInvite = (url) => {
     navigator.clipboard.writeText(url).then(() => flash('Link copied'));
   };
@@ -158,6 +269,7 @@ export default function ClubSettings() {
   if (!club) return <p className="text-red-500">Club not found</p>;
 
   const isOwner = club.my_role === 'owner';
+  const isAdmin = club.my_role === 'owner' || club.my_role === 'admin';
 
   return (
     <div className="space-y-8">
@@ -332,6 +444,137 @@ export default function ClubSettings() {
               Create Event
             </button>
           </form>
+        )}
+      </section>
+
+      {/* Teams */}
+      <section className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-semibold dark:text-white">Teams</h2>
+          {isAdmin && !editingTeam && (
+            <button
+              onClick={() => { setShowTeamForm(!showTeamForm); setEditingTeam(null); setTeamForm({ name: '', description: '', leader_id: '' }); }}
+              className="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
+            >
+              {showTeamForm ? 'Cancel' : '+ Create Team'}
+            </button>
+          )}
+        </div>
+
+        {/* Create / Edit form */}
+        {(showTeamForm || editingTeam) && isAdmin && (
+          <form onSubmit={editingTeam ? handleUpdateTeam : handleCreateTeam} className="space-y-3 mb-4">
+            <input
+              required
+              maxLength={100}
+              value={teamForm.name}
+              onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+              placeholder="Team name"
+            />
+            <textarea
+              value={teamForm.description}
+              onChange={(e) => setTeamForm({ ...teamForm, description: e.target.value })}
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+              rows={2}
+              placeholder="Description"
+            />
+            <select
+              required
+              value={teamForm.leader_id}
+              onChange={(e) => setTeamForm({ ...teamForm, leader_id: e.target.value })}
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+            >
+              <option value="">Select team leader...</option>
+              {club.members.map((m) => (
+                <option key={m.user_id} value={m.user_id}>{m.display_name || m.username}</option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
+                {editingTeam ? 'Save Changes' : 'Create Team'}
+              </button>
+              {editingTeam && (
+                <button type="button" onClick={() => { setEditingTeam(null); setTeamForm({ name: '', description: '', leader_id: '' }); }} className="text-sm text-gray-500 hover:underline">
+                  Cancel
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+
+        {/* Teams list */}
+        {teamsList.length === 0 ? (
+          <p className="text-sm text-gray-400">No teams yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {teamsList.map((team) => {
+              const canManageMembers = isAdmin || team.leader.user_id === user?.id;
+              return (
+                <div key={team.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div className="flex items-center justify-between p-3">
+                    <button onClick={() => toggleExpandTeam(team.id)} className="text-left flex-1">
+                      <span className="text-sm font-medium dark:text-white">{team.name}</span>
+                      <span className="text-xs text-gray-400 ml-2">{team.member_count} members</span>
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 ml-2">
+                        Led by {team.leader.display_name || team.leader.username}
+                      </span>
+                    </button>
+                    {isAdmin && (
+                      <div className="flex gap-2 ml-2">
+                        <button onClick={() => startEditTeam(team)} className="text-xs text-blue-600 hover:underline">Edit</button>
+                        <button onClick={() => handleDeleteTeam(team.id)} className="text-xs text-red-500 hover:underline">Delete</button>
+                      </div>
+                    )}
+                  </div>
+                  {expandedTeam === team.id && teamDetail && (
+                    <div className="border-t dark:border-gray-600 p-3">
+                      {/* Current members */}
+                      {teamDetail.members?.length > 0 && (
+                        <div className="space-y-1 mb-3">
+                          {teamDetail.members.map((m) => (
+                            <div key={m.user_id} className="flex items-center justify-between text-sm py-1">
+                              <div>
+                                <span className="dark:text-white">{m.display_name || m.username}</span>
+                                {m.user_id === team.leader.user_id && (
+                                  <span className="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 px-2 py-0.5 rounded-full ml-2">Leader</span>
+                                )}
+                              </div>
+                              {canManageMembers && (
+                                <button onClick={() => handleRemoveTeamMember(team.id, m.user_id)} className="text-xs text-red-500 hover:underline">Remove</button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Add member */}
+                      {canManageMembers && (() => {
+                        const teamMemberIds = new Set(teamDetail.members?.map((m) => m.user_id) || []);
+                        const available = club.members.filter((m) => !teamMemberIds.has(m.user_id));
+                        if (!available.length) return null;
+                        return (
+                          <div>
+                            <p className="text-xs text-gray-400 mb-1">Add member:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {available.map((m) => (
+                                <button
+                                  key={m.user_id}
+                                  onClick={() => handleAddTeamMember(team.id, m.user_id)}
+                                  className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40"
+                                >
+                                  + {m.display_name || m.username}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
 

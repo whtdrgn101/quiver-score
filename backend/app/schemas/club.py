@@ -150,3 +150,43 @@ class EventOut(BaseModel):
 
 class EventRSVP(BaseModel):
     status: str = Field(pattern=r"^(going|maybe|declined)$")
+
+
+# ── Teams ────────────────────────────────────────────────────────────
+
+class TeamCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    description: str | None = Field(None, max_length=500)
+    leader_id: uuid.UUID
+
+
+class TeamUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=100)
+    description: str | None = Field(None, max_length=500)
+    leader_id: uuid.UUID | None = None
+
+
+class TeamMemberOut(BaseModel):
+    user_id: uuid.UUID
+    username: str
+    display_name: str | None
+    avatar: str | None
+    joined_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TeamOut(BaseModel):
+    id: uuid.UUID
+    club_id: uuid.UUID
+    name: str
+    description: str | None
+    leader: TeamMemberOut
+    member_count: int
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TeamDetailOut(TeamOut):
+    members: list[TeamMemberOut]
