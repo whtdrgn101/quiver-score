@@ -27,6 +27,10 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-start justify-center pt-16">
       <div className="w-full max-w-md px-4">
+        <Link to="/" className="inline-flex items-center text-sm text-emerald-600 hover:underline mb-4">
+          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Back
+        </Link>
         <h1 className="text-2xl font-bold mb-6 text-center dark:text-white">Sign In</h1>
         {error && <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-3 rounded mb-4">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
