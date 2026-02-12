@@ -40,6 +40,9 @@ export default function ClubSettings() {
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [teamDetail, setTeamDetail] = useState(null);
 
+  // Shared submitting state for async buttons
+  const [submitting, setSubmitting] = useState(false);
+
   const load = async () => {
     try {
       const [clubRes, inviteRes, roundRes, teamsRes] = await Promise.all([
@@ -66,12 +69,15 @@ export default function ClubSettings() {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       await updateClub(clubId, { name: editForm.name, description: editForm.description || undefined });
       flash('Club updated');
       load();
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to update');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -87,6 +93,7 @@ export default function ClubSettings() {
 
   const handleCreateInvite = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       const data = {};
       if (inviteForm.max_uses) data.max_uses = parseInt(inviteForm.max_uses);
@@ -98,6 +105,8 @@ export default function ClubSettings() {
       setInvites(res.data);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create invite');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -145,6 +154,7 @@ export default function ClubSettings() {
 
   const handleCreateEvent = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       const data = {
         name: eventForm.name,
@@ -159,11 +169,14 @@ export default function ClubSettings() {
       flash('Event created');
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create event');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleCreateTeam = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       await createTeam(clubId, {
         name: teamForm.name,
@@ -177,11 +190,14 @@ export default function ClubSettings() {
       setTeamsList(res.data);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create team');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleUpdateTeam = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       const data = {};
       if (teamForm.name) data.name = teamForm.name;
@@ -195,6 +211,8 @@ export default function ClubSettings() {
       setTeamsList(res.data);
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to update team');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -303,8 +321,8 @@ export default function ClubSettings() {
               rows={2}
               placeholder="Description"
             />
-            <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
-              Save
+            <button type="submit" disabled={submitting} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+              {submitting ? 'Saving...' : 'Save'}
             </button>
           </form>
         </section>
@@ -331,8 +349,8 @@ export default function ClubSettings() {
             className="w-32 border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
             placeholder="Expires (hrs)"
           />
-          <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
-            Generate
+          <button type="submit" disabled={submitting} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+            {submitting ? 'Generating...' : 'Generate'}
           </button>
         </form>
         {invites.length === 0 ? (
@@ -440,8 +458,8 @@ export default function ClubSettings() {
               className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
               placeholder="Location"
             />
-            <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
-              Create Event
+            <button type="submit" disabled={submitting} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+              {submitting ? 'Creating...' : 'Create Event'}
             </button>
           </form>
         )}
@@ -491,8 +509,8 @@ export default function ClubSettings() {
               ))}
             </select>
             <div className="flex gap-2">
-              <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
-                {editingTeam ? 'Save Changes' : 'Create Team'}
+              <button type="submit" disabled={submitting} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                {submitting ? (editingTeam ? 'Saving...' : 'Creating...') : (editingTeam ? 'Save Changes' : 'Create Team')}
               </button>
               {editingTeam && (
                 <button type="button" onClick={() => { setEditingTeam(null); setTeamForm({ name: '', description: '', leader_id: '' }); }} className="text-sm text-gray-500 hover:underline">
