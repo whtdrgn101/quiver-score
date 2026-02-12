@@ -4,6 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -70,7 +71,9 @@ async def get_shared_session(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(ScoringSession).where(ScoringSession.share_token == token)
+        select(ScoringSession)
+        .where(ScoringSession.share_token == token)
+        .options(selectinload(ScoringSession.user))
     )
     session = result.scalar_one_or_none()
     if not session:
