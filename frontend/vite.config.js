@@ -12,7 +12,7 @@ export default defineConfig({
       manifest: {
         name: 'QuiverScore',
         short_name: 'QuiverScore',
-        description: 'Target archery score tracking',
+        description: 'Track every arrow, master every round. The modern score tracker for target archers.',
         theme_color: '#047857',
         background_color: '#f9fafb',
         display: 'standalone',
