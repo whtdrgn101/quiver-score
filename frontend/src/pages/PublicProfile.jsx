@@ -120,6 +120,19 @@ export default function PublicProfile() {
         <p className="text-center text-xs text-gray-400 mt-8">
           Member since {new Date(profile.created_at).toLocaleDateString()}
         </p>
+
+        {/* CTA */}
+        <div className="mt-6 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-4 text-center">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Track your archery scores with QuiverScore</p>
+          <div className="flex justify-center gap-3">
+            <Link to="/register" className="text-sm font-medium bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
+              Sign Up Free
+            </Link>
+            <Link to="/" className="text-sm font-medium border border-emerald-600 text-emerald-600 dark:text-emerald-400 px-4 py-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30">
+              Learn More
+            </Link>
+          </div>
+        </div>
       </main>
     </div>
   );
