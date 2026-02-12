@@ -172,6 +172,45 @@ export default function Dashboard() {
             })}
           </div>
 
+          {/* Personal Records */}
+          {stats?.personal_records?.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold mb-3 dark:text-white">Personal Records</h2>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th className="px-3 py-2 text-left dark:text-gray-300">Round</th>
+                      <th className="px-3 py-2 text-right dark:text-gray-300">Score</th>
+                      <th className="px-3 py-2 text-right dark:text-gray-300">%</th>
+                      <th className="px-3 py-2 text-right dark:text-gray-300">Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stats.personal_records.map((pr) => (
+                      <tr key={pr.session_id} className="border-t dark:border-gray-700">
+                        <td className="px-3 py-2 dark:text-gray-300">
+                          <Link to={`/sessions/${pr.session_id}`} className="text-emerald-600 hover:underline">
+                            {pr.template_name}
+                          </Link>
+                        </td>
+                        <td className="px-3 py-2 text-right font-medium dark:text-gray-100">
+                          {pr.score}/{pr.max_score}
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400">
+                          {pr.max_score > 0 ? ((pr.score / pr.max_score) * 100).toFixed(1) : 0}%
+                        </td>
+                        <td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400">
+                          {new Date(pr.achieved_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
           {/* Score by Round Type */}
           {stats?.avg_by_round_type?.length > 0 && (
             <div className="mb-8">

@@ -9,11 +9,11 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.user import User
 from app.models.round_template import RoundTemplateStage
-from app.models.scoring import ScoringSession, End, Arrow
+from app.models.scoring import ScoringSession, End, Arrow, PersonalRecord
 from app.models.setup_profile import SetupProfile
 from app.schemas.scoring import (
     SessionCreate, SessionOut, SessionSummary, EndIn, EndOut, SessionComplete,
-    StatsOut, RoundTypeAvg, RecentTrendItem,
+    StatsOut, RoundTypeAvg, RecentTrendItem, PersonalRecordOut,
 )
 from app.core.exceptions import NotFoundError, ValidationError
 
@@ -127,6 +127,29 @@ async def session_stats(
             date=s.completed_at or s.started_at,
         ))
 
+    # Personal records
+    pr_result = await db.execute(
+        select(PersonalRecord).where(PersonalRecord.user_id == user.id)
+    )
+    prs = pr_result.scalars().all()
+    pr_list = []
+    for pr in prs:
+        template = pr.template
+        if template and template.stages:
+            pr_max = sum(
+                st.num_ends * st.arrows_per_end * st.max_score_per_arrow
+                for st in template.stages
+            )
+        else:
+            pr_max = 0
+        pr_list.append(PersonalRecordOut(
+            template_name=template.name if template else "Unknown",
+            score=pr.score,
+            max_score=pr_max,
+            achieved_at=pr.achieved_at,
+            session_id=pr.session_id,
+        ))
+
     return StatsOut(
         total_sessions=len(sessions),
         completed_sessions=len(completed),
@@ -136,7 +159,37 @@ async def session_stats(
         personal_best_template=best.template.name if best and best.template else None,
         avg_by_round_type=avg_by_round,
         recent_trend=recent,
+        personal_records=pr_list,
     )
+
+
+@router.get("/personal-records", response_model=list[PersonalRecordOut])
+async def list_personal_records(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(PersonalRecord).where(PersonalRecord.user_id == user.id)
+    )
+    prs = result.scalars().all()
+    out = []
+    for pr in prs:
+        template = pr.template
+        if template and template.stages:
+            pr_max = sum(
+                st.num_ends * st.arrows_per_end * st.max_score_per_arrow
+                for st in template.stages
+            )
+        else:
+            pr_max = 0
+        out.append(PersonalRecordOut(
+            template_name=template.name if template else "Unknown",
+            score=pr.score,
+            max_score=pr_max,
+            achieved_at=pr.achieved_at,
+            session_id=pr.session_id,
+        ))
+    return out
 
 
 @router.get("/{session_id}", response_model=SessionOut)
@@ -151,6 +204,51 @@ async def get_session(
     session = result.scalar_one_or_none()
     if not session:
         raise NotFoundError("Session not found")
+    out = _session_out(session)
+    # Check if this session holds a personal record
+    pr_result = await db.execute(
+        select(PersonalRecord).where(
+            PersonalRecord.user_id == user.id,
+            PersonalRecord.session_id == session.id,
+        )
+    )
+    if pr_result.scalar_one_or_none():
+        out.is_personal_best = True
+    return out
+
+
+@router.delete("/{session_id}/ends/last", response_model=SessionOut)
+async def undo_last_end(
+    session_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ScoringSession).where(ScoringSession.id == session_id, ScoringSession.user_id == user.id)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise NotFoundError("Session not found")
+    if session.status != "in_progress":
+        raise ValidationError("Session is not in progress")
+    if not session.ends:
+        raise ValidationError("No ends to undo")
+
+    last_end = session.ends[-1]
+
+    # Subtract totals
+    x_count = sum(1 for a in last_end.arrows if a.score_value == "X")
+    session.total_score -= last_end.end_total
+    session.total_x_count -= x_count
+    session.total_arrows -= len(last_end.arrows)
+
+    # Delete arrows then end
+    for arrow in last_end.arrows:
+        await db.delete(arrow)
+    await db.delete(last_end)
+
+    await db.commit()
+    await db.refresh(session)
     return _session_out(session)
 
 
@@ -245,6 +343,33 @@ async def complete_session(
     if body and body.notes:
         session.notes = body.notes
 
+    # Check personal record
+    is_personal_best = False
+    result = await db.execute(
+        select(PersonalRecord).where(
+            PersonalRecord.user_id == user.id,
+            PersonalRecord.template_id == session.template_id,
+        )
+    )
+    existing_pr = result.scalar_one_or_none()
+    if existing_pr is None or session.total_score > existing_pr.score:
+        if existing_pr:
+            existing_pr.session_id = session.id
+            existing_pr.score = session.total_score
+            existing_pr.achieved_at = session.completed_at
+        else:
+            pr = PersonalRecord(
+                user_id=user.id,
+                template_id=session.template_id,
+                session_id=session.id,
+                score=session.total_score,
+                achieved_at=session.completed_at,
+            )
+            db.add(pr)
+        is_personal_best = True
+
     await db.commit()
     await db.refresh(session)
-    return _session_out(session)
+    out = _session_out(session)
+    out.is_personal_best = is_personal_best
+    return out

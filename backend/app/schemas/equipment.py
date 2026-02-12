@@ -47,3 +47,12 @@ class EquipmentOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class EquipmentUsageOut(BaseModel):
+    item_id: uuid.UUID
+    item_name: str
+    category: str
+    sessions_count: int
+    total_arrows: int
+    last_used: datetime | None

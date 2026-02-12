@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { listEquipment, createEquipment, updateEquipment, deleteEquipment } from '../api/equipment';
+import { listEquipment, createEquipment, updateEquipment, deleteEquipment, getEquipmentStats } from '../api/equipment';
 
 const CATEGORIES = [
   'riser', 'limbs', 'arrows', 'sight', 'stabilizer', 'rest', 'release', 'scope', 'string', 'other',
@@ -17,10 +17,14 @@ export default function Equipment() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ category: 'riser', name: '', brand: '', model: '', notes: '' });
+  const [usageStats, setUsageStats] = useState([]);
 
   const load = () => {
-    listEquipment()
-      .then((res) => setItems(res.data))
+    Promise.all([listEquipment(), getEquipmentStats()])
+      .then(([eqRes, statsRes]) => {
+        setItems(eqRes.data);
+        setUsageStats(statsRes.data);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -178,6 +182,43 @@ export default function Equipment() {
             </div>
           </div>
         ))
+      )}
+
+      {/* Usage Stats */}
+      {usageStats.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-lg font-semibold mb-3 dark:text-white">Usage Stats</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                  <th className="px-3 py-2 text-left dark:text-gray-300">Item</th>
+                  <th className="px-3 py-2 text-right dark:text-gray-300">Sessions</th>
+                  <th className="px-3 py-2 text-right dark:text-gray-300">Arrows</th>
+                  <th className="px-3 py-2 text-right dark:text-gray-300">Last Used</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usageStats.map((stat) => (
+                  <tr
+                    key={stat.item_id}
+                    className={`border-t dark:border-gray-700 ${stat.sessions_count === 0 ? 'opacity-40' : ''}`}
+                  >
+                    <td className="px-3 py-2 dark:text-gray-300">
+                      <div>{stat.item_name}</div>
+                      <div className="text-xs text-gray-400">{CATEGORY_LABELS[stat.category] || stat.category}</div>
+                    </td>
+                    <td className="px-3 py-2 text-right font-medium dark:text-gray-100">{stat.sessions_count}</td>
+                    <td className="px-3 py-2 text-right dark:text-gray-300">{stat.total_arrows}</td>
+                    <td className="px-3 py-2 text-right text-gray-500 dark:text-gray-400">
+                      {stat.last_used ? new Date(stat.last_used).toLocaleDateString() : '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       )}
     </div>
   );

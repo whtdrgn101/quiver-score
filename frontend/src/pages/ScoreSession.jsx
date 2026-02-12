@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getSession, submitEnd, completeSession } from '../api/scoring';
+import { getSession, submitEnd, completeSession, undoLastEnd } from '../api/scoring';
 
 export default function ScoreSession() {
   const { sessionId } = useParams();
@@ -10,6 +10,8 @@ export default function ScoreSession() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [finalNotes, setFinalNotes] = useState('');
+  const [undoing, setUndoing] = useState(false);
+  const [showPRBanner, setShowPRBanner] = useState(false);
 
   const loadSession = useCallback(async () => {
     const res = await getSession(sessionId);
@@ -88,8 +90,24 @@ export default function ScoreSession() {
 
   const handleComplete = async () => {
     const data = finalNotes.trim() ? { notes: finalNotes.trim() } : undefined;
-    await completeSession(sessionId, data);
-    navigate(`/sessions/${sessionId}`);
+    const res = await completeSession(sessionId, data);
+    if (res.data.is_personal_best) {
+      setShowPRBanner(true);
+      setTimeout(() => navigate(`/sessions/${sessionId}`), 2500);
+    } else {
+      navigate(`/sessions/${sessionId}`);
+    }
+  };
+
+  const handleUndoLastEnd = async () => {
+    if (!confirm('Undo the last submitted end?')) return;
+    setUndoing(true);
+    try {
+      await undoLastEnd(sessionId);
+      await loadSession();
+    } finally {
+      setUndoing(false);
+    }
   };
 
   const getScoreColor = (value) => {
@@ -104,6 +122,17 @@ export default function ScoreSession() {
   const currentEndTotal = stage
     ? currentArrows.reduce((sum, v) => sum + (stage.value_score_map[v] || 0), 0)
     : 0;
+
+  if (showPRBanner) {
+    return (
+      <div className="max-w-lg mx-auto text-center py-16">
+        <div className="text-6xl mb-4">&#127942;</div>
+        <h1 className="text-3xl font-bold text-amber-500 mb-2">New Personal Best!</h1>
+        <p className="text-xl dark:text-white">{session.total_score} points</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-2">{template?.name}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-lg mx-auto">
@@ -277,6 +306,15 @@ export default function ScoreSession() {
               </tbody>
             </table>
           </div>
+          {session.ends.length > 0 && currentArrows.length === 0 && (
+            <button
+              onClick={handleUndoLastEnd}
+              disabled={undoing}
+              className="mt-3 w-full py-2 rounded-lg border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
+            >
+              {undoing ? 'Undoing...' : 'Undo Last End'}
+            </button>
+          )}
         </div>
       )}
     </div>

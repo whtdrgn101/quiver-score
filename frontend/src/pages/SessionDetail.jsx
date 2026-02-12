@@ -76,6 +76,11 @@ export default function SessionDetail() {
       </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center mb-6">
+        {session.is_personal_best && (
+          <div className="inline-block bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-xs font-semibold px-3 py-1 rounded-full mb-2">
+            &#127942; Personal Best
+          </div>
+        )}
         <div className="text-5xl font-bold text-emerald-600">{session.total_score}</div>
         <div className="text-gray-400">/ {maxScore} ({percentage}%)</div>
         <div className="flex justify-center gap-6 mt-3 text-sm text-gray-500 dark:text-gray-400">

@@ -9,6 +9,8 @@ export const getSession = (id) => client.get(`/sessions/${id}`);
 export const submitEnd = (sessionId, data) => client.post(`/sessions/${sessionId}/ends`, data);
 export const completeSession = (sessionId, data) => client.post(`/sessions/${sessionId}/complete`, data);
 export const getStats = () => client.get('/sessions/stats');
+export const undoLastEnd = (sessionId) => client.delete(`/sessions/${sessionId}/ends/last`);
+export const getPersonalRecords = () => client.get('/sessions/personal-records');
 
 export const createShareLink = (id) => client.post(`/share/sessions/${id}`);
 export const revokeShareLink = (id) => client.delete(`/share/sessions/${id}`);

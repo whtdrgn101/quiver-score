@@ -87,6 +87,7 @@ class SessionOut(BaseModel):
     location: str | None
     weather: str | None
     share_token: str | None = None
+    is_personal_best: bool = False
     started_at: datetime
     completed_at: datetime | None
     ends: list[EndOut]
@@ -150,6 +151,14 @@ class RoundTypeAvg(BaseModel):
     count: int
 
 
+class PersonalRecordOut(BaseModel):
+    template_name: str
+    score: int
+    max_score: int
+    achieved_at: datetime
+    session_id: uuid.UUID
+
+
 class StatsOut(BaseModel):
     total_sessions: int
     completed_sessions: int
@@ -159,3 +168,4 @@ class StatsOut(BaseModel):
     personal_best_template: str | None = None
     avg_by_round_type: list[RoundTypeAvg]
     recent_trend: list[RecentTrendItem]
+    personal_records: list[PersonalRecordOut] = []

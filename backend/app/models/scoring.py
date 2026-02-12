@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, func, Text
+from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, UniqueConstraint, func, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -59,3 +59,18 @@ class Arrow(Base):
     y_pos: Mapped[float | None] = mapped_column(Float)
 
     end: Mapped["End"] = relationship(back_populates="arrows")
+
+
+class PersonalRecord(Base):
+    __tablename__ = "personal_records"
+    __table_args__ = (UniqueConstraint("user_id", "template_id", name="uq_user_template_pr"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    template_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("round_templates.id"), nullable=False)
+    session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("scoring_sessions.id"), nullable=False)
+    score: Mapped[int] = mapped_column(Integer, nullable=False)
+    achieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    template: Mapped["RoundTemplate"] = relationship(lazy="selectin")
+    session: Mapped["ScoringSession"] = relationship(lazy="selectin")

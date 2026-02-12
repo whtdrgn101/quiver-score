@@ -18,8 +18,14 @@ import Profile from './pages/Profile';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmail from './pages/VerifyEmail';
+import CompareSession from './pages/CompareSession';
 import SharedSession from './pages/SharedSession';
 import PublicProfile from './pages/PublicProfile';
+import Clubs from './pages/Clubs';
+import ClubDetail from './pages/ClubDetail';
+import ClubSettings from './pages/ClubSettings';
+import ClubJoin from './pages/ClubJoin';
+import ClubEventDetail from './pages/ClubEventDetail';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -64,6 +70,12 @@ export default function App() {
               <Route path="equipment" element={<Equipment />} />
               <Route path="setups" element={<Setups />} />
               <Route path="setups/:setupId" element={<SetupDetail />} />
+              <Route path="compare" element={<CompareSession />} />
+              <Route path="clubs" element={<Clubs />} />
+              <Route path="clubs/:clubId" element={<ClubDetail />} />
+              <Route path="clubs/:clubId/settings" element={<ClubSettings />} />
+              <Route path="clubs/join/:code" element={<ClubJoin />} />
+              <Route path="clubs/:clubId/events/:eventId" element={<ClubEventDetail />} />
               <Route path="profile" element={<Profile />} />
             </Route>
           </Routes>
