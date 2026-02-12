@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getRounds, createSession } from '../api/scoring';
 import { listSetups } from '../api/setups';
+import { listEquipment } from '../api/equipment';
 
 export default function RoundSelect() {
   const [rounds, setRounds] = useState([]);
   const [setups, setSetups] = useState([]);
+  const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedSetup, setSelectedSetup] = useState('');
@@ -15,10 +17,11 @@ export default function RoundSelect() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    Promise.all([getRounds(), listSetups()])
-      .then(([roundsRes, setupsRes]) => {
+    Promise.all([getRounds(), listSetups(), listEquipment()])
+      .then(([roundsRes, setupsRes, eqRes]) => {
         setRounds(roundsRes.data);
         setSetups(setupsRes.data);
+        setEquipment(eqRes.data);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -43,6 +46,31 @@ export default function RoundSelect() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6 dark:text-white">Select a Round</h1>
+
+      {!loading && equipment.length === 0 && (
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+          <p className="text-sm text-amber-800 dark:text-amber-200 mb-2">
+            You haven't added any equipment yet. Add your first bow and create a setup to track what you're shooting with.
+          </p>
+          <Link
+            to="/equipment"
+            className="inline-block text-sm font-medium bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600"
+          >
+            Add Equipment
+          </Link>
+        </div>
+      )}
+
+      {!loading && equipment.length > 0 && setups.length === 0 && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            Create a setup to link your equipment for sessions.{' '}
+            <Link to="/equipment?tab=setups" className="font-medium underline hover:no-underline">
+              Create a Setup
+            </Link>
+          </p>
+        </div>
+      )}
 
       {selectedTemplate && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 border-2 border-emerald-500">

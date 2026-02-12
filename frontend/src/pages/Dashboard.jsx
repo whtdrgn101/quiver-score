@@ -127,7 +127,7 @@ export default function Dashboard() {
               Score a Round
             </Link>
             <Link to="/equipment" className="inline-flex items-center gap-1 border border-emerald-600 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400 px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/30">
-              Add Equipment
+              Add Your First Bow &amp; Create a Setup
             </Link>
             <Link to="/profile" className="inline-flex items-center gap-1 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700">
               Set Up Profile

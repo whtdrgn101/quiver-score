@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getSession, createShareLink, revokeShareLink } from '../api/scoring';
+import ShareButtons from '../components/ShareButtons';
 
 export default function SessionDetail() {
   const { sessionId } = useParams();
@@ -114,6 +115,7 @@ export default function SessionDetail() {
               >
                 Revoke share link
               </button>
+              <ShareButtons url={shareUrl} text={`I scored ${session.total_score} on ${template?.name}!`} />
             </div>
           ) : (
             <button

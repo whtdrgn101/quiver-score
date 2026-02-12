@@ -81,7 +81,6 @@ export default function Layout({ children }) {
             <div className="hidden md:flex items-center gap-4">
               <Link to="/" className="hover:text-emerald-200">Dashboard</Link>
               <Link to="/equipment" className="hover:text-emerald-200">Equipment</Link>
-              <Link to="/setups" className="hover:text-emerald-200">Setups</Link>
               <Link to="/clubs" className="hover:text-emerald-200">Clubs</Link>
               <Link to="/history" className="hover:text-emerald-200">History</Link>
               <Link to="/profile" className="text-emerald-200 text-sm hover:text-white">{user.display_name || user.username}</Link>
@@ -120,7 +119,6 @@ export default function Layout({ children }) {
           <div className="md:hidden bg-emerald-800 px-4 pb-3 space-y-2">
             <Link to="/" className="block py-2 hover:text-emerald-200">Dashboard</Link>
             <Link to="/equipment" className="block py-2 hover:text-emerald-200">Equipment</Link>
-            <Link to="/setups" className="block py-2 hover:text-emerald-200">Setups</Link>
             <Link to="/clubs" className="block py-2 hover:text-emerald-200">Clubs</Link>
             <Link to="/history" className="block py-2 hover:text-emerald-200">History</Link>
             <Link to="/profile" className="block py-2 text-emerald-200 hover:text-white">{user.display_name || user.username}</Link>

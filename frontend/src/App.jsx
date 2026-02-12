@@ -12,8 +12,6 @@ import ScoreSession from './pages/ScoreSession';
 import SessionDetail from './pages/SessionDetail';
 import History from './pages/History';
 import Equipment from './pages/Equipment';
-import Setups from './pages/Setups';
-import SetupDetail from './pages/SetupDetail';
 import Profile from './pages/Profile';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -68,8 +66,6 @@ export default function App() {
               <Route path="sessions/:sessionId" element={<SessionDetail />} />
               <Route path="history" element={<History />} />
               <Route path="equipment" element={<Equipment />} />
-              <Route path="setups" element={<Setups />} />
-              <Route path="setups/:setupId" element={<SetupDetail />} />
               <Route path="compare" element={<CompareSession />} />
               <Route path="clubs" element={<Clubs />} />
               <Route path="clubs/:clubId" element={<ClubDetail />} />
