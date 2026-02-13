@@ -8,8 +8,10 @@ from app.database import get_db
 from app.dependencies import get_current_user, get_current_user_optional
 from app.models.user import User
 from app.models.round_template import RoundTemplate, RoundTemplateStage
+from app.models.club import ClubMember, ClubSharedRound
 from app.schemas.scoring import RoundTemplateOut, RoundTemplateCreate
-from app.core.exceptions import NotFoundError, ForbiddenError
+from app.schemas.club import ShareRoundToClub, ClubSharedRoundOut
+from app.core.exceptions import AuthError, ConflictError, ForbiddenError, NotFoundError
 
 router = APIRouter(prefix="/rounds", tags=["rounds"])
 
@@ -21,9 +23,27 @@ async def list_rounds(
 ):
     query = select(RoundTemplate)
     if user:
-        query = query.where(
-            or_(RoundTemplate.is_official == True, RoundTemplate.created_by == user.id)
+        # Get IDs of clubs the user belongs to
+        club_ids_result = await db.execute(
+            select(ClubMember.club_id).where(ClubMember.user_id == user.id)
         )
+        club_ids = list(club_ids_result.scalars().all())
+
+        # Get template IDs shared with those clubs
+        shared_template_ids: list[UUID] = []
+        if club_ids:
+            shared_result = await db.execute(
+                select(ClubSharedRound.template_id).where(ClubSharedRound.club_id.in_(club_ids))
+            )
+            shared_template_ids = list(shared_result.scalars().all())
+
+        conditions = [
+            RoundTemplate.is_official == True,
+            RoundTemplate.created_by == user.id,
+        ]
+        if shared_template_ids:
+            conditions.append(RoundTemplate.id.in_(shared_template_ids))
+        query = query.where(or_(*conditions))
     else:
         query = query.where(RoundTemplate.is_official == True)
     result = await db.execute(query.order_by(RoundTemplate.name))
@@ -92,3 +112,73 @@ async def get_round(round_id: UUID, db: AsyncSession = Depends(get_db)):
     if not template:
         raise NotFoundError("Round template not found")
     return template
+
+
+@router.post("/{round_id}/share", status_code=status.HTTP_201_CREATED)
+async def share_round_with_club(
+    round_id: UUID,
+    body: ShareRoundToClub,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(RoundTemplate).where(RoundTemplate.id == round_id))
+    template = result.scalar_one_or_none()
+    if not template:
+        raise NotFoundError("Round template not found")
+    if template.is_official:
+        raise ForbiddenError("Cannot share official round templates")
+    if template.created_by != user.id:
+        raise ForbiddenError("You can only share your own custom rounds")
+
+    # Check user is a member of the club
+    member_result = await db.execute(
+        select(ClubMember).where(ClubMember.club_id == body.club_id, ClubMember.user_id == user.id)
+    )
+    if not member_result.scalar_one_or_none():
+        raise AuthError("You are not a member of this club")
+
+    # Check duplicate
+    existing = await db.execute(
+        select(ClubSharedRound).where(
+            ClubSharedRound.club_id == body.club_id,
+            ClubSharedRound.template_id == round_id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise ConflictError("Round is already shared with this club")
+
+    share = ClubSharedRound(
+        club_id=body.club_id,
+        template_id=round_id,
+        shared_by=user.id,
+    )
+    db.add(share)
+    await db.commit()
+    return {"detail": "Round shared with club"}
+
+
+@router.delete("/{round_id}/share/{club_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def unshare_round_from_club(
+    round_id: UUID,
+    club_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(RoundTemplate).where(RoundTemplate.id == round_id))
+    template = result.scalar_one_or_none()
+    if not template:
+        raise NotFoundError("Round template not found")
+    if template.created_by != user.id:
+        raise ForbiddenError("You can only unshare your own custom rounds")
+
+    share_result = await db.execute(
+        select(ClubSharedRound).where(
+            ClubSharedRound.club_id == club_id,
+            ClubSharedRound.template_id == round_id,
+        )
+    )
+    share = share_result.scalar_one_or_none()
+    if not share:
+        raise NotFoundError("Share not found")
+    await db.delete(share)
+    await db.commit()

@@ -190,3 +190,19 @@ class TeamOut(BaseModel):
 
 class TeamDetailOut(TeamOut):
     members: list[TeamMemberOut]
+
+
+# ── Shared Rounds ────────────────────────────────────────────────────
+
+class ShareRoundToClub(BaseModel):
+    club_id: uuid.UUID
+
+
+class ClubSharedRoundOut(BaseModel):
+    id: uuid.UUID
+    club_id: uuid.UUID
+    club_name: str
+    template_id: uuid.UUID
+    template_name: str
+    shared_by_username: str
+    shared_at: datetime

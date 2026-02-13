@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+from app.models.round_template import RoundTemplate
 
 
 class Club(Base):
@@ -114,3 +115,19 @@ class ClubEventParticipant(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(20), default="going")
     rsvp_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ClubSharedRound(Base):
+    __tablename__ = "club_shared_rounds"
+    __table_args__ = (
+        UniqueConstraint("club_id", "template_id", name="uq_club_template"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    club_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clubs.id", ondelete="CASCADE"), nullable=False, index=True)
+    template_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("round_templates.id", ondelete="CASCADE"), nullable=False, index=True)
+    shared_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    shared_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    template: Mapped["RoundTemplate"] = relationship(lazy="selectin")
+    club: Mapped["Club"] = relationship(lazy="selectin")

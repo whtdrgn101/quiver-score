@@ -36,3 +36,6 @@ export const updateTeam = (clubId, teamId, data) => client.patch(`/clubs/${clubI
 export const deleteTeam = (clubId, teamId) => client.delete(`/clubs/${clubId}/teams/${teamId}`);
 export const addTeamMember = (clubId, teamId, userId) => client.post(`/clubs/${clubId}/teams/${teamId}/members/${userId}`);
 export const removeTeamMember = (clubId, teamId, userId) => client.delete(`/clubs/${clubId}/teams/${teamId}/members/${userId}`);
+
+export const getClubRounds = (clubId) => client.get(`/clubs/${clubId}/rounds`);
+export const removeClubRound = (clubId, roundId) => client.delete(`/clubs/${clubId}/rounds/${roundId}`);

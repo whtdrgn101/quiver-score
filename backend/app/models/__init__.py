@@ -3,7 +3,7 @@ from app.models.round_template import RoundTemplate, RoundTemplateStage
 from app.models.scoring import ScoringSession, End, Arrow, PersonalRecord
 from app.models.equipment import Equipment
 from app.models.setup_profile import SetupProfile, SetupEquipment
-from app.models.club import Club, ClubMember, ClubInvite, ClubEvent, ClubEventParticipant, ClubTeam, ClubTeamMember
+from app.models.club import Club, ClubMember, ClubInvite, ClubEvent, ClubEventParticipant, ClubTeam, ClubTeamMember, ClubSharedRound
 from app.models.notification import Notification
 from app.models.classification import ClassificationRecord
 from app.models.sight_mark import SightMark
@@ -29,6 +29,7 @@ __all__ = [
     "ClubEventParticipant",
     "ClubTeam",
     "ClubTeamMember",
+    "ClubSharedRound",
     "Notification",
     "ClassificationRecord",
     "SightMark",

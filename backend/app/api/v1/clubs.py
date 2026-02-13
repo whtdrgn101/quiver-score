@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.core.exceptions import AuthError, ConflictError, ForbiddenError, NotFoundError, ValidationError
-from app.models.club import Club, ClubEvent, ClubEventParticipant, ClubInvite, ClubMember, ClubTeam, ClubTeamMember
+from app.models.club import Club, ClubEvent, ClubEventParticipant, ClubInvite, ClubMember, ClubSharedRound, ClubTeam, ClubTeamMember
 from app.models.scoring import PersonalRecord, ScoringSession
 from app.models.tournament import Tournament, TournamentParticipant
 from app.models.round_template import RoundTemplate
@@ -28,6 +28,7 @@ from app.schemas.club import (
     ClubDetailOut,
     ClubMemberOut,
     ClubOut,
+    ClubSharedRoundOut,
     ClubUpdate,
     EventCreate,
     EventOut,
@@ -1315,3 +1316,59 @@ async def submit_club_tournament_score(
     p.status = "completed"
     await db.commit()
     return {"message": "Score submitted", "final_score": session.total_score, "final_x_count": session.total_x_count}
+
+
+# ── Shared Rounds ────────────────────────────────────────────────────
+
+
+@router.get("/{club_id}/rounds", response_model=list[ClubSharedRoundOut])
+async def list_club_shared_rounds(
+    club_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_club_member(db, club_id, user.id)
+    result = await db.execute(
+        select(ClubSharedRound).where(ClubSharedRound.club_id == club_id)
+    )
+    shares = result.scalars().all()
+
+    items = []
+    for s in shares:
+        # Look up shared_by user
+        user_result = await db.execute(select(User).where(User.id == s.shared_by))
+        shared_user = user_result.scalar_one_or_none()
+        items.append(ClubSharedRoundOut(
+            id=s.id,
+            club_id=s.club_id,
+            club_name=s.club.name if s.club else "Unknown",
+            template_id=s.template_id,
+            template_name=s.template.name if s.template else "Unknown",
+            shared_by_username=shared_user.username if shared_user else "Unknown",
+            shared_at=s.shared_at,
+        ))
+    return items
+
+
+@router.delete("/{club_id}/rounds/{round_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_club_shared_round(
+    club_id: uuid.UUID,
+    round_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    member = await _get_club_member(db, club_id, user.id)
+    if member.role not in ("owner", "admin"):
+        raise AuthError("Only owners and admins can remove shared rounds")
+
+    result = await db.execute(
+        select(ClubSharedRound).where(
+            ClubSharedRound.club_id == club_id,
+            ClubSharedRound.template_id == round_id,
+        )
+    )
+    share = result.scalar_one_or_none()
+    if not share:
+        raise NotFoundError("Shared round not found")
+    await db.delete(share)
+    await db.commit()

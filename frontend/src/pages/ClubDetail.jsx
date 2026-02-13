@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getClub, getLeaderboard, getActivity, getEvents, getTeams, getTeam } from '../api/clubs';
+import { getClub, getLeaderboard, getActivity, getEvents, getTeams, getTeam, getClubRounds, removeClubRound } from '../api/clubs';
 import { listTournaments } from '../api/tournaments';
 import { getRounds } from '../api/scoring';
 import { useAuth } from '../hooks/useAuth';
@@ -8,7 +8,7 @@ import Spinner from '../components/Spinner';
 import CreateEventForm from '../components/CreateEventForm';
 import CreateTeamForm from '../components/CreateTeamForm';
 
-const TABS = ['members', 'teams', 'leaderboard', 'activity', 'events', 'tournaments'];
+const TABS = ['members', 'teams', 'rounds', 'leaderboard', 'activity', 'events', 'tournaments'];
 
 export default function ClubDetail() {
   const { clubId } = useParams();
@@ -20,6 +20,7 @@ export default function ClubDetail() {
   const [events, setEvents] = useState([]);
   const [teams, setTeams] = useState([]);
   const [tournaments, setTournaments] = useState([]);
+  const [sharedRounds, setSharedRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tabLoading, setTabLoading] = useState(false);
 
@@ -44,6 +45,8 @@ export default function ClubDetail() {
       getEvents(clubId).then((res) => setEvents(res.data)).catch(() => {}).finally(done);
     } else if (tab === 'teams') {
       getTeams(clubId).then((res) => setTeams(res.data)).catch(() => {}).finally(done);
+    } else if (tab === 'rounds') {
+      getClubRounds(clubId).then((res) => setSharedRounds(res.data)).catch(() => {}).finally(done);
     } else if (tab === 'tournaments') {
       listTournaments(clubId).then((res) => setTournaments(res.data)).catch(() => {}).finally(done);
     }
@@ -56,6 +59,7 @@ export default function ClubDetail() {
 
   const refreshEvents = () => getEvents(clubId).then((res) => setEvents(res.data)).catch(() => {});
   const refreshTeams = () => getTeams(clubId).then((res) => setTeams(res.data)).catch(() => {});
+  const refreshRounds = () => getClubRounds(clubId).then((res) => setSharedRounds(res.data)).catch(() => {});
 
   return (
     <div>
@@ -96,6 +100,7 @@ export default function ClubDetail() {
         <Spinner />
       ) : (
         <>
+          {tab === 'rounds' && <SharedRoundsTab rounds={sharedRounds} clubId={clubId} isAdmin={isAdmin} onRefresh={refreshRounds} />}
           {tab === 'teams' && <TeamsTab teams={teams} clubId={clubId} isAdmin={isAdmin} userId={user?.id} members={club.members} onRefresh={refreshTeams} />}
           {tab === 'members' && <MembersTab members={club.members} />}
           {tab === 'leaderboard' && <LeaderboardTab leaderboard={leaderboard} />}
@@ -373,6 +378,45 @@ function EventsTab({ events, clubId, isAdmin, onRefresh }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+function SharedRoundsTab({ rounds, clubId, isAdmin, onRefresh }) {
+  const handleRemove = async (templateId) => {
+    if (!window.confirm('Remove this shared round from the club?')) return;
+    try {
+      await removeClubRound(clubId, templateId);
+      onRefresh();
+    } catch {
+      // ignore
+    }
+  };
+
+  if (!rounds?.length) return <p className="text-gray-400">No custom rounds shared with this club yet.</p>;
+
+  return (
+    <div className="space-y-3">
+      {rounds.map((r) => (
+        <div key={r.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-medium dark:text-white">{r.template_name}</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Shared by @{r.shared_by_username} &middot; {new Date(r.shared_at).toLocaleDateString()}
+              </p>
+            </div>
+            {isAdmin && (
+              <button
+                onClick={() => handleRemove(r.template_id)}
+                className="text-xs px-2 py-1 rounded border border-red-500 text-red-600 dark:text-red-400 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

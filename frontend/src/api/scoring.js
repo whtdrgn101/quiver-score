@@ -19,6 +19,9 @@ export const exportSessionsCsv = (params) => client.get('/sessions/export', { pa
 export const exportSessionCsv = (id) => client.get(`/sessions/${id}/export?format=csv`, { responseType: 'blob' });
 export const exportSessionPdf = (id) => client.get(`/sessions/${id}/export?format=pdf`, { responseType: 'blob' });
 
+export const shareRound = (roundId, clubId) => client.post(`/rounds/${roundId}/share`, { club_id: clubId });
+export const unshareRound = (roundId, clubId) => client.delete(`/rounds/${roundId}/share/${clubId}`);
+
 export const createShareLink = (id) => client.post(`/share/sessions/${id}`);
 export const revokeShareLink = (id) => client.delete(`/share/sessions/${id}`);
 export const getSharedSession = (token) => client.get(`/share/s/${token}`);

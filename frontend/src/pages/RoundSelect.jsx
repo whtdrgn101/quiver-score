@@ -1,31 +1,57 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { getRounds, createSession } from '../api/scoring';
+import { getRounds, createSession, shareRound, deleteRound } from '../api/scoring';
+import { getMyClubs } from '../api/clubs';
 import { listSetups } from '../api/setups';
 import { listEquipment } from '../api/equipment';
+import { useAuth } from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
 
 export default function RoundSelect() {
   const [rounds, setRounds] = useState([]);
   const [setups, setSetups] = useState([]);
   const [equipment, setEquipment] = useState([]);
+  const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedSetup, setSelectedSetup] = useState('');
   const [location, setLocation] = useState('');
   const [weather, setWeather] = useState('');
   const [notes, setNotes] = useState('');
+  const [shareMenuId, setShareMenuId] = useState(null);
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    Promise.all([getRounds(), listSetups(), listEquipment()])
-      .then(([roundsRes, setupsRes, eqRes]) => {
+    Promise.all([getRounds(), listSetups(), listEquipment(), getMyClubs()])
+      .then(([roundsRes, setupsRes, eqRes, clubsRes]) => {
         setRounds(roundsRes.data);
         setSetups(setupsRes.data);
         setEquipment(eqRes.data);
+        setClubs(clubsRes.data);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleShare = async (roundId, clubId) => {
+    try {
+      await shareRound(roundId, clubId);
+      setShareMenuId(null);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleDelete = async (roundId) => {
+    if (!window.confirm('Delete this custom round? This cannot be undone.')) return;
+    try {
+      await deleteRound(roundId);
+      setRounds((prev) => prev.filter((r) => r.id !== roundId));
+      if (selectedTemplate?.id === roundId) setSelectedTemplate(null);
+    } catch {
+      // ignore
+    }
+  };
 
   const startSession = async () => {
     const data = { template_id: selectedTemplate.id };
@@ -158,22 +184,66 @@ export default function RoundSelect() {
               const stage = t.stages[0];
               const maxScore = stage ? stage.num_ends * stage.arrows_per_end * stage.max_score_per_arrow : 0;
               const totalArrows = t.stages.reduce((s, st) => s + st.num_ends * st.arrows_per_end, 0);
+              const isOwned = !t.is_official && t.created_by === user?.id;
+              const isShared = !t.is_official && t.created_by !== user?.id;
               return (
-                <button
+                <div
                   key={t.id}
-                  onClick={() => { setSelectedTemplate(t); setSelectedSetup(''); }}
                   className={`bg-white dark:bg-gray-800 rounded-lg shadow p-4 text-left hover:shadow-md border-2 transition-all ${
                     selectedTemplate?.id === t.id ? 'border-emerald-500' : 'border-transparent hover:border-emerald-500'
                   }`}
                 >
-                  <div className="font-medium dark:text-gray-100">{t.name}</div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t.description}</div>
-                  <div className="flex gap-3 mt-2 text-xs text-gray-400">
-                    <span>{totalArrows} arrows</span>
-                    <span>Max {maxScore}</span>
-                    {stage?.distance && <span>{stage.distance}</span>}
-                  </div>
-                </button>
+                  <button
+                    onClick={() => { setSelectedTemplate(t); setSelectedSetup(''); }}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium dark:text-gray-100">{t.name}</span>
+                      {isShared && (
+                        <span className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 px-2 py-0.5 rounded-full">
+                          Shared
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t.description}</div>
+                    <div className="flex gap-3 mt-2 text-xs text-gray-400">
+                      <span>{totalArrows} arrows</span>
+                      <span>Max {maxScore}</span>
+                      {stage?.distance && <span>{stage.distance}</span>}
+                    </div>
+                  </button>
+                  {isOwned && (
+                    <div className="flex gap-2 mt-3 pt-3 border-t dark:border-gray-700">
+                      <div className="relative">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShareMenuId(shareMenuId === t.id ? null : t.id); }}
+                          className="text-xs px-2 py-1 rounded border border-blue-500 text-blue-600 dark:text-blue-400 dark:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                        >
+                          Share
+                        </button>
+                        {shareMenuId === t.id && clubs.length > 0 && (
+                          <div className="absolute z-10 mt-1 left-0 bg-white dark:bg-gray-700 rounded-lg shadow-lg border dark:border-gray-600 py-1 min-w-[160px]">
+                            {clubs.map((c) => (
+                              <button
+                                key={c.id}
+                                onClick={(e) => { e.stopPropagation(); handleShare(t.id, c.id); }}
+                                className="block w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-white"
+                              >
+                                {c.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(t.id); }}
+                        className="text-xs px-2 py-1 rounded border border-red-500 text-red-600 dark:text-red-400 dark:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
