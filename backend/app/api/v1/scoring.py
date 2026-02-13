@@ -529,3 +529,22 @@ async def complete_session(
     out = _session_out(session)
     out.is_personal_best = is_personal_best
     return out
+
+
+@router.post("/{session_id}/abandon", status_code=status.HTTP_200_OK)
+async def abandon_session(
+    session_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ScoringSession).where(ScoringSession.id == session_id, ScoringSession.user_id == user.id)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise NotFoundError("Session not found")
+    if session.status != "in_progress":
+        raise ValidationError("Only in-progress sessions can be abandoned")
+    session.status = "abandoned"
+    await db.commit()
+    return {"detail": "Session abandoned"}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getSession, submitEnd, completeSession, undoLastEnd } from '../api/scoring';
+import { getSession, submitEnd, completeSession, undoLastEnd, abandonSession } from '../api/scoring';
 import Spinner from '../components/Spinner';
 
 export default function ScoreSession() {
@@ -109,6 +109,12 @@ export default function ScoreSession() {
     } finally {
       setUndoing(false);
     }
+  };
+
+  const handleAbandon = async () => {
+    if (!confirm('Abandon this session? This cannot be undone.')) return;
+    await abandonSession(sessionId);
+    navigate('/');
   };
 
   const getScoreColor = (value) => {
@@ -320,6 +326,16 @@ export default function ScoreSession() {
           )}
         </div>
       )}
+
+      {/* Abandon session */}
+      <div className="mt-6 text-center">
+        <button
+          onClick={handleAbandon}
+          className="text-sm text-red-500 dark:text-red-400 hover:underline"
+        >
+          Abandon Session
+        </button>
+      </div>
     </div>
   );
 }

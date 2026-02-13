@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
-import { getSessions } from '../../api/scoring';
+import { getSessions, abandonSession } from '../../api/scoring';
 import { resendVerification } from '../../api/auth';
 import NotificationBell from '../NotificationBell';
 
@@ -164,12 +164,26 @@ export default function Layout({ children }) {
               {' — '}
               {activeSession.total_score} pts · {activeSession.total_arrows} arrows
             </div>
-            <Link
-              to={`/score/${activeSession.id}`}
-              className="text-sm font-medium bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
-            >
-              Resume
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/score/${activeSession.id}`}
+                className="text-sm font-medium bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
+              >
+                Resume
+              </Link>
+              <button
+                onClick={async () => {
+                  if (!window.confirm('Abandon this session? This cannot be undone.')) return;
+                  try {
+                    await abandonSession(activeSession.id);
+                    setActiveSession(null);
+                  } catch { /* ignore */ }
+                }}
+                className="text-sm font-medium bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+              >
+                Abandon
+              </button>
+            </div>
           </div>
         </div>
       )}

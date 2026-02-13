@@ -12,6 +12,7 @@ export const submitEnd = (sessionId, data) => client.post(`/sessions/${sessionId
 export const completeSession = (sessionId, data) => client.post(`/sessions/${sessionId}/complete`, data);
 export const getStats = () => client.get('/sessions/stats');
 export const undoLastEnd = (sessionId) => client.delete(`/sessions/${sessionId}/ends/last`);
+export const abandonSession = (sessionId) => client.post(`/sessions/${sessionId}/abandon`);
 export const getPersonalRecords = () => client.get('/sessions/personal-records');
 export const getTrends = () => client.get('/sessions/trends');
 
