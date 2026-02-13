@@ -50,6 +50,7 @@ class RoundTemplateOut(BaseModel):
     organization: str
     description: str | None
     is_official: bool
+    created_by: uuid.UUID | None = None
     stages: list[StageOut]
 
     model_config = {"from_attributes": True}

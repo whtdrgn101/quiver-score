@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { updateProfile, uploadAvatar, uploadAvatarUrl, deleteAvatar, changePassword, getMyClubsWithTeams } from '../api/auth';
+import { getRounds } from '../api/scoring';
+import Spinner from '../components/Spinner';
 
 export default function Profile() {
   const { user, updateUser } = useAuth();
@@ -23,10 +25,20 @@ export default function Profile() {
   const [pwMessage, setPwMessage] = useState('');
   const [copied, setCopied] = useState(false);
   const [myClubs, setMyClubs] = useState([]);
+  const [clubsLoading, setClubsLoading] = useState(true);
+  const [myCustomRounds, setMyCustomRounds] = useState([]);
+  const [roundsLoading, setRoundsLoading] = useState(true);
 
   useEffect(() => {
-    getMyClubsWithTeams().then((res) => setMyClubs(res.data)).catch(() => {});
-  }, []);
+    getMyClubsWithTeams()
+      .then((res) => setMyClubs(res.data))
+      .catch(() => {})
+      .finally(() => setClubsLoading(false));
+    getRounds()
+      .then((res) => setMyCustomRounds(res.data.filter((r) => !r.is_official && r.created_by === user?.id)))
+      .catch(() => {})
+      .finally(() => setRoundsLoading(false));
+  }, [user?.id]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -264,10 +276,52 @@ export default function Profile() {
         </div>
       </form>
 
+      {/* My Custom Rounds */}
+      <div className="mt-8 border-t dark:border-gray-700 pt-6">
+        <h2 className="text-lg font-semibold dark:text-white mb-3">My Custom Rounds</h2>
+        {roundsLoading ? (
+          <Spinner text="Loading custom rounds..." />
+        ) : myCustomRounds.length === 0 ? (
+          <p className="text-sm text-gray-400">
+            No custom rounds yet.{' '}
+            <Link to="/rounds/create" className="text-emerald-600 dark:text-emerald-400 hover:underline">
+              Create one
+            </Link>
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {myCustomRounds.map((r) => (
+              <Link
+                key={r.id}
+                to="/rounds"
+                className="block bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium dark:text-white">{r.name}</span>
+                    <span className="text-xs text-gray-400 ml-2">{r.organization}</span>
+                  </div>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {r.stages.length} stage{r.stages.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {r.description && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{r.description}</p>
+                )}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Clubs & Teams */}
-      {myClubs.length > 0 && (
-        <div className="mt-8 border-t dark:border-gray-700 pt-6">
-          <h2 className="text-lg font-semibold dark:text-white mb-3">My Clubs & Teams</h2>
+      <div className="mt-8 border-t dark:border-gray-700 pt-6">
+        <h2 className="text-lg font-semibold dark:text-white mb-3">My Clubs & Teams</h2>
+        {clubsLoading ? (
+          <Spinner text="Loading clubs..." />
+        ) : myClubs.length === 0 ? (
+          <p className="text-sm text-gray-400">You haven't joined any clubs yet.</p>
+        ) : (
           <div className="space-y-3">
             {myClubs.map((club) => (
               <Link
@@ -302,8 +356,8 @@ export default function Profile() {
               </Link>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Change Password */}
       <div className="mt-8 border-t dark:border-gray-700 pt-6">
