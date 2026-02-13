@@ -20,3 +20,4 @@ export const verifyEmail = (data) => client.post('/auth/verify-email', data);
 export const resendVerification = () => client.post('/auth/resend-verification');
 export const getPublicProfile = (username) => client.get(`/users/${username}`);
 export const getMyClubsWithTeams = () => client.get('/users/me/clubs');
+export const deleteAccount = (confirmation) => client.post('/auth/delete-account', { confirmation });

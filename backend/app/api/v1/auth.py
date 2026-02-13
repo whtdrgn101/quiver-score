@@ -1,14 +1,29 @@
 import uuid
 
 from fastapi import APIRouter, Depends, Request, status
-from sqlalchemy import select, or_
+from sqlalchemy import delete, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.rate_limit import limiter
 
 from app.database import get_db
 from app.models.user import User
+from app.models.scoring import ScoringSession, End, Arrow, PersonalRecord
+from app.models.equipment import Equipment
+from app.models.setup_profile import SetupProfile, SetupEquipment
+from app.models.round_template import RoundTemplate, RoundTemplateStage
+from app.models.club import (
+    Club, ClubMember, ClubInvite, ClubEvent, ClubEventParticipant,
+    ClubTeam, ClubTeamMember, ClubSharedRound,
+)
+from app.models.notification import Notification
+from app.models.classification import ClassificationRecord
+from app.models.sight_mark import SightMark
+from app.models.tournament import Tournament, TournamentParticipant
+from app.models.coaching import CoachAthleteLink, SessionAnnotation
+from app.models.social import Follow, FeedItem
 from app.dependencies import get_current_user
+from pydantic import BaseModel, Field
 from app.schemas.auth import (
     RegisterRequest, LoginRequest, TokenResponse, RefreshRequest, PasswordChange,
     ForgotPasswordRequest, ResetPasswordRequest, VerifyEmailRequest, MessageResponse,
@@ -162,3 +177,147 @@ async def reset_password(request: Request, body: ResetPasswordRequest, db: Async
     user.hashed_password = hash_password(body.new_password)
     await db.commit()
     return MessageResponse(detail="Password reset successfully. You can now sign in.")
+
+
+class DeleteAccountRequest(BaseModel):
+    confirmation: str = Field(..., min_length=1)
+
+
+@router.post("/delete-account", status_code=status.HTTP_200_OK)
+async def delete_account(
+    body: DeleteAccountRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    if body.confirmation != "Yes, delete ALL of my data":
+        raise AuthError("Confirmation text does not match")
+
+    uid = user.id
+
+    # 1. Scoring data: arrows → ends → sessions, personal records
+    session_ids_result = await db.execute(
+        select(ScoringSession.id).where(ScoringSession.user_id == uid)
+    )
+    session_ids = list(session_ids_result.scalars().all())
+
+    if session_ids:
+        end_ids_result = await db.execute(
+            select(End.id).where(End.session_id.in_(session_ids))
+        )
+        end_ids = list(end_ids_result.scalars().all())
+        if end_ids:
+            await db.execute(delete(Arrow).where(Arrow.end_id.in_(end_ids)))
+        await db.execute(delete(End).where(End.session_id.in_(session_ids)))
+
+    # Session annotations (authored by user or on user's sessions)
+    conditions = [SessionAnnotation.author_id == uid]
+    if session_ids:
+        conditions.append(SessionAnnotation.session_id.in_(session_ids))
+    await db.execute(delete(SessionAnnotation).where(or_(*conditions)))
+
+    # Tournament participants referencing user's sessions
+    await db.execute(delete(TournamentParticipant).where(TournamentParticipant.user_id == uid))
+
+    await db.execute(delete(PersonalRecord).where(PersonalRecord.user_id == uid))
+    await db.execute(delete(ScoringSession).where(ScoringSession.user_id == uid))
+
+    # 2. Equipment and setups
+    setup_ids_result = await db.execute(
+        select(SetupProfile.id).where(SetupProfile.user_id == uid)
+    )
+    setup_ids = list(setup_ids_result.scalars().all())
+    if setup_ids:
+        await db.execute(delete(SetupEquipment).where(SetupEquipment.setup_id.in_(setup_ids)))
+    await db.execute(delete(SetupProfile).where(SetupProfile.user_id == uid))
+    await db.execute(delete(Equipment).where(Equipment.user_id == uid))
+
+    # 3. Coaching
+    await db.execute(delete(CoachAthleteLink).where(
+        or_(CoachAthleteLink.coach_id == uid, CoachAthleteLink.athlete_id == uid)
+    ))
+
+    # 4. Clubs owned by user — delete entire club and all sub-entities
+    owned_club_ids_result = await db.execute(
+        select(Club.id).where(Club.owner_id == uid)
+    )
+    owned_club_ids = list(owned_club_ids_result.scalars().all())
+
+    if owned_club_ids:
+        # Tournament participants for club tournaments
+        tournament_ids_result = await db.execute(
+            select(Tournament.id).where(Tournament.club_id.in_(owned_club_ids))
+        )
+        tournament_ids = list(tournament_ids_result.scalars().all())
+        if tournament_ids:
+            await db.execute(delete(TournamentParticipant).where(
+                TournamentParticipant.tournament_id.in_(tournament_ids)
+            ))
+        await db.execute(delete(Tournament).where(Tournament.club_id.in_(owned_club_ids)))
+
+        # Club events and participants
+        event_ids_result = await db.execute(
+            select(ClubEvent.id).where(ClubEvent.club_id.in_(owned_club_ids))
+        )
+        event_ids = list(event_ids_result.scalars().all())
+        if event_ids:
+            await db.execute(delete(ClubEventParticipant).where(
+                ClubEventParticipant.event_id.in_(event_ids)
+            ))
+        await db.execute(delete(ClubEvent).where(ClubEvent.club_id.in_(owned_club_ids)))
+
+        # Teams and team members
+        team_ids_result = await db.execute(
+            select(ClubTeam.id).where(ClubTeam.club_id.in_(owned_club_ids))
+        )
+        team_ids = list(team_ids_result.scalars().all())
+        if team_ids:
+            await db.execute(delete(ClubTeamMember).where(ClubTeamMember.team_id.in_(team_ids)))
+        await db.execute(delete(ClubTeam).where(ClubTeam.club_id.in_(owned_club_ids)))
+
+        await db.execute(delete(ClubSharedRound).where(ClubSharedRound.club_id.in_(owned_club_ids)))
+        await db.execute(delete(ClubInvite).where(ClubInvite.club_id.in_(owned_club_ids)))
+        await db.execute(delete(ClubMember).where(ClubMember.club_id.in_(owned_club_ids)))
+        await db.execute(delete(Club).where(Club.id.in_(owned_club_ids)))
+
+    # 5. Tournaments organized by user (not in owned clubs)
+    user_tournament_ids_result = await db.execute(
+        select(Tournament.id).where(Tournament.organizer_id == uid)
+    )
+    user_tournament_ids = list(user_tournament_ids_result.scalars().all())
+    if user_tournament_ids:
+        await db.execute(delete(TournamentParticipant).where(
+            TournamentParticipant.tournament_id.in_(user_tournament_ids)
+        ))
+        await db.execute(delete(Tournament).where(Tournament.id.in_(user_tournament_ids)))
+
+    # 6. Club participation (non-owned clubs)
+    await db.execute(delete(ClubEventParticipant).where(ClubEventParticipant.user_id == uid))
+    await db.execute(delete(ClubTeamMember).where(ClubTeamMember.user_id == uid))
+    await db.execute(delete(ClubSharedRound).where(ClubSharedRound.shared_by == uid))
+    await db.execute(delete(ClubInvite).where(ClubInvite.created_by == uid))
+    await db.execute(delete(ClubMember).where(ClubMember.user_id == uid))
+
+    # 7. Custom round templates and stages
+    template_ids_result = await db.execute(
+        select(RoundTemplate.id).where(
+            RoundTemplate.created_by == uid, RoundTemplate.is_official == False
+        )
+    )
+    template_ids = list(template_ids_result.scalars().all())
+    if template_ids:
+        await db.execute(delete(ClubSharedRound).where(ClubSharedRound.template_id.in_(template_ids)))
+        await db.execute(delete(RoundTemplateStage).where(RoundTemplateStage.template_id.in_(template_ids)))
+        await db.execute(delete(RoundTemplate).where(RoundTemplate.id.in_(template_ids)))
+
+    # 8. Remaining user data (some have CASCADE but explicit for SQLite)
+    await db.execute(delete(Notification).where(Notification.user_id == uid))
+    await db.execute(delete(ClassificationRecord).where(ClassificationRecord.user_id == uid))
+    await db.execute(delete(SightMark).where(SightMark.user_id == uid))
+    await db.execute(delete(Follow).where(or_(Follow.follower_id == uid, Follow.following_id == uid)))
+    await db.execute(delete(FeedItem).where(FeedItem.user_id == uid))
+
+    # 9. Delete the user
+    await db.execute(delete(User).where(User.id == uid))
+    await db.commit()
+
+    return {"detail": "Account and all data deleted"}

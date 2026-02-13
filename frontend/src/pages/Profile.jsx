@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { updateProfile, uploadAvatar, uploadAvatarUrl, deleteAvatar, changePassword, getMyClubsWithTeams } from '../api/auth';
+import { updateProfile, uploadAvatar, uploadAvatarUrl, deleteAvatar, changePassword, getMyClubsWithTeams, deleteAccount } from '../api/auth';
 import { getRounds } from '../api/scoring';
 import Spinner from '../components/Spinner';
 
@@ -9,7 +9,8 @@ const TABS = ['archer', 'clubs', 'rounds'];
 const TAB_LABELS = { archer: 'Archer Info', clubs: 'Clubs & Teams', rounds: 'Custom Rounds' };
 
 export default function Profile() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
+  const navigate = useNavigate();
   const fileRef = useRef();
   const [tab, setTab] = useState('archer');
 
@@ -32,6 +33,12 @@ export default function Profile() {
   const [clubsLoading, setClubsLoading] = useState(true);
   const [myCustomRounds, setMyCustomRounds] = useState([]);
   const [roundsLoading, setRoundsLoading] = useState(true);
+
+  // Danger zone state
+  const [showDanger, setShowDanger] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     getMyClubsWithTeams()
@@ -126,6 +133,21 @@ export default function Profile() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (deleteConfirm !== 'Yes, delete ALL of my data') return;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteAccount(deleteConfirm);
+      logout();
+      navigate('/login');
+    } catch (err) {
+      setDeleteError(err.response?.data?.detail || 'Error deleting account');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const publicUrl = `${window.location.origin}/u/${user?.username}`;
   const handleCopyPublicUrl = async () => {
     await navigator.clipboard.writeText(publicUrl);
@@ -190,6 +212,52 @@ export default function Profile() {
       {tab === 'rounds' && (
         <CustomRoundsTab rounds={myCustomRounds} loading={roundsLoading} />
       )}
+
+      {/* Danger Zone — always visible below tabs */}
+      <div className="mt-12 border-t dark:border-gray-700 pt-6">
+        <button
+          type="button"
+          onClick={() => setShowDanger(!showDanger)}
+          className="text-sm font-medium text-red-500 dark:text-red-400 hover:text-red-600"
+        >
+          {showDanger ? 'Hide Danger Zone' : 'Danger Zone'}
+        </button>
+        {showDanger && (
+          <div className="mt-4 border-2 border-red-300 dark:border-red-700 rounded-lg p-4 bg-red-50 dark:bg-red-900/20">
+            <h3 className="text-lg font-bold text-red-700 dark:text-red-400 mb-2">Delete Account</h3>
+            <p className="text-sm text-red-600 dark:text-red-300 mb-1">
+              This will permanently delete your account and <strong>all</strong> of your data including:
+            </p>
+            <ul className="text-sm text-red-600 dark:text-red-300 list-disc list-inside mb-4 space-y-0.5">
+              <li>All scoring sessions, scores, and personal records</li>
+              <li>Equipment and setup profiles</li>
+              <li>Custom round templates (even shared ones)</li>
+              <li>Clubs you own (and all their data)</li>
+              <li>Club memberships, coaching links, and social follows</li>
+            </ul>
+            <p className="text-sm text-red-700 dark:text-red-300 font-medium mb-2">
+              To confirm, type exactly: <code className="bg-red-100 dark:bg-red-900/50 px-1.5 py-0.5 rounded text-xs">Yes, delete ALL of my data</code>
+            </p>
+            <input
+              type="text"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder="Type confirmation here..."
+              className="w-full border border-red-300 dark:border-red-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-800 dark:text-white mb-3"
+            />
+            {deleteError && (
+              <p className="text-sm text-red-600 dark:text-red-400 mb-3">{deleteError}</p>
+            )}
+            <button
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirm !== 'Yes, delete ALL of my data' || deleting}
+              className="w-full bg-red-600 text-white py-2 rounded-lg font-medium hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {deleting ? 'Deleting...' : 'Permanently Delete My Account'}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -203,7 +271,7 @@ function ArcherTab({
   return (
     <>
       {/* Avatar section */}
-      <div className="flex items-center gap-6 mb-6">
+      <div className="flex items-center gap-6 mb-4">
         <div className="relative group">
           {user?.avatar ? (
             <img src={user.avatar} alt="Avatar" className="w-24 h-24 rounded-full object-cover" />
@@ -263,6 +331,59 @@ function ArcherTab({
             </button>
           )}
         </div>
+      </div>
+
+      {/* Change Password — under avatar */}
+      <div className="mb-6">
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-emerald-600"
+        >
+          {showPassword ? 'Hide' : 'Change Password'}
+        </button>
+        {showPassword && (
+          <form onSubmit={handlePasswordChange} className="mt-3 space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label>
+              <input
+                type="password"
+                value={pwForm.current_password}
+                onChange={(e) => setPwForm({ ...pwForm, current_password: e.target.value })}
+                className="w-full border dark:border-gray-600 rounded px-3 py-2 dark:bg-gray-700 dark:text-white"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
+              <input
+                type="password"
+                value={pwForm.new_password}
+                onChange={(e) => setPwForm({ ...pwForm, new_password: e.target.value })}
+                className="w-full border dark:border-gray-600 rounded px-3 py-2 dark:bg-gray-700 dark:text-white"
+                minLength={8}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
+              <input
+                type="password"
+                value={pwForm.confirm}
+                onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
+                className="w-full border dark:border-gray-600 rounded px-3 py-2 dark:bg-gray-700 dark:text-white"
+                minLength={8}
+                required
+              />
+            </div>
+            <div className="flex items-center gap-4">
+              <button type="submit" disabled={saving} className="bg-emerald-600 text-white px-6 py-2 rounded hover:bg-emerald-700 disabled:opacity-50">
+                {saving ? 'Saving...' : 'Change Password'}
+              </button>
+              {pwMessage && <span className="text-sm text-gray-600 dark:text-gray-400">{pwMessage}</span>}
+            </div>
+          </form>
+        )}
       </div>
 
       {/* Profile form */}
@@ -344,59 +465,6 @@ function ArcherTab({
           {message && <span className="text-sm text-gray-600 dark:text-gray-400">{message}</span>}
         </div>
       </form>
-
-      {/* Change Password */}
-      <div className="mt-8 border-t dark:border-gray-700 pt-6">
-        <button
-          type="button"
-          onClick={() => setShowPassword(!showPassword)}
-          className="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-emerald-600"
-        >
-          {showPassword ? 'Hide' : 'Change Password'}
-        </button>
-        {showPassword && (
-          <form onSubmit={handlePasswordChange} className="mt-4 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Current Password</label>
-              <input
-                type="password"
-                value={pwForm.current_password}
-                onChange={(e) => setPwForm({ ...pwForm, current_password: e.target.value })}
-                className="w-full border dark:border-gray-600 rounded px-3 py-2 dark:bg-gray-700 dark:text-white"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Password</label>
-              <input
-                type="password"
-                value={pwForm.new_password}
-                onChange={(e) => setPwForm({ ...pwForm, new_password: e.target.value })}
-                className="w-full border dark:border-gray-600 rounded px-3 py-2 dark:bg-gray-700 dark:text-white"
-                minLength={8}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Confirm New Password</label>
-              <input
-                type="password"
-                value={pwForm.confirm}
-                onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
-                className="w-full border dark:border-gray-600 rounded px-3 py-2 dark:bg-gray-700 dark:text-white"
-                minLength={8}
-                required
-              />
-            </div>
-            <div className="flex items-center gap-4">
-              <button type="submit" disabled={saving} className="bg-emerald-600 text-white px-6 py-2 rounded hover:bg-emerald-700 disabled:opacity-50">
-                {saving ? 'Saving...' : 'Change Password'}
-              </button>
-              {pwMessage && <span className="text-sm text-gray-600 dark:text-gray-400">{pwMessage}</span>}
-            </div>
-          </form>
-        )}
-      </div>
     </>
   );
 }

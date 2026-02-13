@@ -341,3 +341,91 @@ async def test_refresh_with_expired_token(client):
         "refresh_token": token,
     })
     assert resp.status_code == 401
+
+
+# ── Delete Account ──────────────────────────────────────────────────────
+
+
+async def _register_helper(client, email, username):
+    resp = await client.post("/api/v1/auth/register", json={
+        "email": email, "username": username, "password": "pass1234",
+    })
+    token = resp.json()["access_token"]
+    return token, {"Authorization": f"Bearer {token}"}
+
+
+@pytest.mark.asyncio
+async def test_delete_account_wrong_confirmation(client):
+    _, headers = await _register_helper(client, "del1@test.com", "delaccount1")
+    resp = await client.post("/api/v1/auth/delete-account", json={
+        "confirmation": "yes delete my data",
+    }, headers=headers)
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_delete_account_case_sensitive(client):
+    _, headers = await _register_helper(client, "del2@test.com", "delaccount2")
+    resp = await client.post("/api/v1/auth/delete-account", json={
+        "confirmation": "yes, delete ALL of my data",  # lowercase y
+    }, headers=headers)
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_delete_account_success(client, db_session):
+    """Full account deletion removes all user data."""
+    from app.seed.round_templates import seed_round_templates
+    await seed_round_templates(db_session)
+    await db_session.commit()
+
+    _, headers = await _register_helper(client, "del3@test.com", "delaccount3")
+
+    # Create some data: custom round, scoring session with ends
+    resp = await client.post("/api/v1/rounds", json={
+        "name": "My Round",
+        "organization": "Custom",
+        "description": "test",
+        "stages": [{
+            "name": "Stage 1", "distance": "10m", "num_ends": 2, "arrows_per_end": 3,
+            "allowed_values": ["10", "9", "M"],
+            "value_score_map": {"10": 10, "9": 9, "M": 0},
+            "max_score_per_arrow": 10,
+        }],
+    }, headers=headers)
+    custom_round_id = resp.json()["id"]
+    stage_id = resp.json()["stages"][0]["id"]
+
+    resp = await client.post("/api/v1/sessions", json={
+        "template_id": custom_round_id,
+    }, headers=headers)
+    session_id = resp.json()["id"]
+
+    await client.post(f"/api/v1/sessions/{session_id}/ends", json={
+        "stage_id": stage_id,
+        "arrows": [{"score_value": "10"}, {"score_value": "9"}, {"score_value": "M"}],
+    }, headers=headers)
+
+    # Delete account
+    resp = await client.post("/api/v1/auth/delete-account", json={
+        "confirmation": "Yes, delete ALL of my data",
+    }, headers=headers)
+    assert resp.status_code == 200
+
+    # Verify user is gone — login should fail
+    resp = await client.post("/api/v1/auth/login", json={
+        "username": "delaccount3", "password": "pass1234",
+    })
+    assert resp.status_code == 401
+
+    # Custom round template should be gone
+    resp3 = await client.get(f"/api/v1/rounds/{custom_round_id}")
+    assert resp3.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_account_unauthenticated(client):
+    resp = await client.post("/api/v1/auth/delete-account", json={
+        "confirmation": "Yes, delete ALL of my data",
+    })
+    assert resp.status_code == 401
