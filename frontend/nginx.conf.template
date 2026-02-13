@@ -1,13 +1,5 @@
-# Redirect www to non-www
-server {
-    listen ${PORT};
-    server_name www.quiverscore.com;
-    return 301 https://quiverscore.com$request_uri;
-}
-
 server {
     listen ${PORT} default_server;
-    server_name quiverscore.com;
     root /usr/share/nginx/html;
     index index.html;
 

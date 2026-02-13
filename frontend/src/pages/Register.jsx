@@ -19,7 +19,9 @@ export default function Register() {
       await loginUser(res.data);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Registration failed');
+      console.error('Register error:', err);
+      setError(err.response?.data?.detail || err.message || 'Registration failed');
+    } finally {
       setSubmitting(false);
     }
   };

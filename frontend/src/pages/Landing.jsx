@@ -106,6 +106,17 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Archery Organizations */}
+      <section className="max-w-3xl mx-auto px-6 pb-16 text-center">
+        <h2 className="text-white font-semibold text-lg mb-3">Archery Organizations</h2>
+        <p className="text-emerald-200 text-sm mb-4">QuiverScore supports round formats from the leading governing bodies.</p>
+        <div className="flex flex-wrap justify-center gap-4">
+          <a href="https://worldarchery.sport" rel="noopener" target="_blank" className="text-emerald-200 hover:text-white transition-colors text-sm underline underline-offset-2">World Archery</a>
+          <a href="https://www.nfaausa.com" rel="noopener" target="_blank" className="text-emerald-200 hover:text-white transition-colors text-sm underline underline-offset-2">NFAA</a>
+          <a href="https://www.usaarchery.org" rel="noopener" target="_blank" className="text-emerald-200 hover:text-white transition-colors text-sm underline underline-offset-2">USA Archery</a>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="text-center pb-8 text-emerald-300 text-sm">
         <div className="flex justify-center gap-4 mb-2">
