@@ -21,6 +21,7 @@ export default function ClubDetail() {
   const [teams, setTeams] = useState([]);
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tabLoading, setTabLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,16 +34,18 @@ export default function ClubDetail() {
 
   useEffect(() => {
     if (!club) return;
+    if (tab === 'members') return;
+    const done = () => setTabLoading(false);
     if (tab === 'leaderboard') {
-      getLeaderboard(clubId).then((res) => setLeaderboard(res.data)).catch(() => {});
+      getLeaderboard(clubId).then((res) => setLeaderboard(res.data)).catch(() => {}).finally(done);
     } else if (tab === 'activity') {
-      getActivity(clubId).then((res) => setActivity(res.data)).catch(() => {});
+      getActivity(clubId).then((res) => setActivity(res.data)).catch(() => {}).finally(done);
     } else if (tab === 'events') {
-      getEvents(clubId).then((res) => setEvents(res.data)).catch(() => {});
+      getEvents(clubId).then((res) => setEvents(res.data)).catch(() => {}).finally(done);
     } else if (tab === 'teams') {
-      getTeams(clubId).then((res) => setTeams(res.data)).catch(() => {});
+      getTeams(clubId).then((res) => setTeams(res.data)).catch(() => {}).finally(done);
     } else if (tab === 'tournaments') {
-      listTournaments(clubId).then((res) => setTournaments(res.data)).catch(() => {});
+      listTournaments(clubId).then((res) => setTournaments(res.data)).catch(() => {}).finally(done);
     }
   }, [club, tab, clubId]);
 
@@ -77,7 +80,7 @@ export default function ClubDetail() {
         {TABS.map((t) => (
           <button
             key={t}
-            onClick={() => setTab(t)}
+            onClick={() => { if (t !== 'members') setTabLoading(true); setTab(t); }}
             className={`px-4 py-2 text-sm font-medium capitalize ${
               tab === t
                 ? 'border-b-2 border-emerald-600 text-emerald-600 dark:text-emerald-400'
@@ -89,12 +92,18 @@ export default function ClubDetail() {
         ))}
       </div>
 
-      {tab === 'teams' && <TeamsTab teams={teams} clubId={clubId} isAdmin={isAdmin} userId={user?.id} members={club.members} onRefresh={refreshTeams} />}
-      {tab === 'members' && <MembersTab members={club.members} />}
-      {tab === 'leaderboard' && <LeaderboardTab leaderboard={leaderboard} />}
-      {tab === 'activity' && <ActivityTab activity={activity} />}
-      {tab === 'events' && <EventsTab events={events} clubId={clubId} isAdmin={isAdmin} onRefresh={refreshEvents} />}
-      {tab === 'tournaments' && <TournamentsTab tournaments={tournaments} clubId={clubId} isAdmin={isAdmin} />}
+      {tabLoading ? (
+        <Spinner />
+      ) : (
+        <>
+          {tab === 'teams' && <TeamsTab teams={teams} clubId={clubId} isAdmin={isAdmin} userId={user?.id} members={club.members} onRefresh={refreshTeams} />}
+          {tab === 'members' && <MembersTab members={club.members} />}
+          {tab === 'leaderboard' && <LeaderboardTab leaderboard={leaderboard} />}
+          {tab === 'activity' && <ActivityTab activity={activity} />}
+          {tab === 'events' && <EventsTab events={events} clubId={clubId} isAdmin={isAdmin} onRefresh={refreshEvents} />}
+          {tab === 'tournaments' && <TournamentsTab tournaments={tournaments} clubId={clubId} isAdmin={isAdmin} />}
+        </>
+      )}
     </div>
   );
 }
