@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { createRound } from '../api/scoring';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { createRound, updateRound, getRound } from '../api/scoring';
+import Spinner from '../components/Spinner';
 
 const DEFAULT_STAGE = {
   name: 'Stage 1',
@@ -28,14 +29,45 @@ const SCORING_PRESETS = {
   },
 };
 
+function detectScoringType(stage) {
+  if (stage.max_score_per_arrow === 5) return 'five_zone';
+  return 'standard';
+}
+
 export default function CreateRound() {
   const navigate = useNavigate();
+  const { roundId } = useParams();
+  const isEdit = Boolean(roundId);
+
   const [name, setName] = useState('');
   const [organization, setOrganization] = useState('Custom');
   const [description, setDescription] = useState('');
   const [stages, setStages] = useState([{ ...DEFAULT_STAGE }]);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(isEdit);
+
+  useEffect(() => {
+    if (!roundId) return;
+    getRound(roundId)
+      .then((res) => {
+        const t = res.data;
+        setName(t.name);
+        setOrganization(t.organization);
+        setDescription(t.description || '');
+        setStages(
+          t.stages.map((s) => ({
+            name: s.name,
+            distance: s.distance || '',
+            num_ends: s.num_ends,
+            arrows_per_end: s.arrows_per_end,
+            scoring_type: detectScoringType(s),
+          }))
+        );
+      })
+      .catch(() => setError('Failed to load round template'))
+      .finally(() => setLoading(false));
+  }, [roundId]);
 
   const updateStage = (index, field, value) => {
     setStages((prev) => prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)));
@@ -77,19 +109,28 @@ export default function CreateRound() {
           };
         }),
       };
-      await createRound(body);
+      if (isEdit) {
+        await updateRound(roundId, body);
+      } else {
+        await createRound(body);
+      }
       navigate('/rounds');
-    } catch {
-      setError('Failed to create round template');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      setError(detail || (isEdit ? 'Failed to update round template' : 'Failed to create round template'));
     } finally {
       setSubmitting(false);
     }
   };
 
+  if (loading) return <Spinner />;
+
   return (
     <div className="max-w-lg mx-auto">
       <Link to="/rounds" className="text-emerald-600 text-sm hover:underline">&larr; Back to Rounds</Link>
-      <h1 className="text-2xl font-bold mt-4 mb-6 dark:text-white">Create Custom Round</h1>
+      <h1 className="text-2xl font-bold mt-4 mb-6 dark:text-white">
+        {isEdit ? 'Edit Custom Round' : 'Create Custom Round'}
+      </h1>
 
       {error && <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg mb-4 text-sm">{error}</div>}
 
@@ -210,7 +251,7 @@ export default function CreateRound() {
           disabled={submitting}
           className="w-full bg-emerald-600 text-white py-3 rounded-lg font-semibold hover:bg-emerald-700 disabled:opacity-50"
         >
-          {submitting ? 'Creating...' : 'Create Round'}
+          {submitting ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save Changes' : 'Create Round')}
         </button>
       </form>
     </div>

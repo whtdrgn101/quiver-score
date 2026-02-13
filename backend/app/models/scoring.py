@@ -40,13 +40,13 @@ class End(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     session_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("scoring_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
-    stage_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("round_template_stages.id"), nullable=False, index=True)
+    stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("round_template_stages.id", ondelete="SET NULL"), nullable=True, index=True)
     end_number: Mapped[int] = mapped_column(Integer, nullable=False)
     end_total: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     session: Mapped["ScoringSession"] = relationship(back_populates="ends")
-    stage: Mapped["RoundTemplateStage"] = relationship(lazy="selectin")
+    stage: Mapped["RoundTemplateStage | None"] = relationship(lazy="selectin")
     arrows: Mapped[list["Arrow"]] = relationship(back_populates="end", lazy="selectin", order_by="Arrow.arrow_number")
 
 

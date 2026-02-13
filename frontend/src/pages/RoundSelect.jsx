@@ -214,6 +214,13 @@ export default function RoundSelect() {
                   </button>
                   {isOwned && (
                     <div className="flex gap-2 mt-3 pt-3 border-t dark:border-gray-700">
+                      <Link
+                        to={`/rounds/${t.id}/edit`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs px-2 py-1 rounded border border-emerald-500 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                      >
+                        Edit
+                      </Link>
                       <div className="relative">
                         <button
                           onClick={(e) => { e.stopPropagation(); setShareMenuId(shareMenuId === t.id ? null : t.id); }}

@@ -3,6 +3,7 @@ import client from './client';
 export const getRounds = () => client.get('/rounds');
 export const getRound = (id) => client.get(`/rounds/${id}`);
 export const createRound = (data) => client.post('/rounds', data);
+export const updateRound = (id, data) => client.put(`/rounds/${id}`, data);
 export const deleteRound = (id) => client.delete(`/rounds/${id}`);
 
 export const createSession = (data) => client.post('/sessions', data);

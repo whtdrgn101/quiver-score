@@ -459,24 +459,31 @@ function CustomRoundsTab({ rounds, loading }) {
   return (
     <div className="space-y-3">
       {rounds.map((r) => (
-        <Link
+        <div
           key={r.id}
-          to="/rounds"
-          className="block bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
+          className="bg-white dark:bg-gray-800 rounded-lg shadow p-4"
         >
           <div className="flex items-center justify-between">
             <div>
               <span className="font-medium dark:text-white">{r.name}</span>
               <span className="text-xs text-gray-400 ml-2">{r.organization}</span>
             </div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {r.stages.length} stage{r.stages.length !== 1 ? 's' : ''}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {r.stages.length} stage{r.stages.length !== 1 ? 's' : ''}
+              </span>
+              <Link
+                to={`/rounds/${r.id}/edit`}
+                className="text-xs px-2 py-1 rounded border border-emerald-500 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+              >
+                Edit
+              </Link>
+            </div>
           </div>
           {r.description && (
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{r.description}</p>
           )}
-        </Link>
+        </div>
       ))}
     </div>
   );

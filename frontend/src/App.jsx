@@ -77,6 +77,7 @@ export default function App() {
               <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route path="rounds" element={<RoundSelect />} />
                 <Route path="rounds/create" element={<CreateRound />} />
+                <Route path="rounds/:roundId/edit" element={<CreateRound />} />
                 <Route path="score/:sessionId" element={<ScoreSession />} />
                 <Route path="sessions/:sessionId" element={<SessionDetail />} />
                 <Route path="history" element={<History />} />

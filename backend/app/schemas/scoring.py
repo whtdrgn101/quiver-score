@@ -84,7 +84,7 @@ class EndOut(BaseModel):
     id: uuid.UUID
     end_number: int
     end_total: int
-    stage_id: uuid.UUID
+    stage_id: uuid.UUID | None = None
     arrows: list[ArrowOut]
     created_at: datetime
 
