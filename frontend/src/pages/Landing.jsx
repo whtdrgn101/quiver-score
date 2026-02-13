@@ -20,7 +20,7 @@ export default function Landing() {
           "@type": "WebApplication",
           "name": "QuiverScore",
           "url": "https://quiverscore.com",
-          "description": "The modern score tracker for target archers. Log sessions, manage equipment, track personal records, and compete in club leaderboards.",
+          "description": "The all-in-one platform for target archers. Score sessions, manage equipment, join clubs, compete in tournaments, train with coaches, and track classifications.",
           "applicationCategory": "SportsApplication",
           "operatingSystem": "Any",
           "offers": {
@@ -60,7 +60,7 @@ export default function Landing() {
           Track Every Arrow.<br />Master Every Round.
         </h1>
         <p className="text-lg sm:text-xl text-emerald-100 dark:text-gray-400 max-w-2xl mx-auto mb-10">
-          The modern score tracker for target archers. Log your sessions, manage your equipment, and watch your progress over time.
+          The all-in-one platform for target archers. Score sessions, manage equipment, join clubs, compete in tournaments, and train with coaches.
         </p>
         <nav className="flex flex-col sm:flex-row justify-center gap-4" aria-label="Get started">
           <Link
@@ -81,7 +81,7 @@ export default function Landing() {
       {/* Features */}
       <section className="max-w-5xl mx-auto px-6 pb-20" aria-label="Features">
         <h2 className="sr-only">Features</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <FeatureCard
             icon={
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -91,7 +91,7 @@ export default function Landing() {
               </svg>
             }
             title="Score Tracking"
-            description="Log every end, arrow by arrow. Track scores, X counts, and session notes in real time."
+            description="Log every end arrow by arrow with support for World Archery, NFAA, and custom rounds. Export to CSV or PDF."
           />
           <FeatureCard
             icon={
@@ -100,8 +100,26 @@ export default function Landing() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             }
-            title="Equipment Management"
-            description="Catalog your bows, arrows, and accessories. Build setups and track what works best."
+            title="Equipment & Sight Marks"
+            description="Catalog bows, arrows, and accessories. Build setup profiles and log sight marks by distance."
+          />
+          <FeatureCard
+            icon={
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            }
+            title="Clubs & Tournaments"
+            description="Create or join clubs, organize tournaments with leaderboards, and compete with fellow archers."
+          />
+          <FeatureCard
+            icon={
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            }
+            title="Coaching"
+            description="Coaches can invite athletes, view their sessions and scores, and track progress over time."
           />
           <FeatureCard
             icon={
@@ -109,17 +127,17 @@ export default function Landing() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             }
-            title="Progress Analytics"
-            description="See personal bests, averages by round type, and recent trends at a glance."
+            title="Analytics & Classifications"
+            description="Personal bests, scoring trends, and automatic classification tracking for World Archery and NFAA."
           />
           <FeatureCard
             icon={
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
               </svg>
             }
-            title="Mobile-Friendly"
-            description="Score at the range from your phone or tablet. Works great on any screen size."
+            title="Social Feed"
+            description="Follow other archers, share your sessions, and stay connected with the archery community."
           />
         </div>
       </section>

@@ -146,7 +146,7 @@ export default function ScoreSession() {
         </div>
         {isMultiStage && stage && (
           <div className="text-emerald-600 text-sm font-medium mt-1">
-            Stage {stage.stage_order}: {stage.distance} — End {stageEndCount + 1} of {stage.num_ends}
+            {stage.name}: {stage.distance} — End {stageEndCount + 1} of {stage.num_ends}
           </div>
         )}
       </div>
