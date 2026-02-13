@@ -3,6 +3,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { useAuth } from './hooks/useAuth';
 import Layout from './components/layout/Layout';
+import ErrorBoundary from './components/ErrorBoundary';
+import Spinner from './components/Spinner';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -24,10 +26,13 @@ import ClubDetail from './pages/ClubDetail';
 import ClubSettings from './pages/ClubSettings';
 import ClubJoin from './pages/ClubJoin';
 import ClubEventDetail from './pages/ClubEventDetail';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <p className="text-center mt-8 text-gray-500 dark:text-gray-400">Loading...</p>;
+  if (loading) return <Spinner />;
   if (!user) return <Navigate to="/login" />;
   return children;
 }
@@ -41,7 +46,7 @@ function PublicRoute({ children }) {
 
 function HomeRoute() {
   const { user, loading } = useAuth();
-  if (loading) return <p className="text-center mt-8 text-gray-500 dark:text-gray-400">Loading...</p>;
+  if (loading) return <Spinner />;
   if (!user) return <Landing />;
   return <Layout><Dashboard /></Layout>;
 }
@@ -51,30 +56,35 @@ export default function App() {
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <Routes>
-            <Route path="/" element={<HomeRoute />} />
-            <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
-            <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route path="/shared/:shareToken" element={<SharedSession />} />
-            <Route path="/u/:username" element={<PublicProfile />} />
-            <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-              <Route path="rounds" element={<RoundSelect />} />
-              <Route path="score/:sessionId" element={<ScoreSession />} />
-              <Route path="sessions/:sessionId" element={<SessionDetail />} />
-              <Route path="history" element={<History />} />
-              <Route path="equipment" element={<Equipment />} />
-              <Route path="compare" element={<CompareSession />} />
-              <Route path="clubs" element={<Clubs />} />
-              <Route path="clubs/:clubId" element={<ClubDetail />} />
-              <Route path="clubs/:clubId/settings" element={<ClubSettings />} />
-              <Route path="clubs/join/:code" element={<ClubJoin />} />
-              <Route path="clubs/:clubId/events/:eventId" element={<ClubEventDetail />} />
-              <Route path="profile" element={<Profile />} />
-            </Route>
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<HomeRoute />} />
+              <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+              <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+              <Route path="/shared/:shareToken" element={<SharedSession />} />
+              <Route path="/u/:username" element={<PublicProfile />} />
+              <Route path="/terms" element={<Terms />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+                <Route path="rounds" element={<RoundSelect />} />
+                <Route path="score/:sessionId" element={<ScoreSession />} />
+                <Route path="sessions/:sessionId" element={<SessionDetail />} />
+                <Route path="history" element={<History />} />
+                <Route path="equipment" element={<Equipment />} />
+                <Route path="compare" element={<CompareSession />} />
+                <Route path="clubs" element={<Clubs />} />
+                <Route path="clubs/:clubId" element={<ClubDetail />} />
+                <Route path="clubs/:clubId/settings" element={<ClubSettings />} />
+                <Route path="clubs/join/:code" element={<ClubJoin />} />
+                <Route path="clubs/:clubId/events/:eventId" element={<ClubEventDetail />} />
+                <Route path="profile" element={<Profile />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </ErrorBoundary>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

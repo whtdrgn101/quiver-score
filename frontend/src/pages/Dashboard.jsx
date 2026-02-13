@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getSessions, getStats } from '../api/scoring';
 import { useAuth } from '../hooks/useAuth';
+import Spinner from '../components/Spinner';
 
 const statCards = [
   {
@@ -262,7 +263,7 @@ export default function Dashboard() {
 
           <h2 className="text-lg font-semibold mb-3 dark:text-white">Recent Sessions</h2>
           {loading ? (
-            <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+            <Spinner />
           ) : recent.length === 0 ? (
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
               No sessions yet. Start your first scoring session!

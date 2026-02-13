@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { getRounds, createSession } from '../api/scoring';
 import { listSetups } from '../api/setups';
 import { listEquipment } from '../api/equipment';
+import Spinner from '../components/Spinner';
 
 export default function RoundSelect() {
   const [rounds, setRounds] = useState([]);
@@ -36,7 +37,7 @@ export default function RoundSelect() {
     navigate(`/score/${res.data.id}`);
   };
 
-  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading rounds...</p>;
+  if (loading) return <Spinner text="Loading rounds..." />;
 
   const grouped = rounds.reduce((acc, r) => {
     (acc[r.organization] = acc[r.organization] || []).push(r);

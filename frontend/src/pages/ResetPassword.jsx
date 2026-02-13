@@ -50,6 +50,7 @@ export default function ResetPassword() {
           <input
             type="password"
             placeholder="New password (min 8 characters)"
+            aria-label="New password"
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             className="w-full border dark:border-gray-600 rounded px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-gray-700 dark:text-white"
@@ -59,6 +60,7 @@ export default function ResetPassword() {
           <input
             type="password"
             placeholder="Confirm new password"
+            aria-label="Confirm new password"
             value={form.confirm}
             onChange={(e) => setForm({ ...form, confirm: e.target.value })}
             className="w-full border dark:border-gray-600 rounded px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none dark:bg-gray-700 dark:text-white"

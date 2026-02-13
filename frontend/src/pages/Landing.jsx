@@ -108,6 +108,10 @@ export default function Landing() {
 
       {/* Footer */}
       <footer className="text-center pb-8 text-emerald-300 text-sm">
+        <div className="flex justify-center gap-4 mb-2">
+          <Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+          <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+        </div>
         &copy; {new Date().getFullYear()} QuiverScore
       </footer>
     </div>

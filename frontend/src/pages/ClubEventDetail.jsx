@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getEvent, getClub, rsvpEvent, deleteEvent } from '../api/clubs';
 import { useAuth } from '../hooks/useAuth';
+import Spinner from '../components/Spinner';
 
 export default function ClubEventDetail() {
   const { clubId, eventId } = useParams();
@@ -47,7 +48,7 @@ export default function ClubEventDetail() {
     }
   };
 
-  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
+  if (loading) return <Spinner />;
   if (!event) return <p className="text-red-500">{error || 'Event not found'}</p>;
 
   const isPast = new Date(event.event_date) < new Date();

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSession, submitEnd, completeSession, undoLastEnd } from '../api/scoring';
+import Spinner from '../components/Spinner';
 
 export default function ScoreSession() {
   const { sessionId } = useParams();
@@ -48,7 +49,7 @@ export default function ScoreSession() {
     [stages]
   );
 
-  if (loading || !session) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
+  if (loading || !session) return <Spinner />;
 
   if (session.status === 'completed') {
     navigate(`/sessions/${sessionId}`);

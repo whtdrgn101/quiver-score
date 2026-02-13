@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getSession, createShareLink, revokeShareLink } from '../api/scoring';
 import ShareButtons from '../components/ShareButtons';
+import Spinner from '../components/Spinner';
 
 export default function SessionDetail() {
   const { sessionId } = useParams();
@@ -18,7 +19,7 @@ export default function SessionDetail() {
     });
   }, [sessionId]);
 
-  if (!session) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
+  if (!session) return <Spinner />;
 
   const template = session.template;
   const stage = template?.stages[0];

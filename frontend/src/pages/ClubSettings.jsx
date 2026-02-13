@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   getClub, updateClub, deleteClub,
   createInvite, getInvites, deactivateInvite,
   promoteMember, demoteMember, removeMember,
-  createEvent,
-  getTeams, getTeam, createTeam, updateTeam, deleteTeam,
+  getEvents, deleteEvent,
+  getTeams, getTeam, updateTeam, deleteTeam,
   addTeamMember, removeTeamMember,
 } from '../api/clubs';
 import { getRounds } from '../api/scoring';
 import { useAuth } from '../hooks/useAuth';
+import Spinner from '../components/Spinner';
+import CreateEventForm from '../components/CreateEventForm';
+import CreateTeamForm from '../components/CreateTeamForm';
 
 export default function ClubSettings() {
   const { clubId } = useParams();
@@ -28,9 +31,9 @@ export default function ClubSettings() {
   // Invite form
   const [inviteForm, setInviteForm] = useState({ max_uses: '', expires_in_hours: '' });
 
-  // Event form
+  // Events
+  const [eventsList, setEventsList] = useState([]);
   const [showEventForm, setShowEventForm] = useState(false);
-  const [eventForm, setEventForm] = useState({ name: '', description: '', template_id: '', event_date: '', location: '' });
 
   // Teams
   const [teamsList, setTeamsList] = useState([]);
@@ -45,16 +48,18 @@ export default function ClubSettings() {
 
   const load = async () => {
     try {
-      const [clubRes, inviteRes, roundRes, teamsRes] = await Promise.all([
+      const [clubRes, inviteRes, roundRes, teamsRes, eventsRes] = await Promise.all([
         getClub(clubId),
         getInvites(clubId).catch(() => ({ data: [] })),
         getRounds(),
         getTeams(clubId).catch(() => ({ data: [] })),
+        getEvents(clubId).catch(() => ({ data: [] })),
       ]);
       setClub(clubRes.data);
       setInvites(inviteRes.data);
       setRounds(roundRes.data);
       setTeamsList(teamsRes.data);
+      setEventsList(eventsRes.data);
       setEditForm({ name: clubRes.data.name, description: clubRes.data.description || '' });
     } catch {
       setError('Failed to load club settings');
@@ -152,49 +157,6 @@ export default function ClubSettings() {
     }
   };
 
-  const handleCreateEvent = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      const data = {
-        name: eventForm.name,
-        template_id: eventForm.template_id,
-        event_date: new Date(eventForm.event_date).toISOString(),
-      };
-      if (eventForm.description) data.description = eventForm.description;
-      if (eventForm.location) data.location = eventForm.location;
-      await createEvent(clubId, data);
-      setShowEventForm(false);
-      setEventForm({ name: '', description: '', template_id: '', event_date: '', location: '' });
-      flash('Event created');
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create event');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleCreateTeam = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      await createTeam(clubId, {
-        name: teamForm.name,
-        leader_id: teamForm.leader_id,
-        ...(teamForm.description && { description: teamForm.description }),
-      });
-      setShowTeamForm(false);
-      setTeamForm({ name: '', description: '', leader_id: '' });
-      flash('Team created');
-      const res = await getTeams(clubId);
-      setTeamsList(res.data);
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to create team');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   const handleUpdateTeam = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -283,7 +245,7 @@ export default function ClubSettings() {
     navigator.clipboard.writeText(url).then(() => flash('Link copied'));
   };
 
-  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
+  if (loading) return <Spinner />;
   if (!club) return <p className="text-red-500">Club not found</p>;
 
   const isOwner = club.my_role === 'owner';
@@ -404,7 +366,7 @@ export default function ClubSettings() {
         </div>
       </section>
 
-      {/* Create Event */}
+      {/* Events */}
       <section className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold dark:text-white">Events</h2>
@@ -416,52 +378,55 @@ export default function ClubSettings() {
           </button>
         </div>
         {showEventForm && (
-          <form onSubmit={handleCreateEvent} className="space-y-3">
-            <input
-              required
-              maxLength={200}
-              value={eventForm.name}
-              onChange={(e) => setEventForm({ ...eventForm, name: e.target.value })}
-              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-              placeholder="Event name"
-            />
-            <textarea
-              value={eventForm.description}
-              onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
-              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-              rows={2}
-              placeholder="Description"
-            />
-            <div className="grid grid-cols-2 gap-3">
-              <select
-                required
-                value={eventForm.template_id}
-                onChange={(e) => setEventForm({ ...eventForm, template_id: e.target.value })}
-                className="border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-              >
-                <option value="">Select round...</option>
-                {rounds.map((r) => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
-                ))}
-              </select>
-              <input
-                required
-                type="datetime-local"
-                value={eventForm.event_date}
-                onChange={(e) => setEventForm({ ...eventForm, event_date: e.target.value })}
-                className="border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-              />
-            </div>
-            <input
-              value={eventForm.location}
-              onChange={(e) => setEventForm({ ...eventForm, location: e.target.value })}
-              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-              placeholder="Location"
-            />
-            <button type="submit" disabled={submitting} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
-              {submitting ? 'Creating...' : 'Create Event'}
-            </button>
-          </form>
+          <CreateEventForm
+            clubId={clubId}
+            rounds={rounds}
+            onCreated={async () => {
+              setShowEventForm(false);
+              flash('Event created');
+              const res = await getEvents(clubId);
+              setEventsList(res.data);
+            }}
+            onCancel={() => setShowEventForm(false)}
+          />
+        )}
+        {eventsList.length === 0 ? (
+          <p className="text-sm text-gray-400">No events yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {eventsList.map((ev) => {
+              const isPast = new Date(ev.event_date) < new Date();
+              return (
+                <div key={ev.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                  <Link to={`/clubs/${clubId}/events/${ev.id}`} className="flex-1 min-w-0">
+                    <div className="text-sm font-medium dark:text-white truncate">{ev.name}</div>
+                    <div className="text-xs text-gray-400">
+                      {ev.template_name} · {new Date(ev.event_date).toLocaleDateString()}
+                      <span className={`ml-2 ${isPast ? 'text-gray-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                        {isPast ? 'Completed' : 'Upcoming'}
+                      </span>
+                    </div>
+                  </Link>
+                  <button
+                    onClick={async () => {
+                      if (!confirm('Delete this event?')) return;
+                      try {
+                        await deleteEvent(clubId, ev.id);
+                        flash('Event deleted');
+                        const res = await getEvents(clubId);
+                        setEventsList(res.data);
+                      } catch (err) {
+                        setError(err.response?.data?.detail || 'Failed to delete event');
+                      }
+                    }}
+                    className="text-xs text-red-500 hover:underline ml-2"
+                  >
+                    Delete
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
 
@@ -479,9 +444,24 @@ export default function ClubSettings() {
           )}
         </div>
 
-        {/* Create / Edit form */}
-        {(showTeamForm || editingTeam) && isAdmin && (
-          <form onSubmit={editingTeam ? handleUpdateTeam : handleCreateTeam} className="space-y-3 mb-4">
+        {/* Create form */}
+        {showTeamForm && !editingTeam && isAdmin && (
+          <CreateTeamForm
+            clubId={clubId}
+            members={club.members}
+            onCreated={async () => {
+              setShowTeamForm(false);
+              flash('Team created');
+              const res = await getTeams(clubId);
+              setTeamsList(res.data);
+            }}
+            onCancel={() => setShowTeamForm(false)}
+          />
+        )}
+
+        {/* Edit form */}
+        {editingTeam && isAdmin && (
+          <form onSubmit={handleUpdateTeam} className="space-y-3 mb-4">
             <input
               required
               maxLength={100}
@@ -510,13 +490,11 @@ export default function ClubSettings() {
             </select>
             <div className="flex gap-2">
               <button type="submit" disabled={submitting} className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                {submitting ? (editingTeam ? 'Saving...' : 'Creating...') : (editingTeam ? 'Save Changes' : 'Create Team')}
+                {submitting ? 'Saving...' : 'Save Changes'}
               </button>
-              {editingTeam && (
-                <button type="button" onClick={() => { setEditingTeam(null); setTeamForm({ name: '', description: '', leader_id: '' }); }} className="text-sm text-gray-500 hover:underline">
-                  Cancel
-                </button>
-              )}
+              <button type="button" onClick={() => { setEditingTeam(null); setTeamForm({ name: '', description: '', leader_id: '' }); }} className="text-sm text-gray-500 hover:underline">
+                Cancel
+              </button>
             </div>
           </form>
         )}

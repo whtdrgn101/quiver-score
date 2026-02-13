@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getClub, getLeaderboard, getActivity, getEvents, getTeams, getTeam } from '../api/clubs';
+import { getRounds } from '../api/scoring';
 import { useAuth } from '../hooks/useAuth';
+import Spinner from '../components/Spinner';
+import CreateEventForm from '../components/CreateEventForm';
+import CreateTeamForm from '../components/CreateTeamForm';
 
 const TABS = ['members', 'teams', 'leaderboard', 'activity', 'events'];
 
@@ -38,10 +42,13 @@ export default function ClubDetail() {
     }
   }, [club, tab, clubId]);
 
-  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
+  if (loading) return <Spinner />;
   if (!club) return <p className="text-red-500">Club not found</p>;
 
   const isAdmin = club.my_role === 'owner' || club.my_role === 'admin';
+
+  const refreshEvents = () => getEvents(clubId).then((res) => setEvents(res.data)).catch(() => {});
+  const refreshTeams = () => getTeams(clubId).then((res) => setTeams(res.data)).catch(() => {});
 
   return (
     <div>
@@ -78,11 +85,11 @@ export default function ClubDetail() {
         ))}
       </div>
 
-      {tab === 'teams' && <TeamsTab teams={teams} clubId={clubId} isAdmin={isAdmin} userId={user?.id} />}
+      {tab === 'teams' && <TeamsTab teams={teams} clubId={clubId} isAdmin={isAdmin} userId={user?.id} members={club.members} onRefresh={refreshTeams} />}
       {tab === 'members' && <MembersTab members={club.members} />}
       {tab === 'leaderboard' && <LeaderboardTab leaderboard={leaderboard} />}
       {tab === 'activity' && <ActivityTab activity={activity} />}
-      {tab === 'events' && <EventsTab events={events} clubId={clubId} isAdmin={isAdmin} />}
+      {tab === 'events' && <EventsTab events={events} clubId={clubId} isAdmin={isAdmin} onRefresh={refreshEvents} />}
     </div>
   );
 }
@@ -176,10 +183,11 @@ function ActivityTab({ activity }) {
   );
 }
 
-function TeamsTab({ teams, clubId, isAdmin, userId }) {
+function TeamsTab({ teams, clubId, isAdmin, userId, members, onRefresh }) {
   const isTeamLeader = teams.some((t) => t.leader.user_id === userId);
   const [expandedTeam, setExpandedTeam] = useState(null);
   const [teamDetail, setTeamDetail] = useState(null);
+  const [showForm, setShowForm] = useState(false);
 
   const toggleTeam = (teamId) => {
     if (expandedTeam === teamId) {
@@ -193,13 +201,37 @@ function TeamsTab({ teams, clubId, isAdmin, userId }) {
 
   return (
     <div>
-      {(isAdmin || isTeamLeader) && (
+      {isAdmin && (
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
+          >
+            + Create Team
+          </button>
+          <Link
+            to={`/clubs/${clubId}/settings`}
+            className="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
+          >
+            Manage Teams
+          </Link>
+        </div>
+      )}
+      {!isAdmin && isTeamLeader && (
         <Link
           to={`/clubs/${clubId}/settings`}
-          className="inline-block mb-4 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
+          className="inline-block mb-4 text-sm text-emerald-600 hover:underline dark:text-emerald-400"
         >
-          {isAdmin ? '+ Manage Teams' : 'Manage My Team'}
+          Manage My Team
         </Link>
+      )}
+      {showForm && isAdmin && (
+        <CreateTeamForm
+          clubId={clubId}
+          members={members}
+          onCreated={() => { setShowForm(false); onRefresh(); }}
+          onCancel={() => setShowForm(false)}
+        />
       )}
       {!teams?.length ? (
         <p className="text-gray-400">No teams yet.</p>
@@ -259,16 +291,42 @@ function TeamsTab({ teams, clubId, isAdmin, userId }) {
   );
 }
 
-function EventsTab({ events, clubId, isAdmin }) {
+function EventsTab({ events, clubId, isAdmin, onRefresh }) {
+  const [showForm, setShowForm] = useState(false);
+  const [rounds, setRounds] = useState([]);
+
+  const openForm = () => {
+    if (!rounds.length) {
+      getRounds().then((res) => setRounds(res.data)).catch(() => {});
+    }
+    setShowForm(true);
+  };
+
   return (
     <div>
       {isAdmin && (
-        <Link
-          to={`/clubs/${clubId}/settings`}
-          className="inline-block mb-4 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
-        >
-          + Create Event
-        </Link>
+        <div className="flex items-center gap-3 mb-4">
+          <button
+            onClick={showForm ? () => setShowForm(false) : openForm}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
+          >
+            + Create Event
+          </button>
+          <Link
+            to={`/clubs/${clubId}/settings`}
+            className="text-sm text-emerald-600 hover:underline dark:text-emerald-400"
+          >
+            Manage Events
+          </Link>
+        </div>
+      )}
+      {showForm && isAdmin && (
+        <CreateEventForm
+          clubId={clubId}
+          rounds={rounds}
+          onCreated={() => { setShowForm(false); onRefresh(); }}
+          onCancel={() => setShowForm(false)}
+        />
       )}
       {!events?.length ? (
         <p className="text-gray-400">No events scheduled.</p>

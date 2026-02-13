@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { listEquipment, createEquipment, updateEquipment, deleteEquipment, getEquipmentStats } from '../api/equipment';
 import { listSetups, createSetup, deleteSetup, getSetup, updateSetup, addEquipmentToSetup, removeEquipmentFromSetup } from '../api/setups';
+import Spinner from '../components/Spinner';
 
 const CATEGORIES = [
   'riser', 'limbs', 'arrows', 'sight', 'stabilizer', 'rest', 'release', 'scope', 'string', 'other',
@@ -193,7 +194,7 @@ export default function Equipment() {
     loadSetupDetail(expandedSetupId);
   };
 
-  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
+  if (loading) return <Spinner />;
 
   const grouped = CATEGORIES.reduce((acc, cat) => {
     const catItems = items.filter((i) => i.category === cat);
@@ -417,7 +418,7 @@ export default function Equipment() {
           )}
 
           {setupsLoading ? (
-            <p className="text-gray-500 dark:text-gray-400">Loading...</p>
+            <Spinner />
           ) : setups.length === 0 ? (
             <p className="text-gray-400 text-center mt-8">No setup profiles yet.</p>
           ) : (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { getSessions } from '../api/scoring';
+import Spinner from '../components/Spinner';
 
 export default function History() {
   const navigate = useNavigate();
@@ -29,7 +30,7 @@ export default function History() {
     }
   };
 
-  if (loading) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>;
+  if (loading) return <Spinner />;
 
   return (
     <div>
