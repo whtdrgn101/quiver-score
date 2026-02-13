@@ -35,7 +35,6 @@ export default function History() {
   }, []);
 
   useEffect(() => {
-    setLoading(true);
     loadSessions();
   }, [loadSessions]);
 

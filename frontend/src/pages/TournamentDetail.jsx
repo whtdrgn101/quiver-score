@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import {
@@ -27,7 +27,7 @@ export default function TournamentDetail() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const [tRes, lbRes] = await Promise.all([
         getTournament(clubId, tournamentId),
@@ -38,11 +38,11 @@ export default function TournamentDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [clubId, tournamentId]);
 
   useEffect(() => {
     loadData();
-  }, [clubId, tournamentId]);
+  }, [loadData]);
 
   if (loading) return <Spinner />;
   if (!tournament) return <div className="text-center text-gray-500 dark:text-gray-400">Tournament not found.</div>;

@@ -90,14 +90,12 @@ export default function Equipment() {
     setExpandedSetup(null);
     setSetupEditing(false);
     setShowAddEquipment(false);
+    setSetupSightMarks([]);
+    setShowSightMarkForm(false);
   }, []);
 
   useEffect(() => {
-    if (!expandedSetupId) {
-      setSetupSightMarks([]);
-      setShowSightMarkForm(false);
-      return;
-    }
+    if (!expandedSetupId) return;
     let cancelled = false;
     Promise.all([
       getSetup(expandedSetupId),

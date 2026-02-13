@@ -17,7 +17,6 @@ export default function TournamentCreate() {
   const [templateId, setTemplateId] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('');
   const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     getRounds()
@@ -39,7 +38,6 @@ export default function TournamentCreate() {
         description: description || null,
         max_participants: maxParticipants ? parseInt(maxParticipants) : null,
         start_date: startDate ? new Date(startDate).toISOString() : null,
-        end_date: endDate ? new Date(endDate).toISOString() : null,
       };
       const res = await createTournament(clubId, data);
       navigate(`/clubs/${clubId}/tournaments/${res.data.id}`);

@@ -11,11 +11,12 @@ export default function CoachDashboard() {
   const [inviteError, setInviteError] = useState('');
   const [inviteSuccess, setInviteSuccess] = useState('');
 
-  const loadData = async () => {
-    const [aRes, cRes] = await Promise.all([listAthletes(), listCoaches()]);
-    setAthletes(aRes.data);
-    setCoaches(cRes.data);
-    setLoading(false);
+  const loadData = () => {
+    Promise.all([listAthletes(), listCoaches()]).then(([aRes, cRes]) => {
+      setAthletes(aRes.data);
+      setCoaches(cRes.data);
+      setLoading(false);
+    });
   };
 
   useEffect(() => { loadData(); }, []);
