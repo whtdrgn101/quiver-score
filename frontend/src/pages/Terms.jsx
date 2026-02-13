@@ -36,7 +36,7 @@ export default function Terms() {
         <p className="mb-4">Don't abuse the service, try to hack it, spam other users, or submit fraudulent scores. We reserve the right to suspend accounts that violate these common-sense rules.</p>
 
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">6. Account Deletion</h2>
-        <p className="mb-4">Want to leave? You can request deletion of your account and all associated data at any time by contacting us. We'll process it within 30 days.</p>
+        <p className="mb-4">Want to leave? You can delete your account and all associated data at any time from your profile page. Deletion is immediate and permanent — no waiting period, no hoops.</p>
 
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mt-8 mb-3">7. Limitation of Liability</h2>
         <p className="mb-4">Since this is a free service, our liability is limited to the amount you paid us — which is zero. We are not liable for any damages arising from your use of QuiverScore, including but not limited to lost data, inaccurate scores, or service outages.</p>

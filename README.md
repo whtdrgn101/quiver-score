@@ -1,19 +1,60 @@
 # QuiverScore
 
-Target archery score tracking application. Record scores across official round formats, track equipment setups, and monitor your progress over time. Installable as a PWA on mobile devices.
+Target archery score tracking application. Record scores across official and custom round formats, manage equipment and sight marks, join clubs, compete in tournaments, train with coaches, and connect with the archery community. Free, privacy-focused, and installable as a PWA on mobile devices.
 
 ## Features
 
-- **Score Tracking** — Tap-based arrow entry with real-time running totals, X counts, and scorecard display
-- **6 Official Round Templates** — WA Indoor 18m (Recurve & Compound), WA 720 70m, WA 1440 (multi-stage), Vegas 300, NFAA Indoor 300
-- **Multi-Stage Rounds** — Dynamic stage progression for rounds like WA 1440 with multiple distances
-- **Equipment Management** — Track bows, risers, limbs, arrows, sights, and accessories with custom specs
-- **Setup Profiles** — Group equipment into named setups and link them to scoring sessions
-- **Dashboard Stats** — Personal best, average by round type, recent score trend, total arrows/X count
-- **Session Resume** — Banner notification to resume in-progress scoring sessions
-- **User Profiles** — Display name, bio, avatar (file upload or URL), bow type, classification
-- **Session Metadata** — Location, weather, and notes on every scoring session
-- **PWA Support** — Install on mobile, offline app shell caching, auto-updating service worker
+### Score Tracking
+- Tap-based arrow entry with real-time running totals, X counts, and scorecard display
+- Multi-stage rounds with dynamic stage progression (e.g., WA 1440 with multiple distances)
+- 6 official round templates: WA Indoor 18m (Recurve & Compound), WA 720 70m, WA 1440, Vegas 300, NFAA Indoor 300
+- Custom round templates — create, edit, and share with clubs
+- Session metadata: location, weather, notes
+- Abandon and delete sessions
+- Resume in-progress sessions from a banner notification
+- Export completed sessions to CSV or PDF
+- Share sessions via public link
+- Compare two sessions side by side
+
+### Equipment & Sight Marks
+- Track bows, risers, limbs, arrows, sights, and accessories with custom specs
+- Build named setup profiles and link equipment to them
+- Log sight marks by distance for each setup
+
+### Clubs & Teams
+- Create or join clubs with invite codes
+- Owner/admin/member role hierarchy
+- Club events with participant tracking
+- Teams within clubs
+- Share custom round templates with clubs
+
+### Tournaments
+- Organize tournaments within clubs
+- Leaderboards with automatic ranking
+- Link scoring sessions to tournament participation
+
+### Coaching
+- Coach/athlete linking with invite system
+- Coaches can view athlete sessions and scores
+- Session annotations by coaches
+- Track athlete progress over time
+
+### Social
+- Follow other archers
+- Activity feed with recent sessions and achievements
+- Public user profiles
+
+### Analytics
+- Dashboard: personal best, average by round type, recent score trend, total arrows/X count
+- Personal records tracked automatically
+- Classification tracking for World Archery and NFAA
+- Scoring history with filter and search
+
+### Account & Privacy
+- Email verification
+- Password reset via email
+- Full account deletion with all associated data
+- No tracking, no ads, no data selling
 
 ## Tech Stack
 
@@ -36,84 +77,71 @@ Target archery score tracking application. Record scores across official round f
 quiverscore/
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/          # Route handlers
-│   │   │   ├── auth.py      #   Registration, login, refresh, password change
-│   │   │   ├── users.py     #   Profile, avatar
-│   │   │   ├── rounds.py    #   Round template listing
-│   │   │   ├── scoring.py   #   Sessions, ends, arrows, stats
-│   │   │   ├── equipment.py #   Equipment CRUD
-│   │   │   └── setups.py    #   Setup profiles, equipment linking
-│   │   ├── models/          # SQLAlchemy models
-│   │   ├── schemas/         # Pydantic request/response schemas
-│   │   ├── core/            # Security (JWT, bcrypt), exceptions
-│   │   ├── seed/            # Round template seed data
-│   │   ├── config.py        # Settings via environment variables
-│   │   ├── database.py      # Async engine + session factory
-│   │   ├── dependencies.py  # Auth dependency (get_current_user)
-│   │   └── main.py          # FastAPI app, CORS, lifespan
-│   ├── alembic/             # Database migrations
-│   ├── tests/               # pytest async tests
+│   │   ├── api/v1/              # Route handlers
+│   │   │   ├── auth.py          #   Registration, login, refresh, email verify, password reset, account deletion
+│   │   │   ├── users.py         #   Profile, avatar, public profiles
+│   │   │   ├── rounds.py        #   Round templates: list, create, edit, share with clubs
+│   │   │   ├── scoring.py       #   Sessions, ends, arrows, stats, abandon, delete, export
+│   │   │   ├── sharing.py       #   Session sharing via public links
+│   │   │   ├── equipment.py     #   Equipment CRUD
+│   │   │   ├── setups.py        #   Setup profiles, equipment linking
+│   │   │   ├── clubs.py         #   Clubs, members, events, teams, shared rounds
+│   │   │   ├── notifications.py #   User notifications
+│   │   │   ├── classifications.py # Classification records
+│   │   │   ├── sight_marks.py   #   Sight mark CRUD by distance
+│   │   │   ├── coaching.py      #   Coach/athlete links, session annotations
+│   │   │   ├── social.py        #   Follow/unfollow, activity feed
+│   │   │   └── __init__.py      #   Router aggregation
+│   │   ├── models/              # SQLAlchemy models
+│   │   ├── schemas/             # Pydantic request/response schemas
+│   │   ├── core/                # Security (JWT, bcrypt), email, rate limiting, exceptions
+│   │   ├── seed/                # Round template seed data
+│   │   ├── config.py            # Settings via environment variables
+│   │   ├── database.py          # Async engine + session factory
+│   │   ├── dependencies.py      # Auth dependency (get_current_user)
+│   │   └── main.py              # FastAPI app, CORS, lifespan
+│   ├── alembic/                 # Database migrations
+│   ├── tests/                   # pytest async tests (189 tests)
 │   ├── Dockerfile
 │   └── pyproject.toml
 ├── frontend/
 │   ├── src/
-│   │   ├── api/             # Axios API clients
-│   │   ├── pages/           # Route components
-│   │   │   ├── Dashboard    #   Stats cards, round averages, recent trend
-│   │   │   ├── RoundSelect  #   Pick template, setup, location/weather
-│   │   │   ├── ScoreSession #   Live scoring with tap-to-score grid
-│   │   │   ├── SessionDetail#   Completed session scorecard
-│   │   │   ├── History      #   All past sessions
-│   │   │   ├── Equipment    #   Equipment list + CRUD
-│   │   │   ├── Setups       #   Setup profile management
-│   │   │   └── Profile      #   User profile + password change
-│   │   ├── contexts/        # Auth context (token management)
-│   │   ├── hooks/           # useAuth hook
-│   │   └── components/      # Layout shell (nav, resume banner)
-│   ├── Dockerfile           # Multi-stage build (Node → Nginx)
-│   ├── nginx.conf           # SPA fallback + API proxy (local compose)
-│   ├── nginx.conf.template  # Parameterized config (Cloud Run)
+│   │   ├── api/                 # Axios API clients
+│   │   ├── pages/               # Route components
+│   │   │   ├── Dashboard        #   Stats cards, round averages, recent trend
+│   │   │   ├── RoundSelect      #   Pick template, setup, location/weather
+│   │   │   ├── CreateRound      #   Create or edit custom round templates
+│   │   │   ├── ScoreSession     #   Live scoring with tap-to-score grid
+│   │   │   ├── SessionDetail    #   Completed session scorecard + export
+│   │   │   ├── SharedSession    #   Public shared session view
+│   │   │   ├── CompareSession   #   Side-by-side session comparison
+│   │   │   ├── History          #   All past sessions with filter/search
+│   │   │   ├── Equipment        #   Equipment list + CRUD
+│   │   │   ├── Profile          #   User profile, password change, danger zone
+│   │   │   ├── PublicProfile    #   Public user profile page
+│   │   │   ├── Clubs            #   Club listing + creation
+│   │   │   ├── ClubDetail       #   Club members, events, teams, rounds, tournaments
+│   │   │   ├── ClubSettings     #   Club admin settings
+│   │   │   ├── TournamentCreate #   Create tournament within club
+│   │   │   ├── TournamentDetail #   Tournament leaderboard + participation
+│   │   │   ├── CoachDashboard   #   Coach's athlete list + overview
+│   │   │   ├── AthleteView      #   Coach's view of an athlete's data
+│   │   │   ├── Feed             #   Social activity feed
+│   │   │   └── About            #   About the project
+│   │   ├── contexts/            # Auth + theme contexts
+│   │   ├── hooks/               # useAuth, useTheme hooks
+│   │   └── components/          # Layout shell (nav, resume banner), error boundary
+│   ├── Dockerfile               # Multi-stage build (Node → Nginx)
+│   ├── nginx.conf               # SPA fallback + API proxy (local compose)
+│   ├── nginx.conf.template      # Parameterized config (Cloud Run)
 │   └── package.json
-├── docker-compose.yml       # Local development
-├── docker-compose.prod.yml  # Local prod testing
-├── .env.example             # Required environment variables
+├── docker-compose.yml           # Local development
+├── docker-compose.prod.yml      # Local prod testing
+├── .env.example                 # Required environment variables
 └── .github/workflows/
-    ├── ci.yml               # Test + lint + build on PR and push
-    └── deploy.yml           # Build + deploy to Cloud Run on merge to main
+    ├── ci.yml                   # Test + lint + build on PR and push
+    └── deploy.yml               # Build + deploy to Cloud Run on merge to main
 ```
-
-## API Endpoints
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/api/v1/auth/register` | Create account |
-| POST | `/api/v1/auth/login` | Get access + refresh tokens |
-| POST | `/api/v1/auth/refresh` | Refresh access token |
-| POST | `/api/v1/auth/change-password` | Change password (authenticated) |
-| GET | `/api/v1/users/me` | Get current user profile |
-| PATCH | `/api/v1/users/me` | Update profile fields |
-| POST | `/api/v1/users/me/avatar` | Upload avatar image |
-| DELETE | `/api/v1/users/me/avatar` | Remove avatar |
-| GET | `/api/v1/rounds` | List all round templates |
-| GET | `/api/v1/rounds/:id` | Get round template detail |
-| POST | `/api/v1/sessions` | Start a scoring session |
-| GET | `/api/v1/sessions` | List user's sessions |
-| GET | `/api/v1/sessions/stats` | Dashboard statistics |
-| GET | `/api/v1/sessions/:id` | Get session detail with ends/arrows |
-| POST | `/api/v1/sessions/:id/ends` | Submit an end (arrows) |
-| POST | `/api/v1/sessions/:id/complete` | Mark session completed |
-| POST | `/api/v1/equipment` | Create equipment item |
-| GET | `/api/v1/equipment` | List user's equipment |
-| GET | `/api/v1/equipment/:id` | Get equipment detail |
-| PUT | `/api/v1/equipment/:id` | Update equipment |
-| DELETE | `/api/v1/equipment/:id` | Delete equipment |
-| POST | `/api/v1/setups` | Create setup profile |
-| GET | `/api/v1/setups` | List setup profiles |
-| GET | `/api/v1/setups/:id` | Get setup detail with equipment |
-| PUT | `/api/v1/setups/:id` | Update setup profile |
-| DELETE | `/api/v1/setups/:id` | Delete setup profile |
-| POST | `/api/v1/setups/:id/equipment/:eqId` | Link equipment to setup |
-| DELETE | `/api/v1/setups/:id/equipment/:eqId` | Unlink equipment from setup |
 
 ## Getting Started
 

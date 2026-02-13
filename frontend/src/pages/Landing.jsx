@@ -158,6 +158,7 @@ export default function Landing() {
         <div className="flex justify-center gap-4 mb-2">
           <Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
           <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+          <Link to="/about" className="hover:text-white transition-colors">About</Link>
         </div>
         &copy; {new Date().getFullYear()} QuiverScore
       </footer>
