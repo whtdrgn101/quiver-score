@@ -9,10 +9,19 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.dependencies import get_current_user
-from app.core.exceptions import AuthError, ConflictError, NotFoundError, ValidationError
+from app.core.exceptions import AuthError, ConflictError, ForbiddenError, NotFoundError, ValidationError
 from app.models.club import Club, ClubEvent, ClubEventParticipant, ClubInvite, ClubMember, ClubTeam, ClubTeamMember
 from app.models.scoring import PersonalRecord, ScoringSession
+from app.models.tournament import Tournament, TournamentParticipant
+from app.models.round_template import RoundTemplate
 from app.models.user import User
+from app.schemas.tournament import (
+    TournamentCreate,
+    TournamentOut,
+    TournamentDetailOut,
+    ParticipantOut,
+    LeaderboardEntry as TournamentLeaderboardEntry,
+)
 from app.schemas.club import (
     ActivityItem,
     ClubCreate,
@@ -1006,3 +1015,303 @@ async def remove_team_member(
         raise NotFoundError("User is not a member of this team")
     await db.delete(tm)
     await db.commit()
+
+
+# ── Tournaments ──────────────────────────────────────────────────────
+
+
+def _tournament_to_out(t: Tournament) -> dict:
+    return {
+        "id": t.id,
+        "name": t.name,
+        "description": t.description,
+        "organizer_id": t.organizer_id,
+        "organizer_name": t.organizer.username if t.organizer else None,
+        "template_id": t.template_id,
+        "template_name": t.template.name if t.template else None,
+        "status": t.status,
+        "max_participants": t.max_participants,
+        "registration_deadline": t.registration_deadline,
+        "start_date": t.start_date,
+        "end_date": t.end_date,
+        "participant_count": len(t.participants),
+        "club_id": t.club_id,
+        "club_name": t.club.name if t.club else None,
+        "created_at": t.created_at,
+    }
+
+
+def _participant_to_out(p: TournamentParticipant) -> dict:
+    return {
+        "id": p.id,
+        "user_id": p.user_id,
+        "username": p.user.username if p.user else None,
+        "status": p.status,
+        "final_score": p.final_score,
+        "final_x_count": p.final_x_count,
+        "rank": p.rank,
+        "registered_at": p.registered_at,
+    }
+
+
+@router.post("/{club_id}/tournaments", response_model=TournamentOut, status_code=status.HTTP_201_CREATED)
+async def create_tournament(
+    club_id: uuid.UUID,
+    body: TournamentCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    member = await _get_club_member(db, club_id, user.id)
+    if member.role not in ("owner", "admin"):
+        raise AuthError("Only owners and admins can create tournaments")
+
+    result = await db.execute(select(RoundTemplate).where(RoundTemplate.id == body.template_id))
+    if not result.scalar_one_or_none():
+        raise NotFoundError("Round template not found")
+
+    t = Tournament(
+        name=body.name,
+        description=body.description,
+        organizer_id=user.id,
+        club_id=club_id,
+        template_id=body.template_id,
+        status="registration",
+        max_participants=body.max_participants,
+        registration_deadline=body.registration_deadline,
+        start_date=body.start_date,
+        end_date=body.end_date,
+    )
+    db.add(t)
+    await db.commit()
+    await db.refresh(t)
+    return TournamentOut.model_validate(_tournament_to_out(t))
+
+
+@router.get("/{club_id}/tournaments", response_model=list[TournamentOut])
+async def list_club_tournaments(
+    club_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    tournament_status: str | None = Query(None, alias="status"),
+):
+    await _get_club_member(db, club_id, user.id)
+    query = select(Tournament).where(Tournament.club_id == club_id)
+    if tournament_status:
+        query = query.where(Tournament.status == tournament_status)
+    query = query.order_by(Tournament.created_at.desc())
+    result = await db.execute(query)
+    tournaments = result.scalars().all()
+    return [TournamentOut.model_validate(_tournament_to_out(t)) for t in tournaments]
+
+
+@router.get("/{club_id}/tournaments/{tournament_id}", response_model=TournamentDetailOut)
+async def get_club_tournament(
+    club_id: uuid.UUID,
+    tournament_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_club_member(db, club_id, user.id)
+    result = await db.execute(
+        select(Tournament).where(Tournament.id == tournament_id, Tournament.club_id == club_id)
+    )
+    t = result.scalar_one_or_none()
+    if not t:
+        raise NotFoundError("Tournament not found")
+    data = _tournament_to_out(t)
+    data["participants"] = [_participant_to_out(p) for p in t.participants]
+    return TournamentDetailOut.model_validate(data)
+
+
+@router.post("/{club_id}/tournaments/{tournament_id}/register", status_code=status.HTTP_201_CREATED)
+async def register_for_club_tournament(
+    club_id: uuid.UUID,
+    tournament_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_club_member(db, club_id, user.id)
+    result = await db.execute(
+        select(Tournament).where(Tournament.id == tournament_id, Tournament.club_id == club_id)
+    )
+    t = result.scalar_one_or_none()
+    if not t:
+        raise NotFoundError("Tournament not found")
+    if t.status != "registration":
+        raise ValidationError("Tournament is not open for registration")
+    if t.max_participants and len(t.participants) >= t.max_participants:
+        raise ValidationError("Tournament is full")
+
+    existing = await db.execute(
+        select(TournamentParticipant).where(
+            TournamentParticipant.tournament_id == tournament_id,
+            TournamentParticipant.user_id == user.id,
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise ConflictError("Already registered for this tournament")
+
+    p = TournamentParticipant(tournament_id=tournament_id, user_id=user.id)
+    db.add(p)
+    await db.commit()
+    return {"message": "Registered successfully"}
+
+
+@router.post("/{club_id}/tournaments/{tournament_id}/start", response_model=TournamentOut)
+async def start_club_tournament(
+    club_id: uuid.UUID,
+    tournament_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_club_member(db, club_id, user.id)
+    result = await db.execute(
+        select(Tournament).where(Tournament.id == tournament_id, Tournament.club_id == club_id)
+    )
+    t = result.scalar_one_or_none()
+    if not t:
+        raise NotFoundError("Tournament not found")
+    if t.organizer_id != user.id:
+        raise ForbiddenError("Only the organizer can start the tournament")
+    if t.status != "registration":
+        raise ValidationError("Tournament cannot be started from current status")
+
+    t.status = "in_progress"
+    for p in t.participants:
+        p.status = "active"
+    await db.commit()
+    await db.refresh(t)
+    return TournamentOut.model_validate(_tournament_to_out(t))
+
+
+@router.get("/{club_id}/tournaments/{tournament_id}/leaderboard", response_model=list[TournamentLeaderboardEntry])
+async def get_club_tournament_leaderboard(
+    club_id: uuid.UUID,
+    tournament_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_club_member(db, club_id, user.id)
+    result = await db.execute(
+        select(Tournament).where(Tournament.id == tournament_id, Tournament.club_id == club_id)
+    )
+    t = result.scalar_one_or_none()
+    if not t:
+        raise NotFoundError("Tournament not found")
+
+    scored = [p for p in t.participants if p.final_score is not None]
+    unscored = [p for p in t.participants if p.final_score is None]
+    scored.sort(key=lambda p: (-(p.final_score or 0), -(p.final_x_count or 0)))
+
+    entries = []
+    for i, p in enumerate(scored + unscored, 1):
+        entries.append(TournamentLeaderboardEntry(
+            rank=i if p.final_score is not None else 0,
+            user_id=p.user_id,
+            username=p.user.username if p.user else None,
+            final_score=p.final_score,
+            final_x_count=p.final_x_count,
+            status=p.status,
+        ))
+    return entries
+
+
+@router.post("/{club_id}/tournaments/{tournament_id}/complete", response_model=TournamentOut)
+async def complete_club_tournament(
+    club_id: uuid.UUID,
+    tournament_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_club_member(db, club_id, user.id)
+    result = await db.execute(
+        select(Tournament).where(Tournament.id == tournament_id, Tournament.club_id == club_id)
+    )
+    t = result.scalar_one_or_none()
+    if not t:
+        raise NotFoundError("Tournament not found")
+    if t.organizer_id != user.id:
+        raise ForbiddenError("Only the organizer can complete the tournament")
+    if t.status != "in_progress":
+        raise ValidationError("Tournament is not in progress")
+
+    scored = [p for p in t.participants if p.final_score is not None]
+    scored.sort(key=lambda p: (-(p.final_score or 0), -(p.final_x_count or 0)))
+    for i, p in enumerate(scored, 1):
+        p.rank = i
+        p.status = "completed"
+
+    for p in t.participants:
+        if p.final_score is None:
+            p.status = "withdrawn"
+
+    t.status = "completed"
+    await db.commit()
+    await db.refresh(t)
+    return TournamentOut.model_validate(_tournament_to_out(t))
+
+
+@router.post("/{club_id}/tournaments/{tournament_id}/withdraw", status_code=status.HTTP_200_OK)
+async def withdraw_from_club_tournament(
+    club_id: uuid.UUID,
+    tournament_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_club_member(db, club_id, user.id)
+    result = await db.execute(
+        select(TournamentParticipant).where(
+            TournamentParticipant.tournament_id == tournament_id,
+            TournamentParticipant.user_id == user.id,
+        )
+    )
+    p = result.scalar_one_or_none()
+    if not p:
+        raise NotFoundError("Not registered for this tournament")
+    if p.status in ("completed", "withdrawn"):
+        raise ValidationError("Cannot withdraw from completed tournament")
+
+    p.status = "withdrawn"
+    await db.commit()
+    return {"message": "Withdrawn successfully"}
+
+
+@router.post("/{club_id}/tournaments/{tournament_id}/submit-score", status_code=status.HTTP_200_OK)
+async def submit_club_tournament_score(
+    club_id: uuid.UUID,
+    tournament_id: uuid.UUID,
+    session_id: uuid.UUID = Query(...),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _get_club_member(db, club_id, user.id)
+    result = await db.execute(
+        select(TournamentParticipant).where(
+            TournamentParticipant.tournament_id == tournament_id,
+            TournamentParticipant.user_id == user.id,
+        )
+    )
+    p = result.scalar_one_or_none()
+    if not p:
+        raise NotFoundError("Not registered for this tournament")
+    if p.status not in ("registered", "active"):
+        raise ValidationError("Cannot submit score in current status")
+
+    sess_result = await db.execute(
+        select(ScoringSession).where(
+            ScoringSession.id == session_id,
+            ScoringSession.user_id == user.id,
+        )
+    )
+    session = sess_result.scalar_one_or_none()
+    if not session:
+        raise NotFoundError("Scoring session not found")
+    if session.status != "completed":
+        raise ValidationError("Scoring session is not completed")
+
+    p.session_id = session.id
+    p.final_score = session.total_score
+    p.final_x_count = session.total_x_count
+    p.status = "completed"
+    await db.commit()
+    return {"message": "Score submitted", "final_score": session.total_score, "final_x_count": session.total_x_count}

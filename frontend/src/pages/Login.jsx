@@ -34,7 +34,7 @@ export default function Login() {
           Back
         </Link>
         <h1 className="text-2xl font-bold mb-6 text-center dark:text-white">Sign In</h1>
-        {error && <div className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-3 rounded mb-4">{error}</div>}
+        {error && <div data-testid="login-error" className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-3 rounded mb-4">{error}</div>}
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="text"

@@ -1,20 +1,43 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getSessions } from '../api/scoring';
+import { getSessions, getRounds, exportSessionsCsv } from '../api/scoring';
 import Spinner from '../components/Spinner';
 
 export default function History() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState([]);
+  const [rounds, setRounds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [compareMode, setCompareMode] = useState(false);
   const [selected, setSelected] = useState([]);
 
-  useEffect(() => {
-    getSessions()
+  // Filter state
+  const [filterTemplate, setFilterTemplate] = useState('');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const loadSessions = useCallback(() => {
+    const params = {};
+    if (filterTemplate) params.template_id = filterTemplate;
+    if (filterDateFrom) params.date_from = filterDateFrom;
+    if (filterDateTo) params.date_to = filterDateTo;
+    if (filterSearch) params.search = filterSearch;
+
+    getSessions(params)
       .then((res) => setSessions(res.data))
       .finally(() => setLoading(false));
+  }, [filterTemplate, filterDateFrom, filterDateTo, filterSearch]);
+
+  useEffect(() => {
+    getRounds().then((res) => setRounds(res.data));
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    loadSessions();
+  }, [loadSessions]);
 
   const completedSessions = sessions.filter((s) => s.status === 'completed');
 
@@ -30,25 +53,125 @@ export default function History() {
     }
   };
 
-  if (loading) return <Spinner />;
+  const clearFilters = () => {
+    setFilterTemplate('');
+    setFilterDateFrom('');
+    setFilterDateTo('');
+    setFilterSearch('');
+  };
+
+  const hasActiveFilters = filterTemplate || filterDateFrom || filterDateTo || filterSearch;
+
+  const handleExportCsv = async () => {
+    const params = {};
+    if (filterTemplate) params.template_id = filterTemplate;
+    if (filterDateFrom) params.date_from = filterDateFrom;
+    if (filterDateTo) params.date_to = filterDateTo;
+    if (filterSearch) params.search = filterSearch;
+
+    try {
+      const res = await exportSessionsCsv(params);
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'sessions.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  };
+
+  if (loading && sessions.length === 0) return <Spinner />;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold dark:text-white">Session History</h1>
-        {completedSessions.length >= 2 && (
+        <div className="flex items-center gap-2">
+          {sessions.length > 0 && (
+            <button
+              onClick={handleExportCsv}
+              className="text-sm px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-400"
+            >
+              Export CSV
+            </button>
+          )}
           <button
-            onClick={() => { setCompareMode(!compareMode); setSelected([]); }}
-            className={`text-sm px-3 py-1.5 rounded-lg font-medium ${
-              compareMode
-                ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                : 'border border-emerald-600 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400'
+            onClick={() => setShowFilters(!showFilters)}
+            className={`text-sm px-3 py-1.5 rounded-lg font-medium border ${
+              hasActiveFilters
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-400'
+                : 'border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-400'
             }`}
           >
-            {compareMode ? 'Cancel' : 'Compare Sessions'}
+            Filter{hasActiveFilters ? ' *' : ''}
           </button>
-        )}
+          {completedSessions.length >= 2 && (
+            <button
+              onClick={() => { setCompareMode(!compareMode); setSelected([]); }}
+              className={`text-sm px-3 py-1.5 rounded-lg font-medium ${
+                compareMode
+                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                  : 'border border-emerald-600 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400'
+              }`}
+            >
+              {compareMode ? 'Cancel' : 'Compare'}
+            </button>
+          )}
+        </div>
       </div>
+
+      {showFilters && (
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Round Type</label>
+              <select
+                value={filterTemplate}
+                onChange={(e) => setFilterTemplate(e.target.value)}
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+              >
+                <option value="">All rounds</option>
+                {rounds.map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Search</label>
+              <input
+                type="text"
+                value={filterSearch}
+                onChange={(e) => setFilterSearch(e.target.value)}
+                placeholder="Search notes or location..."
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">From</label>
+              <input
+                type="date"
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">To</label>
+              <input
+                type="date"
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+              />
+            </div>
+          </div>
+          {hasActiveFilters && (
+            <button onClick={clearFilters} className="text-sm text-emerald-600 hover:underline">
+              Clear filters
+            </button>
+          )}
+        </div>
+      )}
 
       {compareMode && (
         <div className="mb-4 flex items-center justify-between bg-blue-50 dark:bg-blue-900/20 rounded-lg px-4 py-2">
@@ -68,10 +191,12 @@ export default function History() {
 
       {sessions.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 text-center text-gray-500 dark:text-gray-400">
-          No sessions yet. <Link to="/rounds" className="text-emerald-600 hover:underline">Start one!</Link>
+          {hasActiveFilters ? 'No sessions match your filters.' : (
+            <>No sessions yet. <Link to="/rounds" className="text-emerald-600 hover:underline">Start one!</Link></>
+          )}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div data-testid="history-list" className="space-y-2">
           {sessions.map((s) => {
             const isSelectable = compareMode && s.status === 'completed';
             const isSelected = selected.includes(s.id);
@@ -109,6 +234,7 @@ export default function History() {
                     </div>
                     <div className="text-gray-400 text-xs mt-1">
                       {new Date(s.started_at).toLocaleDateString()} · {s.total_arrows} arrows
+                      {s.setup_profile_name && <> · {s.setup_profile_name}</>}
                     </div>
                   </Link>
                 ) : (

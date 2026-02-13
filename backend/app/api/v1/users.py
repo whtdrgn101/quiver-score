@@ -63,7 +63,7 @@ async def upload_avatar_from_url(
 ):
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
-            resp = await client.get(body.url)
+            resp = await client.get(str(body.url))
             resp.raise_for_status()
     except httpx.HTTPError:
         raise HTTPException(status_code=400, detail="Could not fetch image from URL")
@@ -192,6 +192,7 @@ async def get_public_profile(
         ))
 
     return PublicProfileOut(
+        id=user.id,
         username=user.username,
         display_name=user.display_name,
         bow_type=user.bow_type,

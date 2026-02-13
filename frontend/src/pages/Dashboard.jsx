@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getSessions, getStats } from '../api/scoring';
+import { getCurrentClassifications } from '../api/classifications';
 import { useAuth } from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
+import ScoreTrend from '../components/scoring/ScoreTrend';
 
 const statCards = [
   {
@@ -75,14 +77,16 @@ export default function Dashboard() {
   const { user } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [stats, setStats] = useState(null);
+  const [classifications, setClassifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [welcomeDismissed, setWelcomeDismissed] = useState(() => localStorage.getItem('welcome_dismissed') === 'true');
 
   useEffect(() => {
-    Promise.all([getSessions(), getStats()])
-      .then(([sessionsRes, statsRes]) => {
+    Promise.all([getSessions(), getStats(), getCurrentClassifications()])
+      .then(([sessionsRes, statsRes, classRes]) => {
         setSessions(sessionsRes.data);
         setStats(statsRes.data);
+        setClassifications(classRes.data);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -98,7 +102,7 @@ export default function Dashboard() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold dark:text-white">Welcome, {user?.display_name || user?.username}</h1>
+        <h1 data-testid="dashboard-heading" className="text-2xl font-bold dark:text-white">Welcome, {user?.display_name || user?.username}</h1>
         {!isEmpty && (
           <Link
             to="/rounds"
@@ -212,6 +216,30 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* Classifications */}
+          {classifications.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold mb-3 dark:text-white">Classifications</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {classifications.map((c, i) => (
+                  <div key={i} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-gray-400 uppercase">{c.system}</div>
+                        <div className="font-bold text-emerald-600 text-lg">{c.classification}</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">{c.round_type}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium dark:text-gray-100">{c.score}</div>
+                        <div className="text-xs text-gray-400">{new Date(c.achieved_at).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Score by Round Type */}
           {stats?.avg_by_round_type?.length > 0 && (
             <div className="mb-8">
@@ -227,6 +255,13 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Score Trend Chart */}
+          {stats?.recent_trend?.length >= 2 && (
+            <div className="mb-8">
+              <ScoreTrend data={stats.recent_trend} />
             </div>
           )}
 

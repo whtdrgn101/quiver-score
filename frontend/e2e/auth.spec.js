@@ -13,11 +13,10 @@ test.describe('Authentication', () => {
       displayName: `E2E User ${id}`,
     });
     await page.waitForURL('/');
-    await expect(page.getByText(/welcome/i)).toBeVisible();
+    await expect(page.getByTestId('dashboard-heading')).toBeVisible();
   });
 
   test('login with valid credentials', async ({ page }) => {
-    // First register
     const id = uniqueId();
     const username = `e2elogin_${id}`;
     await registerUser(page, {
@@ -27,13 +26,11 @@ test.describe('Authentication', () => {
     });
     await page.waitForURL('/');
 
-    // Logout by clearing storage and reloading
     await page.evaluate(() => localStorage.clear());
     await page.goto('/login');
 
-    // Now login
     await login(page, username, 'TestPass123!');
-    await expect(page.getByText(/welcome/i)).toBeVisible();
+    await expect(page.getByTestId('dashboard-heading')).toBeVisible();
   });
 
   test('login with invalid credentials shows error', async ({ page }) => {
@@ -41,7 +38,7 @@ test.describe('Authentication', () => {
     await page.getByPlaceholder('Username').fill('nonexistent_user');
     await page.getByPlaceholder('Password').fill('wrongpassword');
     await page.getByRole('button', { name: 'Sign In' }).click();
-    await expect(page.locator('.bg-red-100, .bg-red-900\\/30')).toBeVisible();
+    await expect(page.getByTestId('login-error')).toBeVisible();
   });
 
   test('logout clears session', async ({ page }) => {
@@ -53,8 +50,7 @@ test.describe('Authentication', () => {
     });
     await page.waitForURL('/');
 
-    // Find and click logout
-    const logoutBtn = page.getByRole('button', { name: /log\s?out|sign\s?out/i });
+    const logoutBtn = page.getByTestId('logout-btn');
     if (await logoutBtn.isVisible()) {
       await logoutBtn.click();
       await expect(page).toHaveURL('/login');

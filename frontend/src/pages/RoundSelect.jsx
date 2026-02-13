@@ -46,7 +46,15 @@ export default function RoundSelect() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6 dark:text-white">Select a Round</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold dark:text-white">Select a Round</h1>
+        <Link
+          to="/rounds/create"
+          className="text-sm px-3 py-1.5 rounded-lg font-medium border border-emerald-600 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+        >
+          + Custom Round
+        </Link>
+      </div>
 
       {!loading && equipment.length === 0 && (
         <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
@@ -141,6 +149,7 @@ export default function RoundSelect() {
         </div>
       )}
 
+      <div data-testid="round-list">
       {Object.entries(grouped).map(([org, templates]) => (
         <div key={org} className="mb-6">
           <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">{org}</h2>
@@ -170,6 +179,7 @@ export default function RoundSelect() {
           </div>
         </div>
       ))}
+      </div>
     </div>
   );
 }

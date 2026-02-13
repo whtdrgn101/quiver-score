@@ -28,6 +28,7 @@ class UserUpdate(BaseModel):
 
 
 class PublicProfileOut(BaseModel):
+    id: uuid.UUID
     username: str
     display_name: str | None
     bow_type: str | None

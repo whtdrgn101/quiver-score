@@ -16,6 +16,11 @@ class ConflictError(HTTPException):
         super().__init__(status_code=status.HTTP_409_CONFLICT, detail=detail)
 
 
+class ForbiddenError(HTTPException):
+    def __init__(self, detail: str = "Forbidden"):
+        super().__init__(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
+
 class ValidationError(HTTPException):
     def __init__(self, detail: str = "Validation error"):
         super().__init__(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=detail)

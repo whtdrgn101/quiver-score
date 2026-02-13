@@ -1,4 +1,9 @@
+import uuid
+from datetime import timedelta
+
 import pytest
+
+from app.core.security import create_token, create_access_token, create_email_verification_token, create_reset_token
 
 
 @pytest.mark.asyncio
@@ -120,3 +125,219 @@ async def test_register_short_password(client):
         "email": "short@test.com", "username": "shortuser", "password": "short",
     })
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_refresh_invalid_token(client):
+    resp = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": "garbage-token-value",
+    })
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_access_token_as_refresh(client):
+    reg = await client.post("/api/v1/auth/register", json={
+        "email": "refacc@test.com", "username": "refaccuser", "password": "pass1234",
+    })
+    access_token = reg.json()["access_token"]
+    resp = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": access_token,  # wrong token type
+    })
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_missing_sub(client):
+    # JWT with type=refresh but no sub claim
+    token = create_token({"type": "refresh"}, timedelta(days=1))
+    resp = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": token,
+    })
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_deleted_user(client):
+    # Create a refresh token for a nonexistent user UUID
+    fake_user_id = str(uuid.uuid4())
+    token = create_token({"sub": fake_user_id, "type": "refresh"}, timedelta(days=1))
+    resp = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": token,
+    })
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_verify_email_invalid_token(client):
+    resp = await client.post("/api/v1/auth/verify-email", json={
+        "token": "bad-token-value",
+    })
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_verify_email_success(client, db_session):
+    # Register to get a verification token stored on user
+    reg = await client.post("/api/v1/auth/register", json={
+        "email": "verify@test.com", "username": "verifyuser", "password": "pass1234",
+    })
+    token = reg.json()["access_token"]
+
+    # Read the user's email_verification_token from the DB
+    from sqlalchemy import select
+    from app.models.user import User
+    result = await db_session.execute(select(User).where(User.username == "verifyuser"))
+    user = result.scalar_one()
+    verification_token = user.email_verification_token
+    assert verification_token is not None
+
+    # Verify
+    resp = await client.post("/api/v1/auth/verify-email", json={
+        "token": verification_token,
+    })
+    assert resp.status_code == 200
+    assert "verified" in resp.json()["detail"].lower()
+
+    # Check user is now verified
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = await client.get("/api/v1/users/me", headers=headers)
+    assert resp.json()["email_verified"] is True
+
+
+@pytest.mark.asyncio
+async def test_resend_verification_already_verified(client, db_session):
+    reg = await client.post("/api/v1/auth/register", json={
+        "email": "alreadyver@test.com", "username": "alreadyver", "password": "pass1234",
+    })
+    token = reg.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Manually verify user in DB
+    from sqlalchemy import select
+    from app.models.user import User
+    result = await db_session.execute(select(User).where(User.username == "alreadyver"))
+    user = result.scalar_one()
+    user.email_verified = True
+    await db_session.commit()
+
+    resp = await client.post("/api/v1/auth/resend-verification", headers=headers)
+    assert resp.status_code == 200
+    assert "already verified" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_resend_verification_unverified(client, db_session):
+    reg = await client.post("/api/v1/auth/register", json={
+        "email": "unver@test.com", "username": "unveruser", "password": "pass1234",
+    })
+    token = reg.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Ensure user is unverified (SQLite server_default="false" may be truthy)
+    from sqlalchemy import select
+    from app.models.user import User
+    result = await db_session.execute(select(User).where(User.username == "unveruser"))
+    user = result.scalar_one()
+    user.email_verified = False
+    await db_session.commit()
+
+    resp = await client.post("/api/v1/auth/resend-verification", headers=headers)
+    assert resp.status_code == 200
+    assert "sent" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_registered(client):
+    await client.post("/api/v1/auth/register", json={
+        "email": "forgot@test.com", "username": "forgotuser", "password": "pass1234",
+    })
+    resp = await client.post("/api/v1/auth/forgot-password", json={
+        "email": "forgot@test.com",
+    })
+    assert resp.status_code == 200
+    assert "reset link" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_unregistered(client):
+    resp = await client.post("/api/v1/auth/forgot-password", json={
+        "email": "nobody@test.com",
+    })
+    assert resp.status_code == 200
+    # Same generic success message for security
+    assert "reset link" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_reset_password_invalid_token(client):
+    resp = await client.post("/api/v1/auth/reset-password", json={
+        "token": "bad-token",
+        "new_password": "newpass1234",
+    })
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_reset_password_success(client):
+    await client.post("/api/v1/auth/register", json={
+        "email": "reset@test.com", "username": "resetuser", "password": "oldpass123",
+    })
+
+    # Generate a valid reset token
+    reset_token = create_reset_token("reset@test.com")
+
+    resp = await client.post("/api/v1/auth/reset-password", json={
+        "token": reset_token,
+        "new_password": "brandnew123",
+    })
+    assert resp.status_code == 200
+
+    # Old password fails
+    resp = await client.post("/api/v1/auth/login", json={
+        "username": "resetuser", "password": "oldpass123",
+    })
+    assert resp.status_code == 401
+
+    # New password works
+    resp = await client.post("/api/v1/auth/login", json={
+        "username": "resetuser", "password": "brandnew123",
+    })
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_register_short_username(client):
+    resp = await client.post("/api/v1/auth/register", json={
+        "email": "shortname@test.com", "username": "ab", "password": "pass1234",
+    })
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_missing_email(client):
+    resp = await client.post("/api/v1/auth/register", json={
+        "username": "noemailuser", "password": "pass1234",
+    })
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_login_nonexistent_user(client):
+    resp = await client.post("/api/v1/auth/login", json={
+        "username": "ghost_user_999", "password": "pass1234",
+    })
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_refresh_with_expired_token(client):
+    # Create a token that expired 1 second ago
+    token = create_token(
+        {"sub": str(uuid.uuid4()), "type": "refresh"},
+        timedelta(seconds=-1),
+    )
+    resp = await client.post("/api/v1/auth/refresh", json={
+        "refresh_token": token,
+    })
+    assert resp.status_code == 401

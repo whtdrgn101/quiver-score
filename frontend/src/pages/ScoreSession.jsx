@@ -182,6 +182,7 @@ export default function ScoreSession() {
             />
           </div>
           <button
+            data-testid="complete-btn"
             onClick={handleComplete}
             className="bg-emerald-600 text-white px-6 py-3 rounded-lg text-lg font-medium hover:bg-emerald-700"
           >
@@ -240,6 +241,7 @@ export default function ScoreSession() {
               Undo
             </button>
             <button
+              data-testid="submit-end-btn"
               onClick={handleSubmitEnd}
               disabled={currentArrows.length !== arrowsPerEnd || submitting}
               className="flex-1 py-3 rounded-lg bg-emerald-600 text-white font-medium disabled:opacity-50 hover:bg-emerald-700"

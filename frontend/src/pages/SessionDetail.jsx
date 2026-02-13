@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getSession, createShareLink, revokeShareLink } from '../api/scoring';
+import { getSession, createShareLink, revokeShareLink, exportSessionCsv, exportSessionPdf } from '../api/scoring';
 import ShareButtons from '../components/ShareButtons';
 import Spinner from '../components/Spinner';
+import EndBarChart from '../components/scoring/EndBarChart';
+import ArrowPlot from '../components/scoring/ArrowPlot';
 
 export default function SessionDetail() {
   const { sessionId } = useParams();
@@ -61,6 +63,29 @@ export default function SessionDetail() {
     await navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const downloadBlob = (blob, filename) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      const res = await exportSessionCsv(sessionId);
+      downloadBlob(new Blob([res.data]), `session-${sessionId}.csv`);
+    } catch { /* ignored */ }
+  };
+
+  const handleExportPdf = async () => {
+    try {
+      const res = await exportSessionPdf(sessionId);
+      downloadBlob(new Blob([res.data], { type: 'application/pdf' }), `session-${sessionId}.pdf`);
+    } catch { /* ignored */ }
   };
 
   return (
@@ -171,10 +196,34 @@ export default function SessionDetail() {
         </table>
       </div>
 
+      {session.ends.length > 0 && (
+        <div className="mt-4 space-y-4">
+          <EndBarChart ends={session.ends} maxPerEnd={stage ? stage.arrows_per_end * stage.max_score_per_arrow : undefined} />
+          <ArrowPlot ends={session.ends} />
+        </div>
+      )}
+
       {session.notes && (
         <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
           <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-1">Notes</h3>
           <p className="text-sm dark:text-gray-300">{session.notes}</p>
+        </div>
+      )}
+
+      {session.status === 'completed' && (
+        <div className="mt-4 flex gap-2">
+          <button
+            onClick={handleExportCsv}
+            className="flex-1 bg-white dark:bg-gray-800 rounded-lg shadow p-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Export CSV
+          </button>
+          <button
+            onClick={handleExportPdf}
+            className="flex-1 bg-white dark:bg-gray-800 rounded-lg shadow p-3 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Export PDF
+          </button>
         </div>
       )}
     </div>

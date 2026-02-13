@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { listEquipment, createEquipment, updateEquipment, deleteEquipment, getEquipmentStats } from '../api/equipment';
 import { listSetups, createSetup, deleteSetup, getSetup, updateSetup, addEquipmentToSetup, removeEquipmentFromSetup } from '../api/setups';
+import { getSightMarks, createSightMark, deleteSightMark } from '../api/sightMarks';
 import Spinner from '../components/Spinner';
 
 const CATEGORIES = [
@@ -46,6 +47,13 @@ export default function Equipment() {
   const [setupForm, setSetupForm] = useState({});
   const [showAddEquipment, setShowAddEquipment] = useState(false);
 
+  // Sight marks state (within setup accordion)
+  const [setupSightMarks, setSetupSightMarks] = useState([]);
+  const [showSightMarkForm, setShowSightMarkForm] = useState(false);
+  const [smDistance, setSmDistance] = useState('');
+  const [smSetting, setSmSetting] = useState('');
+  const [smNotes, setSmNotes] = useState('');
+
   const handleTabChange = (newTab) => {
     setTab(newTab);
     setSearchParams(newTab === 'setups' ? { tab: 'setups' } : {});
@@ -85,12 +93,21 @@ export default function Equipment() {
   }, []);
 
   useEffect(() => {
-    if (!expandedSetupId) return;
+    if (!expandedSetupId) {
+      setSetupSightMarks([]);
+      setShowSightMarkForm(false);
+      return;
+    }
     let cancelled = false;
-    Promise.all([getSetup(expandedSetupId), listEquipment()]).then(([setupRes, eqRes]) => {
+    Promise.all([
+      getSetup(expandedSetupId),
+      listEquipment(),
+      getSightMarks({ setup_id: expandedSetupId }),
+    ]).then(([setupRes, eqRes, smRes]) => {
       if (!cancelled) {
         setExpandedSetup(setupRes.data);
         setItems(eqRes.data);
+        setSetupSightMarks(smRes.data);
       }
     });
     return () => { cancelled = true; };
@@ -194,6 +211,27 @@ export default function Equipment() {
     loadSetupDetail(expandedSetupId);
   };
 
+  const handleAddSightMark = async (e) => {
+    e.preventDefault();
+    await createSightMark({
+      distance: smDistance,
+      setting: smSetting,
+      notes: smNotes || null,
+      setup_id: expandedSetupId,
+      date_recorded: new Date().toISOString(),
+    });
+    setSmDistance('');
+    setSmSetting('');
+    setSmNotes('');
+    setShowSightMarkForm(false);
+    getSightMarks({ setup_id: expandedSetupId }).then((res) => setSetupSightMarks(res.data));
+  };
+
+  const handleDeleteSightMark = async (id) => {
+    await deleteSightMark(id);
+    getSightMarks({ setup_id: expandedSetupId }).then((res) => setSetupSightMarks(res.data));
+  };
+
   if (loading) return <Spinner />;
 
   const grouped = CATEGORIES.reduce((acc, cat) => {
@@ -211,6 +249,7 @@ export default function Equipment() {
         <h1 className="text-2xl font-bold dark:text-white">Equipment</h1>
         {tab === 'equipment' ? (
           <button
+            data-testid="add-equipment-btn"
             onClick={() => { resetForm(); setShowForm(true); }}
             className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
           >
@@ -239,6 +278,7 @@ export default function Equipment() {
           My Equipment
         </button>
         <button
+          data-testid="setups-tab"
           onClick={() => handleTabChange('setups')}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             tab === 'setups'
@@ -317,7 +357,8 @@ export default function Equipment() {
           {Object.keys(grouped).length === 0 ? (
             <p className="text-gray-400 text-center mt-8">No equipment yet. Add your first piece above.</p>
           ) : (
-            Object.entries(grouped).map(([cat, catItems]) => (
+            <div data-testid="equipment-list">
+            {Object.entries(grouped).map(([cat, catItems]) => (
               <div key={cat} className="mb-6">
                 <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
                   {CATEGORY_LABELS[cat]}
@@ -343,7 +384,8 @@ export default function Equipment() {
                   ))}
                 </div>
               </div>
-            ))
+            ))}
+            </div>
           )}
 
           {/* Usage Stats */}
@@ -574,6 +616,82 @@ export default function Equipment() {
                               </div>
                             ))}
                           </div>
+                        )}
+                      </div>
+
+                      {/* Sight Marks */}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-sm font-semibold dark:text-white">Sight Marks</h3>
+                          <button
+                            onClick={() => setShowSightMarkForm(!showSightMarkForm)}
+                            className="text-sm text-emerald-600 hover:underline"
+                          >
+                            {showSightMarkForm ? 'Cancel' : '+ Add'}
+                          </button>
+                        </div>
+
+                        {showSightMarkForm && (
+                          <form onSubmit={handleAddSightMark} className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-3 space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                              <input
+                                type="text"
+                                value={smDistance}
+                                onChange={(e) => setSmDistance(e.target.value)}
+                                placeholder="Distance (e.g. 18m)"
+                                className="border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+                                required
+                              />
+                              <input
+                                type="text"
+                                value={smSetting}
+                                onChange={(e) => setSmSetting(e.target.value)}
+                                placeholder="Setting (e.g. 3.5 turns)"
+                                className="border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+                                required
+                              />
+                            </div>
+                            <input
+                              type="text"
+                              value={smNotes}
+                              onChange={(e) => setSmNotes(e.target.value)}
+                              placeholder="Notes (optional)"
+                              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+                            />
+                            <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700">
+                              Save
+                            </button>
+                          </form>
+                        )}
+
+                        {setupSightMarks.length === 0 ? (
+                          <p className="text-gray-400 text-sm">No sight marks for this setup.</p>
+                        ) : (
+                          (() => {
+                            const grouped = setupSightMarks.reduce((acc, m) => {
+                              (acc[m.distance] = acc[m.distance] || []).push(m);
+                              return acc;
+                            }, {});
+                            return Object.entries(grouped).map(([dist, marks]) => (
+                              <div key={dist} className="mb-3">
+                                <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-1">{dist}</div>
+                                <div className="space-y-1">
+                                  {marks.map((m) => (
+                                    <div key={m.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex justify-between items-center">
+                                      <div>
+                                        <div className="font-medium text-sm dark:text-gray-100">{m.setting}</div>
+                                        {m.notes && <div className="text-xs text-gray-500 dark:text-gray-400">{m.notes}</div>}
+                                        <div className="text-xs text-gray-400 mt-0.5">{new Date(m.date_recorded).toLocaleDateString()}</div>
+                                      </div>
+                                      <button onClick={() => handleDeleteSightMark(m.id)} className="text-xs text-red-500 hover:underline">
+                                        Delete
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ));
+                          })()
                         )}
                       </div>
                     </div>

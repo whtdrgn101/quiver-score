@@ -1,8 +1,9 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import Response
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -13,7 +14,7 @@ from app.models.scoring import ScoringSession, End, Arrow, PersonalRecord
 from app.models.setup_profile import SetupProfile
 from app.schemas.scoring import (
     SessionCreate, SessionOut, SessionSummary, EndIn, EndOut, SessionComplete,
-    StatsOut, RoundTypeAvg, RecentTrendItem, PersonalRecordOut,
+    StatsOut, RoundTypeAvg, RecentTrendItem, PersonalRecordOut, TrendDataItem,
 )
 from app.core.exceptions import NotFoundError, ValidationError
 
@@ -61,12 +62,29 @@ async def create_session(
 async def list_sessions(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    template_id: UUID | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    search: str | None = Query(None),
 ):
-    result = await db.execute(
-        select(ScoringSession)
-        .where(ScoringSession.user_id == user.id)
-        .order_by(ScoringSession.started_at.desc())
-    )
+    query = select(ScoringSession).where(ScoringSession.user_id == user.id)
+
+    if template_id:
+        query = query.where(ScoringSession.template_id == template_id)
+    if date_from:
+        query = query.where(ScoringSession.started_at >= datetime.combine(date_from, datetime.min.time(), tzinfo=timezone.utc))
+    if date_to:
+        query = query.where(ScoringSession.started_at <= datetime.combine(date_to, datetime.max.time(), tzinfo=timezone.utc))
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                ScoringSession.notes.ilike(pattern),
+                ScoringSession.location.ilike(pattern),
+            )
+        )
+
+    result = await db.execute(query.order_by(ScoringSession.started_at.desc()))
     sessions = result.scalars().all()
     out = []
     for s in sessions:
@@ -77,6 +95,70 @@ async def list_sessions(
             summary.setup_profile_name = s.setup_profile.name
         out.append(summary)
     return out
+
+
+@router.get("/export")
+async def export_sessions(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    template_id: UUID | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    search: str | None = Query(None),
+):
+    from app.services.export import generate_sessions_csv
+
+    query = select(ScoringSession).where(ScoringSession.user_id == user.id)
+    if template_id:
+        query = query.where(ScoringSession.template_id == template_id)
+    if date_from:
+        query = query.where(ScoringSession.started_at >= datetime.combine(date_from, datetime.min.time(), tzinfo=timezone.utc))
+    if date_to:
+        query = query.where(ScoringSession.started_at <= datetime.combine(date_to, datetime.max.time(), tzinfo=timezone.utc))
+    if search:
+        pattern = f"%{search}%"
+        query = query.where(or_(ScoringSession.notes.ilike(pattern), ScoringSession.location.ilike(pattern)))
+
+    result = await db.execute(query.order_by(ScoringSession.started_at.desc()))
+    sessions = result.scalars().all()
+    csv_content = generate_sessions_csv(sessions)
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=sessions.csv"},
+    )
+
+
+@router.get("/{session_id}/export")
+async def export_session(
+    session_id: UUID,
+    format: str = Query("csv"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.export import generate_session_csv, generate_session_pdf
+
+    result = await db.execute(
+        select(ScoringSession).where(ScoringSession.id == session_id, ScoringSession.user_id == user.id)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise NotFoundError("Session not found")
+
+    if format == "pdf":
+        pdf_bytes = generate_session_pdf(session)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=session-{session_id}.pdf"},
+        )
+    else:
+        csv_content = generate_session_csv(session)
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=session-{session_id}.csv"},
+        )
 
 
 @router.get("/stats", response_model=StatsOut)
@@ -188,6 +270,39 @@ async def list_personal_records(
             max_score=pr_max,
             achieved_at=pr.achieved_at,
             session_id=pr.session_id,
+        ))
+    return out
+
+
+@router.get("/trends", response_model=list[TrendDataItem])
+async def session_trends(
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ScoringSession)
+        .where(ScoringSession.user_id == user.id, ScoringSession.status == "completed")
+        .order_by(ScoringSession.completed_at.desc())
+    )
+    sessions = result.scalars().all()
+    out = []
+    for s in sessions:
+        template = s.template
+        if template and template.stages:
+            max_score = sum(
+                st.num_ends * st.arrows_per_end * st.max_score_per_arrow
+                for st in template.stages
+            )
+        else:
+            max_score = 0
+        percentage = round((s.total_score / max_score) * 100, 1) if max_score > 0 else 0
+        out.append(TrendDataItem(
+            session_id=s.id,
+            template_name=template.name if template else "Unknown",
+            total_score=s.total_score,
+            max_score=max_score,
+            percentage=percentage,
+            completed_at=s.completed_at or s.started_at,
         ))
     return out
 
@@ -367,6 +482,47 @@ async def complete_session(
             )
             db.add(pr)
         is_personal_best = True
+
+    # Create notification for personal record
+    if is_personal_best:
+        from app.services.notifications import create_notification
+        template_name = session.template.name if session.template else "Unknown"
+        await create_notification(
+            db, user.id,
+            type="personal_record",
+            title="New Personal Record!",
+            message=f"You scored {session.total_score} on {template_name} — a new personal best!",
+            link=f"/sessions/{session.id}",
+        )
+
+    # Check classification
+    from app.services.classification import calculate_classification
+    from app.models.classification import ClassificationRecord
+    template_name_for_class = session.template.name if session.template else None
+    if template_name_for_class:
+        result_class = calculate_classification(session.total_score, template_name_for_class)
+        if result_class:
+            system, classification = result_class
+            cr = ClassificationRecord(
+                user_id=user.id,
+                system=system,
+                classification=classification,
+                round_type=template_name_for_class,
+                score=session.total_score,
+                achieved_at=session.completed_at,
+                session_id=session.id,
+            )
+            db.add(cr)
+
+    # Create feed item for completed session
+    from app.services.feed import create_feed_item
+    template_name_feed = session.template.name if session.template else "Unknown"
+    feed_type = "personal_record" if is_personal_best else "session_completed"
+    await create_feed_item(db, user.id, type=feed_type, data={
+        "template_name": template_name_feed,
+        "total_score": session.total_score,
+        "session_id": str(session.id),
+    })
 
     await db.commit()
     await db.refresh(session)

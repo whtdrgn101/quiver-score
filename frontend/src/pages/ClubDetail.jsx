@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getClub, getLeaderboard, getActivity, getEvents, getTeams, getTeam } from '../api/clubs';
+import { listTournaments } from '../api/tournaments';
 import { getRounds } from '../api/scoring';
 import { useAuth } from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
 import CreateEventForm from '../components/CreateEventForm';
 import CreateTeamForm from '../components/CreateTeamForm';
 
-const TABS = ['members', 'teams', 'leaderboard', 'activity', 'events'];
+const TABS = ['members', 'teams', 'leaderboard', 'activity', 'events', 'tournaments'];
 
 export default function ClubDetail() {
   const { clubId } = useParams();
@@ -18,6 +19,7 @@ export default function ClubDetail() {
   const [activity, setActivity] = useState([]);
   const [events, setEvents] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,6 +41,8 @@ export default function ClubDetail() {
       getEvents(clubId).then((res) => setEvents(res.data)).catch(() => {});
     } else if (tab === 'teams') {
       getTeams(clubId).then((res) => setTeams(res.data)).catch(() => {});
+    } else if (tab === 'tournaments') {
+      listTournaments(clubId).then((res) => setTournaments(res.data)).catch(() => {});
     }
   }, [club, tab, clubId]);
 
@@ -90,6 +94,7 @@ export default function ClubDetail() {
       {tab === 'leaderboard' && <LeaderboardTab leaderboard={leaderboard} />}
       {tab === 'activity' && <ActivityTab activity={activity} />}
       {tab === 'events' && <EventsTab events={events} clubId={clubId} isAdmin={isAdmin} onRefresh={refreshEvents} />}
+      {tab === 'tournaments' && <TournamentsTab tournaments={tournaments} clubId={clubId} isAdmin={isAdmin} />}
     </div>
   );
 }
@@ -357,6 +362,70 @@ function EventsTab({ events, clubId, isAdmin, onRefresh }) {
               </Link>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const tournamentStatusColors = {
+  registration: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  in_progress: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  draft: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
+};
+
+function TournamentsTab({ tournaments, clubId, isAdmin }) {
+  const [filter, setFilter] = useState('');
+
+  const filtered = filter ? tournaments.filter((t) => t.status === filter) : tournaments;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+        >
+          <option value="">All statuses</option>
+          <option value="registration">Open for Registration</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+        {isAdmin && (
+          <Link
+            to={`/clubs/${clubId}/tournaments/create`}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
+          >
+            + Create Tournament
+          </Link>
+        )}
+      </div>
+
+      {filtered.length === 0 ? (
+        <p className="text-gray-400 text-center">No tournaments found.</p>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((t) => (
+            <Link
+              key={t.id}
+              to={`/clubs/${clubId}/tournaments/${t.id}`}
+              className="block bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold dark:text-white">{t.name}</h3>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {t.template_name} &middot; {t.participant_count} participants
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${tournamentStatusColors[t.status] || tournamentStatusColors.draft}`}>
+                  {t.status.replace('_', ' ')}
+                </span>
+              </div>
+            </Link>
+          ))}
         </div>
       )}
     </div>

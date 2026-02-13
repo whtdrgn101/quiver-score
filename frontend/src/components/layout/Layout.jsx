@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { getSessions } from '../../api/scoring';
 import { resendVerification } from '../../api/auth';
+import NotificationBell from '../NotificationBell';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -83,9 +84,12 @@ export default function Layout({ children }) {
               <Link to="/equipment" className="hover:text-emerald-200">Equipment</Link>
               <Link to="/clubs" className="hover:text-emerald-200">Clubs</Link>
               <Link to="/history" className="hover:text-emerald-200">History</Link>
+              <Link to="/coaching" className="hover:text-emerald-200">Coaching</Link>
+              <Link to="/feed" className="hover:text-emerald-200">Feed</Link>
               <Link to="/profile" className="text-emerald-200 text-sm hover:text-white">{user.display_name || user.username}</Link>
+              <NotificationBell />
               <ThemeToggle />
-              <button onClick={handleLogout} className="text-sm bg-emerald-800 px-3 py-1 rounded hover:bg-emerald-900">
+              <button data-testid="logout-btn" onClick={handleLogout} className="text-sm bg-emerald-800 px-3 py-1 rounded hover:bg-emerald-900">
                 Logout
               </button>
             </div>
@@ -94,6 +98,7 @@ export default function Layout({ children }) {
           {/* Hamburger button - mobile only */}
           {user && (
             <div className="flex items-center gap-2 md:hidden">
+              <NotificationBell />
               <ThemeToggle />
               <button
                 className="p-1"
@@ -121,6 +126,8 @@ export default function Layout({ children }) {
             <Link to="/equipment" className="block py-2 hover:text-emerald-200">Equipment</Link>
             <Link to="/clubs" className="block py-2 hover:text-emerald-200">Clubs</Link>
             <Link to="/history" className="block py-2 hover:text-emerald-200">History</Link>
+            <Link to="/coaching" className="block py-2 hover:text-emerald-200">Coaching</Link>
+            <Link to="/feed" className="block py-2 hover:text-emerald-200">Feed</Link>
             <Link to="/profile" className="block py-2 text-emerald-200 hover:text-white">{user.display_name || user.username}</Link>
             <button onClick={handleLogout} className="block w-full text-left py-2 text-sm bg-emerald-900 px-3 rounded hover:bg-emerald-950">
               Logout

@@ -1,9 +1,35 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 # Round templates
+class StageCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    distance: str | None = Field(None, max_length=50)
+    num_ends: int = Field(..., gt=0)
+    arrows_per_end: int = Field(..., gt=0)
+    allowed_values: list[str] = Field(..., min_length=1)
+    value_score_map: dict[str, int]
+    max_score_per_arrow: int = Field(..., gt=0)
+
+    @field_validator("value_score_map")
+    @classmethod
+    def validate_map_matches_values(cls, v, info):
+        allowed = info.data.get("allowed_values", [])
+        for val in allowed:
+            if val not in v:
+                raise ValueError(f"value_score_map missing key '{val}'")
+        return v
+
+
+class RoundTemplateCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    organization: str = Field(..., min_length=1, max_length=50)
+    description: str | None = Field(None, max_length=500)
+    stages: list[StageCreate] = Field(..., min_length=1)
+
+
 class StageOut(BaseModel):
     id: uuid.UUID
     stage_order: int
@@ -157,6 +183,15 @@ class PersonalRecordOut(BaseModel):
     max_score: int
     achieved_at: datetime
     session_id: uuid.UUID
+
+
+class TrendDataItem(BaseModel):
+    session_id: uuid.UUID
+    template_name: str
+    total_score: int
+    max_score: int
+    percentage: float
+    completed_at: datetime
 
 
 class StatsOut(BaseModel):

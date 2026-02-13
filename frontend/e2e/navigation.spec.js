@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { registerUser } from './helpers.js';
+import { login, registerUser } from './helpers.js';
 
 const uniqueId = () => Math.random().toString(36).slice(2, 8);
 
@@ -22,22 +22,13 @@ test.describe('Navigation', () => {
   });
 
   test('dashboard loads for logged-in user', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByPlaceholder('Username').fill(username);
-    await page.getByPlaceholder('Password').fill(password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL('/');
-    await expect(page.getByText(/welcome/i)).toBeVisible();
+    await login(page, username, password);
+    await expect(page.getByTestId('dashboard-heading')).toBeVisible();
   });
 
   test('dark mode toggle works', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByPlaceholder('Username').fill(username);
-    await page.getByPlaceholder('Password').fill(password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL('/');
+    await login(page, username, password);
 
-    // Find and click the dark mode toggle
     const toggle = page.locator('button[title="Dark mode"], button[title="Light mode"]');
     await expect(toggle).toBeVisible();
 
@@ -48,22 +39,12 @@ test.describe('Navigation', () => {
   });
 
   test('all nav links are accessible', async ({ page }) => {
-    await page.goto('/login');
-    await page.getByPlaceholder('Username').fill(username);
-    await page.getByPlaceholder('Password').fill(password);
-    await page.getByRole('button', { name: 'Sign In' }).click();
-    await page.waitForURL('/');
+    await login(page, username, password);
 
-    // Check navigation links exist
-    const navLinks = [
-      { name: 'Dashboard', path: '/' },
-      { name: 'Equipment', path: '/equipment' },
-      { name: 'Setups', path: '/setups' },
-      { name: 'History', path: '/history' },
-    ];
+    const navLinks = ['Dashboard', 'Equipment', 'Clubs', 'History'];
 
-    for (const link of navLinks) {
-      const navLink = page.locator(`nav a:has-text("${link.name}")`).first();
+    for (const name of navLinks) {
+      const navLink = page.getByRole('link', { name }).first();
       await expect(navLink).toBeVisible();
     }
   });

@@ -26,6 +26,12 @@ import ClubDetail from './pages/ClubDetail';
 import ClubSettings from './pages/ClubSettings';
 import ClubJoin from './pages/ClubJoin';
 import ClubEventDetail from './pages/ClubEventDetail';
+import CreateRound from './pages/CreateRound';
+import TournamentCreate from './pages/TournamentCreate';
+import TournamentDetail from './pages/TournamentDetail';
+import CoachDashboard from './pages/CoachDashboard';
+import AthleteView from './pages/AthleteView';
+import Feed from './pages/Feed';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import NotFound from './pages/NotFound';
@@ -70,6 +76,7 @@ export default function App() {
               <Route path="/privacy" element={<Privacy />} />
               <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route path="rounds" element={<RoundSelect />} />
+                <Route path="rounds/create" element={<CreateRound />} />
                 <Route path="score/:sessionId" element={<ScoreSession />} />
                 <Route path="sessions/:sessionId" element={<SessionDetail />} />
                 <Route path="history" element={<History />} />
@@ -80,6 +87,11 @@ export default function App() {
                 <Route path="clubs/:clubId/settings" element={<ClubSettings />} />
                 <Route path="clubs/join/:code" element={<ClubJoin />} />
                 <Route path="clubs/:clubId/events/:eventId" element={<ClubEventDetail />} />
+                <Route path="clubs/:clubId/tournaments/create" element={<TournamentCreate />} />
+                <Route path="clubs/:clubId/tournaments/:tournamentId" element={<TournamentDetail />} />
+                <Route path="coaching" element={<CoachDashboard />} />
+                <Route path="coaching/athletes/:athleteId" element={<AthleteView />} />
+                <Route path="feed" element={<Feed />} />
                 <Route path="profile" element={<Profile />} />
               </Route>
               <Route path="*" element={<NotFound />} />

@@ -1,17 +1,49 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPublicProfile } from '../api/auth';
+import { useAuth } from '../hooks/useAuth';
+import { followUser, unfollowUser, getFollowing } from '../api/social';
 
 export default function PublicProfile() {
   const { username } = useParams();
+  const { user } = useAuth();
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
 
   useEffect(() => {
     getPublicProfile(username)
       .then((res) => setProfile(res.data))
       .catch(() => setError(true));
   }, [username]);
+
+  useEffect(() => {
+    if (!user || !profile) return;
+    getFollowing()
+      .then((res) => {
+        setIsFollowing(res.data.some((f) => f.following_id === profile.id));
+      })
+      .catch(() => {});
+  }, [user, profile]);
+
+  const handleFollowToggle = async () => {
+    if (!profile) return;
+    setFollowLoading(true);
+    try {
+      if (isFollowing) {
+        await unfollowUser(profile.id);
+        setIsFollowing(false);
+      } else {
+        await followUser(profile.id);
+        setIsFollowing(true);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setFollowLoading(false);
+    }
+  };
 
   if (error) {
     return (
@@ -67,6 +99,19 @@ export default function PublicProfile() {
           )}
           {profile.bio && (
             <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm">{profile.bio}</p>
+          )}
+          {user && profile.id !== user.id && (
+            <button
+              onClick={handleFollowToggle}
+              disabled={followLoading}
+              className={`mt-3 px-4 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50 ${
+                isFollowing
+                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700'
+              }`}
+            >
+              {isFollowing ? 'Following' : 'Follow'}
+            </button>
           )}
         </div>
 

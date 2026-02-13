@@ -1,14 +1,17 @@
 import { Link } from 'react-router-dom';
 import { useEffect } from 'react';
+import { useTheme } from '../hooks/useTheme';
 
 export default function Landing() {
+  const { dark, toggleTheme } = useTheme();
+
   useEffect(() => {
     document.title = 'QuiverScore — Target Archery Score Tracker';
     return () => { document.title = 'QuiverScore'; };
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-900">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-900 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* JSON-LD structured data */}
       <script
         type="application/ld+json"
@@ -28,10 +31,25 @@ export default function Landing() {
         }) }}
       />
 
+      {/* Theme toggle */}
+      <div className="absolute top-4 right-4">
+        <button onClick={toggleTheme} className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors" title={dark ? 'Light mode' : 'Dark mode'}>
+          {dark ? (
+            <svg className="w-5 h-5 text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+            </svg>
+          )}
+        </button>
+      </div>
+
       {/* Hero */}
       <header className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
         <div className="inline-flex items-center gap-2 mb-6" aria-label="QuiverScore">
-          <svg className="w-10 h-10 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg className="w-10 h-10 text-emerald-300 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <circle cx="12" cy="12" r="10" strokeWidth="2" />
             <circle cx="12" cy="12" r="6" strokeWidth="2" />
             <circle cx="12" cy="12" r="2" fill="currentColor" />
@@ -41,19 +59,19 @@ export default function Landing() {
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold text-white leading-tight mb-4">
           Track Every Arrow.<br />Master Every Round.
         </h1>
-        <p className="text-lg sm:text-xl text-emerald-100 max-w-2xl mx-auto mb-10">
+        <p className="text-lg sm:text-xl text-emerald-100 dark:text-gray-400 max-w-2xl mx-auto mb-10">
           The modern score tracker for target archers. Log your sessions, manage your equipment, and watch your progress over time.
         </p>
         <nav className="flex flex-col sm:flex-row justify-center gap-4" aria-label="Get started">
           <Link
             to="/register"
-            className="inline-block bg-white text-emerald-700 font-semibold px-8 py-3 rounded-lg shadow-lg hover:bg-emerald-50 transition-colors text-lg"
+            className="inline-block bg-white text-emerald-700 dark:bg-emerald-600 dark:text-white font-semibold px-8 py-3 rounded-lg shadow-lg hover:bg-emerald-50 dark:hover:bg-emerald-500 transition-colors text-lg"
           >
             Get Started
           </Link>
           <Link
             to="/login"
-            className="inline-block border-2 border-white text-white font-semibold px-8 py-3 rounded-lg hover:bg-white/10 transition-colors text-lg"
+            className="inline-block border-2 border-white dark:border-gray-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-white/10 dark:hover:bg-gray-700 transition-colors text-lg"
           >
             Sign In
           </Link>
@@ -109,16 +127,16 @@ export default function Landing() {
       {/* Archery Organizations */}
       <section className="max-w-3xl mx-auto px-6 pb-16 text-center">
         <h2 className="text-white font-semibold text-lg mb-3">Archery Organizations</h2>
-        <p className="text-emerald-200 text-sm mb-4">QuiverScore supports round formats from the leading governing bodies.</p>
+        <p className="text-emerald-200 dark:text-gray-400 text-sm mb-4">QuiverScore supports round formats from the leading governing bodies.</p>
         <div className="flex flex-wrap justify-center gap-4">
-          <a href="https://worldarchery.sport" rel="noopener" target="_blank" className="text-emerald-200 hover:text-white transition-colors text-sm underline underline-offset-2">World Archery</a>
-          <a href="https://www.nfaausa.com" rel="noopener" target="_blank" className="text-emerald-200 hover:text-white transition-colors text-sm underline underline-offset-2">NFAA</a>
-          <a href="https://www.usaarchery.org" rel="noopener" target="_blank" className="text-emerald-200 hover:text-white transition-colors text-sm underline underline-offset-2">USA Archery</a>
+          <a href="https://worldarchery.sport" rel="noopener" target="_blank" className="text-emerald-200 dark:text-emerald-400 hover:text-white transition-colors text-sm underline underline-offset-2">World Archery</a>
+          <a href="https://www.nfaausa.com" rel="noopener" target="_blank" className="text-emerald-200 dark:text-emerald-400 hover:text-white transition-colors text-sm underline underline-offset-2">NFAA</a>
+          <a href="https://www.usaarchery.org" rel="noopener" target="_blank" className="text-emerald-200 dark:text-emerald-400 hover:text-white transition-colors text-sm underline underline-offset-2">USA Archery</a>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="text-center pb-8 text-emerald-300 text-sm">
+      <footer className="text-center pb-8 text-emerald-300 dark:text-gray-500 text-sm">
         <div className="flex justify-center gap-4 mb-2">
           <Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
           <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
@@ -131,10 +149,10 @@ export default function Landing() {
 
 function FeatureCard({ icon, title, description }) {
   return (
-    <article className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-white hover:bg-white/15 transition-colors">
-      <div className="text-emerald-300 mb-3">{icon}</div>
+    <article className="bg-white/10 dark:bg-gray-800 backdrop-blur-sm rounded-xl p-6 text-white hover:bg-white/15 dark:hover:bg-gray-700 transition-colors">
+      <div className="text-emerald-300 dark:text-emerald-400 mb-3">{icon}</div>
       <h3 className="font-semibold text-lg mb-1">{title}</h3>
-      <p className="text-emerald-100 text-sm leading-relaxed">{description}</p>
+      <p className="text-emerald-100 dark:text-gray-400 text-sm leading-relaxed">{description}</p>
     </article>
   );
 }
