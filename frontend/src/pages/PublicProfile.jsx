@@ -86,7 +86,7 @@ export default function PublicProfile() {
         {/* Profile header */}
         <div className="text-center mb-6">
           {profile.avatar ? (
-            <img src={profile.avatar} alt="" className="w-20 h-20 rounded-full object-cover mx-auto mb-3" />
+            <img src={profile.avatar} alt={`${profile.display_name || profile.username}'s avatar`} className="w-20 h-20 rounded-full object-cover mx-auto mb-3" />
           ) : (
             <div className="w-20 h-20 rounded-full bg-emerald-200 dark:bg-emerald-800 flex items-center justify-center text-3xl font-bold text-emerald-700 dark:text-emerald-200 mx-auto mb-3">
               {(profile.display_name || profile.username)[0].toUpperCase()}

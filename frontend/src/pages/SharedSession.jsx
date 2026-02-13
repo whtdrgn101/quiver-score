@@ -64,7 +64,7 @@ export default function SharedSession() {
         {/* Archer info */}
         <div className="flex items-center gap-3 mb-4">
           {session.archer_avatar ? (
-            <img src={session.archer_avatar} alt="" className="w-10 h-10 rounded-full object-cover" />
+            <img src={session.archer_avatar} alt={`${session.archer_name}'s avatar`} className="w-10 h-10 rounded-full object-cover" />
           ) : (
             <div className="w-10 h-10 rounded-full bg-emerald-200 dark:bg-emerald-800 flex items-center justify-center text-lg font-bold text-emerald-700 dark:text-emerald-200">
               {session.archer_name[0].toUpperCase()}
