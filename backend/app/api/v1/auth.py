@@ -1,8 +1,10 @@
 import uuid
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.rate_limit import limiter
 
 from app.database import get_db
 from app.models.user import User
@@ -23,7 +25,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def register(request: Request, body: RegisterRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(User).where(or_(User.email == body.email, User.username == body.username))
     )
@@ -52,7 +55,8 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request: Request, body: LoginRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.username == body.username))
     user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.hashed_password):
@@ -65,7 +69,8 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def refresh(request: Request, body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     payload = decode_token(body.refresh_token)
     if payload is None or payload.get("type") != "refresh":
         raise AuthError("Invalid refresh token")
@@ -87,7 +92,8 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/verify-email", response_model=MessageResponse)
-async def verify_email(body: VerifyEmailRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def verify_email(request: Request, body: VerifyEmailRequest, db: AsyncSession = Depends(get_db)):
     email = verify_email_verification_token(body.token)
     if not email:
         raise AuthError("Invalid or expired verification token")
@@ -133,7 +139,8 @@ async def change_password(
 
 
 @router.post("/forgot-password", response_model=MessageResponse)
-async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
     if user:
@@ -143,7 +150,8 @@ async def forgot_password(body: ForgotPasswordRequest, db: AsyncSession = Depend
 
 
 @router.post("/reset-password", response_model=MessageResponse)
-async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("3/minute")
+async def reset_password(request: Request, body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
     email = verify_reset_token(body.token)
     if not email:
         raise AuthError("Invalid or expired reset token")

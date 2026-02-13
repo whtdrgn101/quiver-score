@@ -3,7 +3,7 @@ from app.models.round_template import RoundTemplate, RoundTemplateStage
 from app.models.scoring import ScoringSession, End, Arrow, PersonalRecord
 from app.models.equipment import Equipment
 from app.models.setup_profile import SetupProfile, SetupEquipment
-from app.models.club import Club, ClubMember, ClubInvite, ClubEvent, ClubEventParticipant
+from app.models.club import Club, ClubMember, ClubInvite, ClubEvent, ClubEventParticipant, ClubTeam, ClubTeamMember
 
 __all__ = [
     "User",
@@ -21,4 +21,6 @@ __all__ = [
     "ClubInvite",
     "ClubEvent",
     "ClubEventParticipant",
+    "ClubTeam",
+    "ClubTeamMember",
 ]

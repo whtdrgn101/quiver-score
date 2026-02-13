@@ -26,6 +26,27 @@ async def test_list_rounds(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_get_round_by_id(client, db_session):
+    await _seed_templates(db_session)
+    rounds = (await client.get("/api/v1/rounds")).json()
+    round_id = rounds[0]["id"]
+
+    resp = await client.get(f"/api/v1/rounds/{round_id}")
+    assert resp.status_code == 200
+    assert resp.json()["id"] == round_id
+    assert "stages" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_get_round_not_found(client, db_session):
+    await _seed_templates(db_session)
+    import uuid
+    fake_id = str(uuid.uuid4())
+    resp = await client.get(f"/api/v1/rounds/{fake_id}")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_create_session_and_submit_end(client, db_session):
     await _seed_templates(db_session)
     token = await _register_and_get_token(client)

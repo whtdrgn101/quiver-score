@@ -12,7 +12,7 @@ class Equipment(Base):
     __tablename__ = "equipment"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     category: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     brand: Mapped[str | None] = mapped_column(String(100))

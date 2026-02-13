@@ -1,9 +1,11 @@
 import pytest
 
+from app.seed.round_templates import seed_round_templates
 
-async def _register_and_get_token(client):
+
+async def _register_and_get_token(client, email="equip@test.com", username="equip_user"):
     resp = await client.post("/api/v1/auth/register", json={
-        "email": "equip@test.com", "username": "equip_user", "password": "pass1234",
+        "email": email, "username": username, "password": "pass1234",
     })
     return resp.json()["access_token"]
 
@@ -73,3 +75,56 @@ async def test_equipment_with_specs(client, db_session):
     }, headers=headers)
     assert resp.status_code == 201
     assert resp.json()["specs"]["spine"] == "450"
+
+
+@pytest.mark.asyncio
+async def test_equipment_stats_empty(client, db_session):
+    token = await _register_and_get_token(client, "eqstats@test.com", "eqstats_user")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = await client.get("/api/v1/equipment/stats", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+@pytest.mark.asyncio
+async def test_equipment_stats_with_usage(client, db_session):
+    await seed_round_templates(db_session)
+    token = await _register_and_get_token(client, "equse@test.com", "equse_user")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Create equipment
+    resp = await client.post("/api/v1/equipment", json={
+        "category": "riser", "name": "Hoyt GMX",
+    }, headers=headers)
+    eq_id = resp.json()["id"]
+
+    # Create setup with equipment
+    resp = await client.post("/api/v1/setups", json={"name": "Test Setup"}, headers=headers)
+    setup_id = resp.json()["id"]
+    await client.post(f"/api/v1/setups/{setup_id}/equipment/{eq_id}", headers=headers)
+
+    # Create session with setup and complete it
+    rounds = (await client.get("/api/v1/rounds")).json()
+    vegas = next(r for r in rounds if r["name"] == "Vegas 300")
+    stage_id = vegas["stages"][0]["id"]
+
+    resp = await client.post("/api/v1/sessions", json={
+        "template_id": vegas["id"], "setup_profile_id": setup_id,
+    }, headers=headers)
+    session_id = resp.json()["id"]
+
+    await client.post(f"/api/v1/sessions/{session_id}/ends", json={
+        "stage_id": stage_id,
+        "arrows": [{"score_value": "X"}, {"score_value": "10"}, {"score_value": "9"}],
+    }, headers=headers)
+    await client.post(f"/api/v1/sessions/{session_id}/complete", headers=headers)
+
+    # Check stats
+    resp = await client.get("/api/v1/equipment/stats", headers=headers)
+    assert resp.status_code == 200
+    stats = resp.json()
+    assert len(stats) == 1
+    assert stats[0]["item_name"] == "Hoyt GMX"
+    assert stats[0]["sessions_count"] == 1
+    assert stats[0]["total_arrows"] == 3

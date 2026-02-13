@@ -29,7 +29,7 @@ class RoundTemplateStage(Base):
     __tablename__ = "round_template_stages"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    template_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("round_templates.id"), nullable=False)
+    template_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("round_templates.id", ondelete="CASCADE"), nullable=False, index=True)
     stage_order: Mapped[int] = mapped_column(Integer, nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     distance: Mapped[str | None] = mapped_column(String(50))  # "18m", "20yd"

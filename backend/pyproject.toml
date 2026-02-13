@@ -13,6 +13,7 @@ dependencies = [
     "python-jose[cryptography]>=3.5.0",
     "python-multipart>=0.0.22",
     "sqlalchemy[asyncio]>=2.0.46",
+    "slowapi>=0.1.9",
     "uvicorn[standard]>=0.40.0",
     "httpx>=0.28.1",
     "sendgrid>=6.11.0",

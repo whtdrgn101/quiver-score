@@ -12,7 +12,7 @@ class SetupProfile(Base):
     __tablename__ = "setup_profiles"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     brace_height: Mapped[float | None] = mapped_column(Float)
@@ -33,10 +33,10 @@ class SetupEquipment(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     setup_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("setup_profiles.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("setup_profiles.id", ondelete="CASCADE"), nullable=False, index=True
     )
     equipment_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("equipment.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("equipment.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     setup: Mapped["SetupProfile"] = relationship(back_populates="equipment_links")

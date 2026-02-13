@@ -5,7 +5,10 @@ from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 from app.database import Base, get_db
+from app.core.rate_limit import limiter
 from app.main import app
+
+limiter.enabled = False
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
 

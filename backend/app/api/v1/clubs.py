@@ -755,7 +755,8 @@ def _team_detail_out(team: ClubTeam) -> TeamDetailOut:
 
 async def _event_out(event: ClubEvent, db: AsyncSession) -> EventOut:
     now = datetime.now(timezone.utc)
-    is_past = event.event_date < now
+    event_dt = event.event_date if event.event_date.tzinfo else event.event_date.replace(tzinfo=timezone.utc)
+    is_past = event_dt < now
 
     participants = []
     for p in event.participants:

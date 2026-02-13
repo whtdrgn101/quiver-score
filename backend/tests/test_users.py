@@ -1,6 +1,8 @@
 import io
 import pytest
 
+from app.seed.round_templates import seed_round_templates
+
 
 async def register_and_get_token(client, email="profile@test.com", username="profileuser"):
     reg = await client.post("/api/v1/auth/register", json={
@@ -87,3 +89,89 @@ async def test_bio_too_long(client):
 
     resp = await client.patch("/api/v1/users/me", json={"bio": "x" * 501}, headers=headers)
     assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_my_clubs(client):
+    token = await register_and_get_token(client, "myclubs@test.com", "myclubsuser")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # No clubs initially
+    resp = await client.get("/api/v1/users/me/clubs", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+    # Create a club, then check
+    resp = await client.post("/api/v1/clubs", json={"name": "My Club"}, headers=headers)
+    assert resp.status_code == 201
+
+    resp = await client.get("/api/v1/users/me/clubs", headers=headers)
+    assert resp.status_code == 200
+    clubs = resp.json()
+    assert len(clubs) == 1
+    assert clubs[0]["club_name"] == "My Club"
+    assert clubs[0]["role"] == "owner"
+
+
+@pytest.mark.asyncio
+async def test_public_profile(client, db_session):
+    await seed_round_templates(db_session)
+    token = await register_and_get_token(client, "pubprof@test.com", "pubprofuser")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Ensure profile is not public
+    await client.patch("/api/v1/users/me", json={"profile_public": False}, headers=headers)
+
+    resp = await client.get("/api/v1/users/pubprofuser")
+    assert resp.status_code == 404
+
+    # Make profile public
+    resp = await client.patch("/api/v1/users/me", json={"profile_public": True}, headers=headers)
+    assert resp.status_code == 200
+
+    # Now accessible
+    resp = await client.get("/api/v1/users/pubprofuser")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["username"] == "pubprofuser"
+    assert data["total_sessions"] == 0
+    assert data["recent_sessions"] == []
+
+
+@pytest.mark.asyncio
+async def test_public_profile_with_sessions(client, db_session):
+    await seed_round_templates(db_session)
+    token = await register_and_get_token(client, "pubsess@test.com", "pubsessuser")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Make public
+    await client.patch("/api/v1/users/me", json={"profile_public": True}, headers=headers)
+
+    # Create and complete a session
+    rounds = (await client.get("/api/v1/rounds")).json()
+    vegas = next(r for r in rounds if r["name"] == "Vegas 300")
+    stage_id = vegas["stages"][0]["id"]
+
+    resp = await client.post("/api/v1/sessions", json={"template_id": vegas["id"]}, headers=headers)
+    session_id = resp.json()["id"]
+
+    await client.post(f"/api/v1/sessions/{session_id}/ends", json={
+        "stage_id": stage_id,
+        "arrows": [{"score_value": "X"}, {"score_value": "10"}, {"score_value": "9"}],
+    }, headers=headers)
+    await client.post(f"/api/v1/sessions/{session_id}/complete", headers=headers)
+
+    resp = await client.get("/api/v1/users/pubsessuser")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_sessions"] == 1
+    assert data["completed_sessions"] == 1
+    assert data["total_arrows"] == 3
+    assert data["personal_best_score"] == 29
+    assert len(data["recent_sessions"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_public_profile_nonexistent(client):
+    resp = await client.get("/api/v1/users/nobody_here")
+    assert resp.status_code == 404

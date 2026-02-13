@@ -1,11 +1,15 @@
+import logging
+
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def send_verification_email(email: str, token: str) -> None:
     verify_link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
 
     if not settings.SENDGRID_API_KEY:
-        print(f"[DEV] Email verification link for {email}: {verify_link}")
+        logger.info("Email verification link for %s: %s", email, verify_link)
         return
 
     from sendgrid import SendGridAPIClient
@@ -34,7 +38,7 @@ def send_password_reset_email(email: str, reset_token: str) -> None:
     reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
 
     if not settings.SENDGRID_API_KEY:
-        print(f"[DEV] Password reset link for {email}: {reset_link}")
+        logger.info("Password reset link for %s: %s", email, reset_link)
         return
 
     from sendgrid import SendGridAPIClient
