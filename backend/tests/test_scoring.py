@@ -175,6 +175,42 @@ async def test_complete_session(client, db_session):
 
 
 @pytest.mark.asyncio
+async def test_complete_session_with_location_weather(client, db_session):
+    await _seed_templates(db_session)
+    token = await _register_and_get_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    rounds = (await client.get("/api/v1/rounds")).json()
+    vegas = next(r for r in rounds if r["name"] == "Vegas 300")
+    stage_id = vegas["stages"][0]["id"]
+
+    # Create session without location/weather
+    resp = await client.post("/api/v1/sessions", json={"template_id": vegas["id"]}, headers=headers)
+    session_id = resp.json()["id"]
+    assert resp.json()["location"] is None
+    assert resp.json()["weather"] is None
+
+    # Submit one end
+    await client.post(f"/api/v1/sessions/{session_id}/ends", json={
+        "stage_id": stage_id,
+        "arrows": [{"score_value": "X"}, {"score_value": "X"}, {"score_value": "X"}],
+    }, headers=headers)
+
+    # Complete with notes, location, and weather
+    resp = await client.post(f"/api/v1/sessions/{session_id}/complete", json={
+        "notes": "Great session",
+        "location": "Indoor Range",
+        "weather": "Sunny, 72F",
+    }, headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "completed"
+    assert data["notes"] == "Great session"
+    assert data["location"] == "Indoor Range"
+    assert data["weather"] == "Sunny, 72F"
+
+
+@pytest.mark.asyncio
 async def test_session_with_setup_profile(client, db_session):
     await _seed_templates(db_session)
     token = await _register_and_get_token(client)

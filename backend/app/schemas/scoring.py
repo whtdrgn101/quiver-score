@@ -163,6 +163,8 @@ class SessionSummary(BaseModel):
 
 class SessionComplete(BaseModel):
     notes: str | None = Field(None, max_length=1000)
+    location: str | None = Field(None, max_length=200)
+    weather: str | None = Field(None, max_length=100)
 
 
 class RecentTrendItem(BaseModel):

@@ -457,6 +457,10 @@ async def complete_session(
     session.completed_at = datetime.now(timezone.utc)
     if body and body.notes:
         session.notes = body.notes
+    if body and body.location:
+        session.location = body.location
+    if body and body.weather:
+        session.weather = body.weather
 
     # Check personal record
     is_personal_best = False

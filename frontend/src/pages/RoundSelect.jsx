@@ -3,31 +3,25 @@ import { useNavigate, Link } from 'react-router-dom';
 import { getRounds, createSession, shareRound, deleteRound } from '../api/scoring';
 import { getMyClubs } from '../api/clubs';
 import { listSetups } from '../api/setups';
-import { listEquipment } from '../api/equipment';
 import { useAuth } from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
 
 export default function RoundSelect() {
   const [rounds, setRounds] = useState([]);
   const [setups, setSetups] = useState([]);
-  const [equipment, setEquipment] = useState([]);
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [selectedSetup, setSelectedSetup] = useState('');
-  const [location, setLocation] = useState('');
-  const [weather, setWeather] = useState('');
-  const [notes, setNotes] = useState('');
   const [shareMenuId, setShareMenuId] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    Promise.all([getRounds(), listSetups(), listEquipment(), getMyClubs()])
-      .then(([roundsRes, setupsRes, eqRes, clubsRes]) => {
+    Promise.all([getRounds(), listSetups(), getMyClubs()])
+      .then(([roundsRes, setupsRes, clubsRes]) => {
         setRounds(roundsRes.data);
         setSetups(setupsRes.data);
-        setEquipment(eqRes.data);
         setClubs(clubsRes.data);
       })
       .finally(() => setLoading(false));
@@ -56,9 +50,6 @@ export default function RoundSelect() {
   const startSession = async () => {
     const data = { template_id: selectedTemplate.id };
     if (selectedSetup) data.setup_profile_id = selectedSetup;
-    if (location.trim()) data.location = location.trim();
-    if (weather.trim()) data.weather = weather.trim();
-    if (notes.trim()) data.notes = notes.trim();
     const res = await createSession(data);
     navigate(`/score/${res.data.id}`);
   };
@@ -82,31 +73,6 @@ export default function RoundSelect() {
         </Link>
       </div>
 
-      {!loading && equipment.length === 0 && (
-        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
-          <p className="text-sm text-amber-800 dark:text-amber-200 mb-2">
-            You haven't added any equipment yet. Add your first bow and create a setup to track what you're shooting with.
-          </p>
-          <Link
-            to="/equipment"
-            className="inline-block text-sm font-medium bg-amber-500 text-white px-4 py-2 rounded-lg hover:bg-amber-600"
-          >
-            Add Equipment
-          </Link>
-        </div>
-      )}
-
-      {!loading && equipment.length > 0 && setups.length === 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            Create a setup to link your equipment for sessions.{' '}
-            <Link to="/equipment?tab=setups" className="font-medium underline hover:no-underline">
-              Create a Setup
-            </Link>
-          </p>
-        </div>
-      )}
-
       {selectedTemplate && (
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 border-2 border-emerald-500">
           <h2 className="font-medium mb-2 dark:text-white">{selectedTemplate.name}</h2>
@@ -125,39 +91,6 @@ export default function RoundSelect() {
               </select>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Location (optional)</label>
-              <input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Indoor Range"
-                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-                maxLength={200}
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Weather (optional)</label>
-              <input
-                value={weather}
-                onChange={(e) => setWeather(e.target.value)}
-                placeholder="e.g. Sunny, 72F"
-                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-                maxLength={100}
-              />
-            </div>
-          </div>
-          <div className="mb-3">
-            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Notes (optional)</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Pre-session notes..."
-              rows={2}
-              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-              maxLength={1000}
-            />
-          </div>
           <div className="flex gap-2">
             <button
               onClick={startSession}
@@ -166,7 +99,7 @@ export default function RoundSelect() {
               Start Scoring
             </button>
             <button
-              onClick={() => { setSelectedTemplate(null); setSelectedSetup(''); setLocation(''); setWeather(''); setNotes(''); }}
+              onClick={() => { setSelectedTemplate(null); setSelectedSetup(''); }}
               className="border dark:border-gray-600 px-4 py-2 rounded-lg text-sm dark:text-gray-300"
             >
               Cancel

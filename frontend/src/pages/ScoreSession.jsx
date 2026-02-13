@@ -11,6 +11,8 @@ export default function ScoreSession() {
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [finalNotes, setFinalNotes] = useState('');
+  const [finalLocation, setFinalLocation] = useState('');
+  const [finalWeather, setFinalWeather] = useState('');
   const [undoing, setUndoing] = useState(false);
   const [showPRBanner, setShowPRBanner] = useState(false);
 
@@ -18,6 +20,8 @@ export default function ScoreSession() {
     const res = await getSession(sessionId);
     setSession(res.data);
     if (res.data.notes) setFinalNotes(res.data.notes);
+    if (res.data.location) setFinalLocation(res.data.location);
+    if (res.data.weather) setFinalWeather(res.data.weather);
     setLoading(false);
   }, [sessionId]);
 
@@ -90,8 +94,11 @@ export default function ScoreSession() {
   };
 
   const handleComplete = async () => {
-    const data = finalNotes.trim() ? { notes: finalNotes.trim() } : undefined;
-    const res = await completeSession(sessionId, data);
+    const data = {};
+    if (finalNotes.trim()) data.notes = finalNotes.trim();
+    if (finalLocation.trim()) data.location = finalLocation.trim();
+    if (finalWeather.trim()) data.weather = finalWeather.trim();
+    const res = await completeSession(sessionId, Object.keys(data).length ? data : undefined);
     if (res.data.is_personal_best) {
       setShowPRBanner(true);
       setTimeout(() => navigate(`/sessions/${sessionId}`), 2500);
@@ -176,16 +183,40 @@ export default function ScoreSession() {
       {isRoundComplete ? (
         <div className="text-center">
           <p className="text-lg mb-4 dark:text-white">Round complete!</p>
-          <div className="text-left mb-4">
-            <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Session Notes (optional)</label>
-            <textarea
-              value={finalNotes}
-              onChange={(e) => setFinalNotes(e.target.value)}
-              placeholder="How did the session go?"
-              rows={3}
-              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
-              maxLength={1000}
-            />
+          <div className="text-left mb-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Location (optional)</label>
+                <input
+                  value={finalLocation}
+                  onChange={(e) => setFinalLocation(e.target.value)}
+                  placeholder="e.g. Indoor Range"
+                  className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+                  maxLength={200}
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Weather (optional)</label>
+                <input
+                  value={finalWeather}
+                  onChange={(e) => setFinalWeather(e.target.value)}
+                  placeholder="e.g. Sunny, 72F"
+                  className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+                  maxLength={100}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Session Notes (optional)</label>
+              <textarea
+                value={finalNotes}
+                onChange={(e) => setFinalNotes(e.target.value)}
+                placeholder="How did the session go?"
+                rows={3}
+                className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+                maxLength={1000}
+              />
+            </div>
           </div>
           <button
             data-testid="complete-btn"
