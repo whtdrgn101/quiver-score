@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { getSessions, getRounds, exportSessionsCsv } from '../api/scoring';
+import { getSessions, getRounds, exportSessionsCsv, deleteSession } from '../api/scoring';
 import Spinner from '../components/Spinner';
 
 export default function History() {
@@ -76,6 +76,14 @@ export default function History() {
       a.download = 'sessions.csv';
       a.click();
       URL.revokeObjectURL(url);
+    } catch { /* ignore */ }
+  };
+
+  const handleDeleteSession = async (id) => {
+    if (!window.confirm('Delete this abandoned session? This cannot be undone.')) return;
+    try {
+      await deleteSession(id);
+      setSessions((prev) => prev.filter((s) => s.id !== id));
     } catch { /* ignore */ }
   };
 
@@ -211,6 +219,7 @@ export default function History() {
                 }`}
               >
                 {!compareMode ? (
+                  <>
                   <Link
                     to={s.status === 'in_progress' ? `/score/${s.id}` : `/sessions/${s.id}`}
                     className="block"
@@ -219,7 +228,9 @@ export default function History() {
                       <div>
                         <span className="font-medium dark:text-gray-100">{s.template_name || 'Round'}</span>
                         <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
-                          s.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
+                          s.status === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
+                          : s.status === 'abandoned' ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
+                          : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300'
                         }`}>
                           {s.status}
                         </span>
@@ -236,6 +247,15 @@ export default function History() {
                       {s.setup_profile_name && <> · {s.setup_profile_name}</>}
                     </div>
                   </Link>
+                  {s.status === 'abandoned' && (
+                    <button
+                      onClick={() => handleDeleteSession(s.id)}
+                      className="mt-2 text-xs text-red-500 dark:text-red-400 hover:underline"
+                    >
+                      Delete
+                    </button>
+                  )}
+                  </>
                 ) : (
                   <>
                     <div className="flex justify-between items-center">

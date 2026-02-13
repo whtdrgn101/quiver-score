@@ -944,3 +944,97 @@ async def test_list_rounds_includes_custom(client, db_session):
     assert "My Practice Round" in names
     # Official rounds should also be there
     assert any(r["is_official"] for r in resp.json())
+
+
+@pytest.mark.asyncio
+async def test_delete_abandoned_session(client, db_session):
+    """DELETE /sessions/{id} deletes an abandoned session and its data."""
+    await seed_round_templates(db_session)
+    await db_session.commit()
+    token = await _register_and_get_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    rounds = (await client.get("/api/v1/rounds", headers=headers)).json()
+    vegas = next(r for r in rounds if r["name"] == "Vegas 300")
+    stage_id = vegas["stages"][0]["id"]
+
+    # Create session and submit an end
+    resp = await client.post("/api/v1/sessions", json={"template_id": vegas["id"]}, headers=headers)
+    session_id = resp.json()["id"]
+    await client.post(f"/api/v1/sessions/{session_id}/ends", json={
+        "stage_id": stage_id,
+        "arrows": [{"score_value": "X"}, {"score_value": "10"}, {"score_value": "9"}],
+    }, headers=headers)
+
+    # Abandon then delete
+    await client.post(f"/api/v1/sessions/{session_id}/abandon", headers=headers)
+    resp = await client.delete(f"/api/v1/sessions/{session_id}", headers=headers)
+    assert resp.status_code == 204
+
+    # Session should be gone
+    resp = await client.get(f"/api/v1/sessions/{session_id}", headers=headers)
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_completed_session_forbidden(client, db_session):
+    """DELETE /sessions/{id} returns 422 for completed sessions."""
+    await seed_round_templates(db_session)
+    await db_session.commit()
+    token = await _register_and_get_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    rounds = (await client.get("/api/v1/rounds", headers=headers)).json()
+    vegas = next(r for r in rounds if r["name"] == "Vegas 300")
+    stage_id = vegas["stages"][0]["id"]
+
+    resp = await client.post("/api/v1/sessions", json={"template_id": vegas["id"]}, headers=headers)
+    session_id = resp.json()["id"]
+    await client.post(f"/api/v1/sessions/{session_id}/ends", json={
+        "stage_id": stage_id,
+        "arrows": [{"score_value": "X"}, {"score_value": "10"}, {"score_value": "9"}],
+    }, headers=headers)
+    await client.post(f"/api/v1/sessions/{session_id}/complete", headers=headers)
+
+    resp = await client.delete(f"/api/v1/sessions/{session_id}", headers=headers)
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_delete_in_progress_session_forbidden(client, db_session):
+    """DELETE /sessions/{id} returns 422 for in-progress sessions."""
+    await seed_round_templates(db_session)
+    await db_session.commit()
+    token = await _register_and_get_token(client)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    rounds = (await client.get("/api/v1/rounds", headers=headers)).json()
+    vegas = next(r for r in rounds if r["name"] == "Vegas 300")
+
+    resp = await client.post("/api/v1/sessions", json={"template_id": vegas["id"]}, headers=headers)
+    session_id = resp.json()["id"]
+
+    resp = await client.delete(f"/api/v1/sessions/{session_id}", headers=headers)
+    assert resp.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_delete_other_users_session_forbidden(client, db_session):
+    """DELETE /sessions/{id} returns 404 for another user's session."""
+    await seed_round_templates(db_session)
+    await db_session.commit()
+    token1 = await _register_and_get_token(client, "del1@test.com", "deluser1")
+    token2 = await _register_and_get_token(client, "del2@test.com", "deluser2")
+    headers1 = {"Authorization": f"Bearer {token1}"}
+    headers2 = {"Authorization": f"Bearer {token2}"}
+
+    rounds = (await client.get("/api/v1/rounds", headers=headers1)).json()
+    vegas = next(r for r in rounds if r["name"] == "Vegas 300")
+
+    resp = await client.post("/api/v1/sessions", json={"template_id": vegas["id"]}, headers=headers1)
+    session_id = resp.json()["id"]
+    await client.post(f"/api/v1/sessions/{session_id}/abandon", headers=headers1)
+
+    # Other user tries to delete
+    resp = await client.delete(f"/api/v1/sessions/{session_id}", headers=headers2)
+    assert resp.status_code == 404

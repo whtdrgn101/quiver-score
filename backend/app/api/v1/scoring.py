@@ -548,3 +548,25 @@ async def abandon_session(
     session.status = "abandoned"
     await db.commit()
     return {"detail": "Session abandoned"}
+
+
+@router.delete("/{session_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_session(
+    session_id: UUID,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ScoringSession).where(ScoringSession.id == session_id, ScoringSession.user_id == user.id)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise NotFoundError("Session not found")
+    if session.status != "abandoned":
+        raise ValidationError("Only abandoned sessions can be deleted")
+    for end in session.ends:
+        for arrow in end.arrows:
+            await db.delete(arrow)
+        await db.delete(end)
+    await db.delete(session)
+    await db.commit()

@@ -14,6 +14,7 @@ export const completeSession = (sessionId, data) => client.post(`/sessions/${ses
 export const getStats = () => client.get('/sessions/stats');
 export const undoLastEnd = (sessionId) => client.delete(`/sessions/${sessionId}/ends/last`);
 export const abandonSession = (sessionId) => client.post(`/sessions/${sessionId}/abandon`);
+export const deleteSession = (sessionId) => client.delete(`/sessions/${sessionId}`);
 export const getPersonalRecords = () => client.get('/sessions/personal-records');
 export const getTrends = () => client.get('/sessions/trends');
 
