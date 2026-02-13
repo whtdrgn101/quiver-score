@@ -5,9 +5,13 @@ import { updateProfile, uploadAvatar, uploadAvatarUrl, deleteAvatar, changePassw
 import { getRounds } from '../api/scoring';
 import Spinner from '../components/Spinner';
 
+const TABS = ['archer', 'clubs', 'rounds'];
+const TAB_LABELS = { archer: 'Archer Info', clubs: 'Clubs & Teams', rounds: 'Custom Rounds' };
+
 export default function Profile() {
   const { user, updateUser } = useAuth();
   const fileRef = useRef();
+  const [tab, setTab] = useState('archer');
 
   const [form, setForm] = useState({
     display_name: user?.display_name || '',
@@ -131,8 +135,73 @@ export default function Profile() {
 
   return (
     <div className="max-w-lg mx-auto">
-      <h1 className="text-2xl font-bold mb-6 dark:text-white">Profile</h1>
+      <h1 className="text-2xl font-bold mb-4 dark:text-white">Profile</h1>
 
+      {/* Tabs */}
+      <div className="flex border-b dark:border-gray-700 mb-6">
+        {TABS.map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-4 py-2 text-sm font-medium ${
+              tab === t
+                ? 'border-b-2 border-emerald-600 text-emerald-600 dark:text-emerald-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }`}
+          >
+            {TAB_LABELS[t]}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'archer' && (
+        <ArcherTab
+          user={user}
+          fileRef={fileRef}
+          form={form}
+          setForm={setForm}
+          avatarMode={avatarMode}
+          setAvatarMode={setAvatarMode}
+          avatarUrl={avatarUrl}
+          setAvatarUrl={setAvatarUrl}
+          saving={saving}
+          message={message}
+          handleChange={handleChange}
+          handleSave={handleSave}
+          handleFileUpload={handleFileUpload}
+          handleUrlUpload={handleUrlUpload}
+          handleDeleteAvatar={handleDeleteAvatar}
+          publicUrl={publicUrl}
+          copied={copied}
+          handleCopyPublicUrl={handleCopyPublicUrl}
+          showPassword={showPassword}
+          setShowPassword={setShowPassword}
+          pwForm={pwForm}
+          setPwForm={setPwForm}
+          pwMessage={pwMessage}
+          handlePasswordChange={handlePasswordChange}
+        />
+      )}
+
+      {tab === 'clubs' && (
+        <ClubsTab clubs={myClubs} loading={clubsLoading} />
+      )}
+
+      {tab === 'rounds' && (
+        <CustomRoundsTab rounds={myCustomRounds} loading={roundsLoading} />
+      )}
+    </div>
+  );
+}
+
+function ArcherTab({
+  user, fileRef, form, setForm, avatarMode, setAvatarMode, avatarUrl, setAvatarUrl,
+  saving, message, handleChange, handleSave, handleFileUpload, handleUrlUpload,
+  handleDeleteAvatar, publicUrl, copied, handleCopyPublicUrl,
+  showPassword, setShowPassword, pwForm, setPwForm, pwMessage, handlePasswordChange,
+}) {
+  return (
+    <>
       {/* Avatar section */}
       <div className="flex items-center gap-6 mb-6">
         <div className="relative group">
@@ -276,89 +345,6 @@ export default function Profile() {
         </div>
       </form>
 
-      {/* My Custom Rounds */}
-      <div className="mt-8 border-t dark:border-gray-700 pt-6">
-        <h2 className="text-lg font-semibold dark:text-white mb-3">My Custom Rounds</h2>
-        {roundsLoading ? (
-          <Spinner text="Loading custom rounds..." />
-        ) : myCustomRounds.length === 0 ? (
-          <p className="text-sm text-gray-400">
-            No custom rounds yet.{' '}
-            <Link to="/rounds/create" className="text-emerald-600 dark:text-emerald-400 hover:underline">
-              Create one
-            </Link>
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {myCustomRounds.map((r) => (
-              <Link
-                key={r.id}
-                to="/rounds"
-                className="block bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-medium dark:text-white">{r.name}</span>
-                    <span className="text-xs text-gray-400 ml-2">{r.organization}</span>
-                  </div>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {r.stages.length} stage{r.stages.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                {r.description && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{r.description}</p>
-                )}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Clubs & Teams */}
-      <div className="mt-8 border-t dark:border-gray-700 pt-6">
-        <h2 className="text-lg font-semibold dark:text-white mb-3">My Clubs & Teams</h2>
-        {clubsLoading ? (
-          <Spinner text="Loading clubs..." />
-        ) : myClubs.length === 0 ? (
-          <p className="text-sm text-gray-400">You haven't joined any clubs yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {myClubs.map((club) => (
-              <Link
-                key={club.club_id}
-                to={`/clubs/${club.club_id}`}
-                className="block bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium dark:text-white">{club.club_name}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${
-                    club.role === 'owner'
-                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
-                      : club.role === 'admin'
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                        : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                  }`}>
-                    {club.role}
-                  </span>
-                </div>
-                {club.teams.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {club.teams.map((team) => (
-                      <span
-                        key={team.team_id}
-                        className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-full"
-                      >
-                        {team.team_name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
       {/* Change Password */}
       <div className="mt-8 border-t dark:border-gray-700 pt-6">
         <button
@@ -411,6 +397,87 @@ export default function Profile() {
           </form>
         )}
       </div>
+    </>
+  );
+}
+
+function ClubsTab({ clubs, loading }) {
+  if (loading) return <Spinner text="Loading clubs..." />;
+  if (clubs.length === 0) return <p className="text-sm text-gray-400">You haven't joined any clubs yet.</p>;
+
+  return (
+    <div className="space-y-3">
+      {clubs.map((club) => (
+        <Link
+          key={club.club_id}
+          to={`/clubs/${club.club_id}`}
+          className="block bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center justify-between">
+            <span className="font-medium dark:text-white">{club.club_name}</span>
+            <span className={`text-xs px-2 py-1 rounded-full ${
+              club.role === 'owner'
+                ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                : club.role === 'admin'
+                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                  : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+            }`}>
+              {club.role}
+            </span>
+          </div>
+          {club.teams.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {club.teams.map((team) => (
+                <span
+                  key={team.team_id}
+                  className="text-xs bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-full"
+                >
+                  {team.team_name}
+                </span>
+              ))}
+            </div>
+          )}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function CustomRoundsTab({ rounds, loading }) {
+  if (loading) return <Spinner text="Loading custom rounds..." />;
+  if (rounds.length === 0) {
+    return (
+      <p className="text-sm text-gray-400">
+        No custom rounds yet.{' '}
+        <Link to="/rounds/create" className="text-emerald-600 dark:text-emerald-400 hover:underline">
+          Create one
+        </Link>
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {rounds.map((r) => (
+        <Link
+          key={r.id}
+          to="/rounds"
+          className="block bg-white dark:bg-gray-800 rounded-lg shadow p-4 hover:shadow-md transition-shadow"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="font-medium dark:text-white">{r.name}</span>
+              <span className="text-xs text-gray-400 ml-2">{r.organization}</span>
+            </div>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {r.stages.length} stage{r.stages.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+          {r.description && (
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{r.description}</p>
+          )}
+        </Link>
+      ))}
     </div>
   );
 }
