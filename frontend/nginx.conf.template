@@ -6,7 +6,8 @@ server {
 }
 
 server {
-    listen ${PORT};
+    listen ${PORT} default_server;
+    server_name quiverscore.com;
     root /usr/share/nginx/html;
     index index.html;
 
