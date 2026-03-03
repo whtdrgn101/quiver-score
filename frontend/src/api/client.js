@@ -29,10 +29,15 @@ client.interceptors.response.use(
           localStorage.setItem('refresh_token', data.refresh_token);
           original.headers.Authorization = `Bearer ${data.access_token}`;
           return client(original);
-        } catch {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
+        } catch (refreshErr) {
+          if (refreshErr.response) {
+            // Server explicitly rejected — clear tokens and redirect
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            localStorage.removeItem('cached_user');
+            window.location.href = '/login';
+          }
+          // Network error during refresh — preserve session
         }
       }
     }

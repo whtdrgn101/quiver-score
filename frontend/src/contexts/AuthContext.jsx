@@ -13,10 +13,23 @@ export function AuthProvider({ children }) {
       return;
     }
     getMe()
-      .then((res) => setUser(res.data))
-      .catch(() => {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
+      .then((res) => {
+        setUser(res.data);
+        localStorage.setItem('cached_user', JSON.stringify(res.data));
+      })
+      .catch((err) => {
+        if (err.response) {
+          // Server rejected — clear everything
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('cached_user');
+        } else {
+          // Network error — load cached user, keep tokens
+          const cached = localStorage.getItem('cached_user');
+          if (cached) {
+            try { setUser(JSON.parse(cached)); } catch { /* ignore bad cache */ }
+          }
+        }
       })
       .finally(() => setLoading(false));
   }, []);
@@ -30,13 +43,18 @@ export function AuthProvider({ children }) {
     saveTokens(tokens);
     const res = await getMe();
     setUser(res.data);
+    localStorage.setItem('cached_user', JSON.stringify(res.data));
   };
 
-  const updateUser = (data) => setUser(data);
+  const updateUser = (data) => {
+    setUser(data);
+    localStorage.setItem('cached_user', JSON.stringify(data));
+  };
 
   const logout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('cached_user');
     setUser(null);
   };
 

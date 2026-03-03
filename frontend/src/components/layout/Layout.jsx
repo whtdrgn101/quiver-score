@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
+import { useOnline } from '../../hooks/useOnline';
 import { getSessions, abandonSession } from '../../api/scoring';
 import { resendVerification } from '../../api/auth';
 import NotificationBell from '../NotificationBell';
@@ -9,6 +10,7 @@ import NotificationBell from '../NotificationBell';
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const { dark, toggleTheme } = useTheme();
+  const { online, pendingCount, syncing, syncPending } = useOnline();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeSession, setActiveSession] = useState(null);
@@ -135,6 +137,31 @@ export default function Layout({ children }) {
           </div>
         )}
       </nav>
+
+      {!online && (
+        <div className="bg-gray-100 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700">
+          <div className="max-w-5xl mx-auto px-4 py-2 text-sm text-gray-600 dark:text-gray-300 text-center">
+            You're offline. Scores will be saved when you reconnect.
+          </div>
+        </div>
+      )}
+
+      {online && pendingCount > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-800">
+          <div className="max-w-5xl mx-auto px-4 py-2 flex items-center justify-between">
+            <div className="text-sm text-blue-800 dark:text-blue-200">
+              You have {pendingCount} unsent {pendingCount === 1 ? 'score' : 'scores'}.
+            </div>
+            <button
+              onClick={syncPending}
+              disabled={syncing}
+              className="text-sm font-medium bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 disabled:opacity-50"
+            >
+              {syncing ? 'Syncing...' : 'Sync now'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {showVerificationBanner && (
         <div className="bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800">

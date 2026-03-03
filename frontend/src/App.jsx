@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { OnlineProvider } from './contexts/OnlineContext';
 import { useAuth } from './hooks/useAuth';
 import Layout from './components/layout/Layout';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -62,8 +63,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
-        <AuthProvider>
-          <ErrorBoundary>
+        <OnlineProvider>
+          <AuthProvider>
+            <ErrorBoundary>
             <Routes>
               <Route path="/" element={<HomeRoute />} />
               <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
@@ -99,8 +101,9 @@ export default function App() {
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </ErrorBoundary>
-        </AuthProvider>
+            </ErrorBoundary>
+          </AuthProvider>
+        </OnlineProvider>
       </ThemeProvider>
     </BrowserRouter>
   );

@@ -1,11 +1,14 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSession, submitEnd, completeSession, undoLastEnd, abandonSession } from '../api/scoring';
+import { addPendingEnd } from '../utils/pendingEnds';
+import { useOnline } from '../hooks/useOnline';
 import Spinner from '../components/Spinner';
 
 export default function ScoreSession() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const { refreshPendingCount } = useOnline();
   const [session, setSession] = useState(null);
   const [currentArrows, setCurrentArrows] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -81,13 +84,38 @@ export default function ScoreSession() {
   const handleSubmitEnd = async () => {
     if (currentArrows.length !== arrowsPerEnd || !stage) return;
     setSubmitting(true);
+    const endData = {
+      stage_id: stage.id,
+      arrows: currentArrows.map((v) => ({ score_value: v })),
+    };
     try {
-      await submitEnd(sessionId, {
-        stage_id: stage.id,
-        arrows: currentArrows.map((v) => ({ score_value: v })),
-      });
+      await submitEnd(sessionId, endData);
       setCurrentArrows([]);
       await loadSession();
+    } catch (err) {
+      if (!err.response) {
+        // Network error — queue for later sync and update optimistically
+        addPendingEnd(sessionId, endData);
+        refreshPendingCount();
+        const endTotal = currentArrows.reduce((sum, v) => sum + (stage.value_score_map[v] || 0), 0);
+        const xCount = currentArrows.filter((v) => v === 'X').length;
+        const syntheticEnd = {
+          id: `pending-${Date.now()}`,
+          stage_id: stage.id,
+          end_number: session.ends.length + 1,
+          end_total: endTotal,
+          arrows: currentArrows.map((v, i) => ({ id: `pending-arrow-${i}`, score_value: v })),
+        };
+        setSession((prev) => ({
+          ...prev,
+          ends: [...prev.ends, syntheticEnd],
+          total_score: prev.total_score + endTotal,
+          total_x_count: prev.total_x_count + xCount,
+          total_arrows: prev.total_arrows + currentArrows.length,
+        }));
+        setCurrentArrows([]);
+      }
+      // Server errors (has err.response) — let it fail naturally
     } finally {
       setSubmitting(false);
     }
