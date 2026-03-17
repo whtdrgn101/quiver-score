@@ -76,33 +76,37 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [ ] Rate limiting middleware (deferred — will add before production deploy)
 - [ ] SendGrid email integration (deferred — will add before production deploy)
 
-### 1.3 — Deploy Auth
+### 1.3 — Deploy Auth ✅
 - [x] Reverse proxy: Go handles auth natively, proxies all other routes to Python
 - [x] Cloud Run service-to-service auth (ID token via metadata server)
 - [x] CI updated: Go tests run alongside Python tests
 - [x] Deploy pipeline updated: builds both images, deploys Python as internal, Go as public
 - [x] IAM: Go service granted `roles/run.invoker` on Python service
 - [x] Local verification: 25/25 contract tests pass through Go proxy
-- [ ] Commit, push, and verify deploy succeeds
-- [ ] Smoke tests pass against production
-- [ ] Verified working
+- [x] Commit, push, and verify deploy succeeds
+- [x] Smoke tests pass against production (25/25)
+- [x] Verified working
 
 ---
 
 ## Phase 2: Rounds (Read-Heavy, Simple CRUD)
 
-### 2.1 — Contract Tests for Rounds
-- [ ] GET/POST/PUT/DELETE round templates
-- [ ] Round sharing endpoints
-- [ ] Seed data verification
+### 2.1 — Contract Tests for Rounds ✅
+- [x] GET/POST/PUT/DELETE round templates
+- [x] Round sharing endpoints
+- [x] 12 contract tests covering list, create, get, update, delete (+ auth/validation edge cases)
 
-### 2.2 — Go Implementation: Rounds
-- [ ] sqlc queries for round templates and stages
-- [ ] All round CRUD endpoints
-- [ ] Tests pass against Go
+### 2.2 — Go Implementation: Rounds ✅
+- [x] Direct SQL queries for round templates and stages (no sqlc needed)
+- [x] All round CRUD endpoints (list, create, get, update, delete, share, unshare)
+- [x] Ownership and official-round permission checks
+- [x] In-progress session guard on update
+- [x] 12/12 contract tests passing against Go on :8080
+- [x] 36/36 total contract tests passing (12 rounds + 24 auth)
 
-### 2.3 — Deploy Rounds
-- [ ] Deploy, smoke test, verify
+### 2.3 — Deploy Rounds ✅
+- [x] Deploy succeeded (CI + deploy workflow green)
+- [x] Smoke tests pass against production (37/37 — 12 rounds + 24 auth + 1 health)
 
 ---
 
@@ -232,4 +236,4 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Active phase:** 1.3 — Awaiting deploy verification
+**Active phase:** 3.1 — Contract Tests for Equipment & Setups

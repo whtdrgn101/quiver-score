@@ -151,3 +151,65 @@ def create_round(client, auth_headers, unique):
             client.delete(f"/api/v1/rounds/{round_id}", headers=headers)
         except Exception:
             pass
+
+
+@pytest.fixture
+def create_equipment(client, auth_headers, unique):
+    """
+    Factory fixture: create an equipment item and return its data.
+
+    Cleanup deletes the equipment after the test.
+    """
+    created = []
+
+    def _create(headers=None, **overrides):
+        headers = headers or auth_headers
+        payload = {
+            "category": overrides.get("category", "riser"),
+            "name": overrides.get("name", unique("equip")),
+            "brand": overrides.get("brand", "TestBrand"),
+            "model": overrides.get("model", "TestModel"),
+        }
+        resp = client.post("/api/v1/equipment", json=payload, headers=headers)
+        assert resp.status_code == 201, f"Equipment creation failed: {resp.text}"
+        data = resp.json()
+        created.append((data["id"], headers))
+        return data
+
+    yield _create
+
+    for eq_id, headers in created:
+        try:
+            client.delete(f"/api/v1/equipment/{eq_id}", headers=headers)
+        except Exception:
+            pass
+
+
+@pytest.fixture
+def create_setup(client, auth_headers, unique):
+    """
+    Factory fixture: create a setup profile and return its data.
+
+    Cleanup deletes the setup after the test.
+    """
+    created = []
+
+    def _create(headers=None, **overrides):
+        headers = headers or auth_headers
+        payload = {
+            "name": overrides.get("name", unique("setup")),
+            "description": overrides.get("description", "A test setup"),
+        }
+        resp = client.post("/api/v1/setups", json=payload, headers=headers)
+        assert resp.status_code == 201, f"Setup creation failed: {resp.text}"
+        data = resp.json()
+        created.append((data["id"], headers))
+        return data
+
+    yield _create
+
+    for setup_id, headers in created:
+        try:
+            client.delete(f"/api/v1/setups/{setup_id}", headers=headers)
+        except Exception:
+            pass
