@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/quiverscore/backend-go/internal/config"
@@ -16,10 +15,9 @@ type UsersHandler struct {
 	Cfg *config.Config
 }
 
-func (h *UsersHandler) Routes(r chi.Router) {
-	r.Use(middleware.RequireAuth(h.Cfg.SecretKey))
-	r.Get("/me", h.GetMe)
-}
+// GetMe is mounted directly on the main router to avoid subrouter
+// prefix matching that would swallow proxied routes like
+// /api/v1/users/me/classifications/current.
 
 type userOut struct {
 	ID            string     `json:"id"`

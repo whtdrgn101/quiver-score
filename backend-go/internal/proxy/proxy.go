@@ -39,7 +39,10 @@ func New(targetURL string) http.Handler {
 
 		if needsAuth {
 			if token, err := fetchIDToken(req.Context(), targetURL); err == nil {
-				req.Header.Set("Authorization", "Bearer "+token)
+				// Use X-Serverless-Authorization for Cloud Run service-to-service auth.
+				// This preserves the original Authorization header (user's JWT)
+				// so the Python API can still authenticate the end user.
+				req.Header.Set("X-Serverless-Authorization", "Bearer "+token)
 			} else {
 				slog.Error("failed to fetch ID token for proxy", "error", err)
 			}

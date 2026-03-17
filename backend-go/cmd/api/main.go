@@ -84,7 +84,10 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	usersHandler := &handler.UsersHandler{DB: pool, Cfg: cfg}
 
 	r.Route("/api/v1/auth", authHandler.Routes)
-	r.Route("/api/v1/users", usersHandler.Routes)
+
+	// Mount users/me directly (not as a subrouter) so that deeper paths
+	// like /api/v1/users/me/classifications/current fall through to the proxy.
+	r.With(middleware.RequireAuth(cfg.SecretKey)).Get("/api/v1/users/me", usersHandler.GetMe)
 
 	// Proxy everything else to the Python API
 	pythonProxy := proxy.New(cfg.PythonAPIURL)
