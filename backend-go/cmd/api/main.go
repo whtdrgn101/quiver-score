@@ -83,9 +83,13 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	authHandler := &handler.AuthHandler{DB: pool, Cfg: cfg}
 	usersHandler := &handler.UsersHandler{DB: pool, Cfg: cfg}
 	roundsHandler := &handler.RoundsHandler{DB: pool, Cfg: cfg}
+	equipmentHandler := &handler.EquipmentHandler{DB: pool, Cfg: cfg}
+	setupsHandler := &handler.SetupsHandler{DB: pool, Cfg: cfg}
 
 	r.Route("/api/v1/auth", authHandler.Routes)
 	r.Route("/api/v1/rounds", roundsHandler.Routes)
+	r.Route("/api/v1/equipment", equipmentHandler.Routes)
+	r.Route("/api/v1/setups", setupsHandler.Routes)
 
 	// Mount users/me directly (not as a subrouter) so that deeper paths
 	// like /api/v1/users/me/classifications/current fall through to the proxy.

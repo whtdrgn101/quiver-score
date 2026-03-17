@@ -112,13 +112,17 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Phase 3: Equipment & Setups
 
-### 3.1 — Contract Tests for Equipment & Setups
-- [ ] Equipment CRUD
-- [ ] Setup profiles with equipment linking
+### 3.1 — Contract Tests for Equipment & Setups ✅
+- [x] Equipment CRUD (list, create, get, update, delete, stats) — 17 tests
+- [x] Setup profiles with equipment linking (CRUD + add/remove equipment) — 19 tests
+- [x] 36/36 contract tests passing against Python baseline
 
-### 3.2 — Go Implementation: Equipment & Setups
-- [ ] sqlc queries, endpoints
-- [ ] Tests pass against Go
+### 3.2 — Go Implementation: Equipment & Setups ✅
+- [x] Equipment handler: full CRUD + stats endpoint with usage aggregation
+- [x] Setups handler: full CRUD + equipment linking/unlinking
+- [x] Partial update support (COALESCE pattern) for both resources
+- [x] 36/36 contract tests passing against Go on :8080
+- [x] 73/73 total contract tests passing (24 auth + 12 rounds + 17 equipment + 19 setups + 1 health)
 
 ### 3.3 — Deploy Equipment & Setups
 - [ ] Deploy, smoke test, verify
@@ -236,4 +240,4 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Active phase:** 3.1 — Contract Tests for Equipment & Setups
+**Active phase:** 3.3 — Deploy Equipment & Setups
