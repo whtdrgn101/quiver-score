@@ -71,6 +71,7 @@ jobs:
             --region $GCP_REGION \
             --platform managed \
             --allow-unauthenticated \
+            --ingress all \
             --min-instances 0 \
             --max-instances 2 \
             --port 8000 \
