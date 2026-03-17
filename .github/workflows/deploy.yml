@@ -83,9 +83,18 @@ jobs:
       # Allow Go API to invoke the internal Python API
       - name: Grant Go API invoker role on Python API
         run: |
-          # Get the default compute service account
-          PROJECT_NUMBER=$(gcloud projects describe $GCP_PROJECT --format="value(projectNumber)")
-          SA_EMAIL="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          # Get the service account used by the existing Go API service
+          SA_EMAIL=$(gcloud run services describe quiverscore-api \
+            --region $GCP_REGION \
+            --format "value(spec.template.spec.serviceAccountName)" 2>/dev/null || echo "")
+          if [ -z "$SA_EMAIL" ] || [ "$SA_EMAIL" = "None" ]; then
+            # Default compute SA — get project number from the service's metadata
+            PROJECT_NUMBER=$(gcloud run services describe quiverscore-api \
+              --region $GCP_REGION \
+              --format "value(metadata.namespace)")
+            SA_EMAIL="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          fi
+          echo "Granting invoker role to: $SA_EMAIL"
           gcloud run services add-iam-policy-binding quiverscore-api-python \
             --region $GCP_REGION \
             --member "serviceAccount:${SA_EMAIL}" \
