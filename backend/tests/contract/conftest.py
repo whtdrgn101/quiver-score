@@ -101,3 +101,53 @@ def auth_headers(register_user):
     """Convenience: register one user and return just the auth headers."""
     user = register_user()
     return user["headers"]
+
+
+def _sample_stages():
+    """Return a minimal valid stages array for round creation."""
+    return [
+        {
+            "name": "Stage 1",
+            "distance": "18m",
+            "num_ends": 10,
+            "arrows_per_end": 3,
+            "allowed_values": ["X", "10", "9", "8", "7", "6", "5", "4", "3", "2", "1", "M"],
+            "value_score_map": {
+                "X": 10, "10": 10, "9": 9, "8": 8, "7": 7,
+                "6": 6, "5": 5, "4": 4, "3": 3, "2": 2, "1": 1, "M": 0,
+            },
+            "max_score_per_arrow": 10,
+        }
+    ]
+
+
+@pytest.fixture
+def create_round(client, auth_headers, unique):
+    """
+    Factory fixture: create a custom round template and return its data.
+
+    Cleanup deletes the round after the test.
+    """
+    created = []
+
+    def _create(headers=None, **overrides):
+        headers = headers or auth_headers
+        payload = {
+            "name": overrides.get("name", unique("round")),
+            "organization": overrides.get("organization", "Test"),
+            "description": overrides.get("description", "A test round"),
+            "stages": overrides.get("stages", _sample_stages()),
+        }
+        resp = client.post("/api/v1/rounds", json=payload, headers=headers)
+        assert resp.status_code == 201, f"Round creation failed: {resp.text}"
+        data = resp.json()
+        created.append((data["id"], headers))
+        return data
+
+    yield _create
+
+    for round_id, headers in created:
+        try:
+            client.delete(f"/api/v1/rounds/{round_id}", headers=headers)
+        except Exception:
+            pass
