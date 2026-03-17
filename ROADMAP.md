@@ -1,0 +1,235 @@
+# QuiverScore: Python → Go API Migration Roadmap
+
+## Overview
+
+Migrate the FastAPI backend to Go while keeping Python for PDF generation and Alembic migrations. This is an incremental migration — each phase follows the same workflow and both services coexist during the transition.
+
+## Architecture
+
+```
+                    ┌─────────────────────────┐
+                    │      Cloud Run          │
+                    │                         │
+  HTTP ──────────▶  │  Go API (primary)       │
+                    │    ├── all routes        │
+                    │    └── calls Python ───▶ │  Python sidecar
+                    │         for PDF export   │    ├── PDF generation
+                    │                         │    └── Alembic migrations
+                    └─────────────────────────┘
+                               │
+                               ▼
+                          PostgreSQL
+```
+
+**Go stack:** `chi` router, `sqlc` (type-safe SQL), `golang-migrate`, `golang-jwt`, `bcrypt`
+**Kept in Python:** Alembic migrations, ReportLab PDF export
+
+## Workflow (per phase)
+
+1. **Write API contract tests** (pytest + httpx) against the current Python endpoint
+2. **Run tests against Python** to establish the baseline
+3. **Build the Go endpoint** matching the same routes and response shapes
+4. **Run tests against Go** on a different port, compare with Python baseline
+5. **Deploy** to Cloud Run
+6. **Run smoke tests** against production URL
+7. **Mark phase complete** below
+
+---
+
+## Phase 0: Foundation
+
+### 0.1 — API Contract Test Infrastructure ✅
+- [x] Create `tests/contract/` directory with shared fixtures
+- [x] Configure pytest to run against a live server URL (env var `API_BASE_URL`)
+- [x] Helper utilities: auth token acquisition, test user creation, cleanup
+- [x] Verify tests pass against running Python API (25/25 passing)
+
+### 0.2 — Go Project Scaffold ✅
+- [x] Initialize Go module at `backend-go/`
+- [x] Set up `chi` router with health check endpoint
+- [x] Database connection pool (`pgxpool`) reading same `DATABASE_URL`
+- [x] Dockerfile for the Go service (multi-stage, ~15MB final image)
+- [x] docker-compose overlay (`docker-compose.go.yml`) to run Go on :8080 alongside Python on :8000
+- [x] Verify `/health` returns 200 on both services
+
+### 0.3 — Shared Auth Middleware (Go) ✅
+- [x] JWT validation middleware (HS256, same `SECRET_KEY`)
+- [x] `get_current_user` equivalent — extract user ID from token
+- [x] Optional auth middleware for public endpoints
+- [x] Bcrypt password hashing/verification
+- [x] Token creation (access, refresh, reset, email verification)
+- [x] Cross-compatibility verified: Python-generated JWTs decode in Go
+
+---
+
+## Phase 1: Auth Endpoints
+
+### 1.1 — Contract Tests for Auth ✅
+- [x] 24 contract tests covering all auth endpoints (written in Phase 0.1)
+
+### 1.2 — Go Implementation: Auth ✅
+- [x] All auth endpoints in Go (register, login, refresh, verify-email, resend-verification, change-password, forgot-password, reset-password, delete-account)
+- [x] GET /api/v1/users/me implemented
+- [x] Full account deletion cascade matching Python behavior
+- [x] 24/24 contract tests passing against Go on :8080
+- [x] 24/24 contract tests still passing against Python on :8000
+- [ ] Rate limiting middleware (deferred — will add before production deploy)
+- [ ] SendGrid email integration (deferred — will add before production deploy)
+
+### 1.3 — Deploy Auth
+- [x] Reverse proxy: Go handles auth natively, proxies all other routes to Python
+- [x] Cloud Run service-to-service auth (ID token via metadata server)
+- [x] CI updated: Go tests run alongside Python tests
+- [x] Deploy pipeline updated: builds both images, deploys Python as internal, Go as public
+- [x] IAM: Go service granted `roles/run.invoker` on Python service
+- [x] Local verification: 25/25 contract tests pass through Go proxy
+- [ ] Commit, push, and verify deploy succeeds
+- [ ] Smoke tests pass against production
+- [ ] Verified working
+
+---
+
+## Phase 2: Rounds (Read-Heavy, Simple CRUD)
+
+### 2.1 — Contract Tests for Rounds
+- [ ] GET/POST/PUT/DELETE round templates
+- [ ] Round sharing endpoints
+- [ ] Seed data verification
+
+### 2.2 — Go Implementation: Rounds
+- [ ] sqlc queries for round templates and stages
+- [ ] All round CRUD endpoints
+- [ ] Tests pass against Go
+
+### 2.3 — Deploy Rounds
+- [ ] Deploy, smoke test, verify
+
+---
+
+## Phase 3: Equipment & Setups
+
+### 3.1 — Contract Tests for Equipment & Setups
+- [ ] Equipment CRUD
+- [ ] Setup profiles with equipment linking
+
+### 3.2 — Go Implementation: Equipment & Setups
+- [ ] sqlc queries, endpoints
+- [ ] Tests pass against Go
+
+### 3.3 — Deploy Equipment & Setups
+- [ ] Deploy, smoke test, verify
+
+---
+
+## Phase 4: Sight Marks & Classifications
+
+### 4.1 — Contract Tests
+- [ ] Sight mark CRUD
+- [ ] Classification records
+
+### 4.2 — Go Implementation
+- [ ] Endpoints and queries
+- [ ] Tests pass against Go
+
+### 4.3 — Deploy
+- [ ] Deploy, smoke test, verify
+
+---
+
+## Phase 5: Scoring Sessions (Core Domain)
+
+### 5.1 — Contract Tests for Scoring
+- [ ] Session lifecycle: create, submit ends/arrows, complete, abandon, delete
+- [ ] Stats, trends, personal records
+- [ ] Undo last end
+- [ ] CSV export (Go handles this)
+- [ ] PDF export (routed to Python sidecar)
+
+### 5.2 — Go Implementation: Scoring
+- [ ] Session CRUD and scoring logic
+- [ ] Stats/trends queries
+- [ ] CSV export in Go
+- [ ] HTTP call to Python sidecar for PDF
+- [ ] Tests pass against Go
+
+### 5.3 — Deploy Scoring
+- [ ] Deploy, smoke test, verify
+
+---
+
+## Phase 6: Users & Sharing
+
+### 6.1 — Contract Tests
+- [ ] User profile endpoints
+- [ ] Session sharing via public links
+
+### 6.2 — Go Implementation
+- [ ] Endpoints and queries
+- [ ] Tests pass against Go
+
+### 6.3 — Deploy
+- [ ] Deploy, smoke test, verify
+
+---
+
+## Phase 7: Clubs
+
+### 7.1 — Contract Tests
+- [ ] Club CRUD, member management, roles
+- [ ] Club events, participants
+- [ ] Club teams
+- [ ] Shared rounds
+
+### 7.2 — Go Implementation
+- [ ] All club endpoints
+- [ ] Tests pass against Go
+
+### 7.3 — Deploy
+- [ ] Deploy, smoke test, verify
+
+---
+
+## Phase 8: Social & Coaching
+
+### 8.1 — Contract Tests
+- [ ] Follow/unfollow, activity feed
+- [ ] Coach/athlete links
+- [ ] Session annotations
+
+### 8.2 — Go Implementation
+- [ ] All social and coaching endpoints
+- [ ] Tests pass against Go
+
+### 8.3 — Deploy
+- [ ] Deploy, smoke test, verify
+
+---
+
+## Phase 9: Notifications
+
+### 9.1 — Contract Tests
+- [ ] Notification CRUD
+
+### 9.2 — Go Implementation
+- [ ] Endpoints and queries
+- [ ] Tests pass against Go
+
+### 9.3 — Deploy
+- [ ] Deploy, smoke test, verify
+
+---
+
+## Phase 10: Cleanup & Cutover
+
+- [ ] Remove FastAPI route handlers (keep PDF sidecar and Alembic only)
+- [ ] Update CI/CD pipeline for Go build
+- [ ] Update docker-compose files
+- [ ] Update CORS, rate limiting, logging to match Python behavior
+- [ ] Final production smoke test of all endpoints
+- [ ] Update README
+
+---
+
+## Current Status
+
+**Active phase:** 1.3 — Awaiting deploy verification

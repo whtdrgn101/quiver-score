@@ -22,6 +22,7 @@ jobs:
       GCP_PROJECT: ${{ secrets.GCP_PROJECT_ID }}
       GCP_REGION: ${{ secrets.GCP_REGION }}
       API_IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiverscore/api
+      API_GO_IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiverscore/api-go
       FRONTEND_IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiverscore/frontend
 
     steps:
@@ -38,11 +39,18 @@ jobs:
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker ${{ secrets.GCP_REGION }}-docker.pkg.dev --quiet
 
-      - name: Build and push API image
+      # Build all images
+      - name: Build and push Python API image
         run: |
           docker build -t $API_IMAGE:${{ github.sha }} -t $API_IMAGE:latest ./backend
           docker push $API_IMAGE:${{ github.sha }}
           docker push $API_IMAGE:latest
+
+      - name: Build and push Go API image
+        run: |
+          docker build -t $API_GO_IMAGE:${{ github.sha }} -t $API_GO_IMAGE:latest ./backend-go
+          docker push $API_GO_IMAGE:${{ github.sha }}
+          docker push $API_GO_IMAGE:latest
 
       - name: Build and push frontend image
         run: |
@@ -50,7 +58,40 @@ jobs:
           docker push $FRONTEND_IMAGE:${{ github.sha }}
           docker push $FRONTEND_IMAGE:latest
 
-      - name: Deploy API to Cloud Run
+      # Deploy Python API as internal service (no public access)
+      - name: Deploy Python API to Cloud Run (internal)
+        id: deploy-python-api
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+        run: |
+          gcloud run deploy quiverscore-api-python \
+            --image $API_IMAGE:${{ github.sha }} \
+            --region $GCP_REGION \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 2 \
+            --ingress internal \
+            --update-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=*" \
+            --format "value(status.url)" > /tmp/python_api_url.txt
+          echo "python_api_url=$(cat /tmp/python_api_url.txt)" >> "$GITHUB_OUTPUT"
+
+      # Allow Go API to invoke the internal Python API
+      - name: Grant Go API invoker role on Python API
+        run: |
+          # Get the default compute service account
+          PROJECT_NUMBER=$(gcloud projects describe $GCP_PROJECT --format="value(projectNumber)")
+          SA_EMAIL="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          gcloud run services add-iam-policy-binding quiverscore-api-python \
+            --region $GCP_REGION \
+            --member "serviceAccount:${SA_EMAIL}" \
+            --role "roles/run.invoker" \
+            --quiet
+
+      # Deploy Go API as public-facing service
+      - name: Deploy Go API to Cloud Run (public)
         id: deploy-api
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -58,13 +99,13 @@ jobs:
           CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
         run: |
           gcloud run deploy quiverscore-api \
-            --image $API_IMAGE:${{ github.sha }} \
+            --image $API_GO_IMAGE:${{ github.sha }} \
             --region $GCP_REGION \
             --platform managed \
             --allow-unauthenticated \
             --min-instances 0 \
             --max-instances 2 \
-            --update-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}" \
+            --update-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@PYTHON_API_URL=${{ steps.deploy-python-api.outputs.python_api_url }}@@PORT=8080" \
             --format "value(status.url)" > /tmp/api_url.txt
           echo "api_url=$(cat /tmp/api_url.txt)" >> "$GITHUB_OUTPUT"
 
