@@ -73,9 +73,10 @@ jobs:
             --no-allow-unauthenticated \
             --min-instances 0 \
             --max-instances 2 \
-            --port 8080 \
+            --port 8000 \
             --timeout 300 \
-            --update-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=*" \
+            --cpu-boost \
+            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=*@@RATE_LIMIT_ENABLED=false" \
             --format "value(status.url)" > /tmp/python_api_url.txt
           echo "python_api_url=$(cat /tmp/python_api_url.txt)" >> "$GITHUB_OUTPUT"
 
@@ -106,7 +107,8 @@ jobs:
             --allow-unauthenticated \
             --min-instances 0 \
             --max-instances 2 \
-            --update-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@PYTHON_API_URL=${{ steps.deploy-python-api.outputs.python_api_url }}@@PORT=8080" \
+            --port 8080 \
+            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@PYTHON_API_URL=${{ steps.deploy-python-api.outputs.python_api_url }}" \
             --format "value(status.url)" > /tmp/api_url.txt
           echo "api_url=$(cat /tmp/api_url.txt)" >> "$GITHUB_OUTPUT"
 
