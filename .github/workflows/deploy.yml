@@ -73,8 +73,9 @@ jobs:
             --no-allow-unauthenticated \
             --min-instances 0 \
             --max-instances 2 \
-            --ingress internal \
-            --update-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=*" \
+            --port 8080 \
+            --timeout 300 \
+            --update-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=*@@PORT=8080" \
             --format "value(status.url)" > /tmp/python_api_url.txt
           echo "python_api_url=$(cat /tmp/python_api_url.txt)" >> "$GITHUB_OUTPUT"
 
