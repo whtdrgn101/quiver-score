@@ -10,11 +10,11 @@ concurrency:
 
 jobs:
   # CI must pass first
-  backend-test:
+  ci:
     uses: ./.github/workflows/ci.yml
 
   deploy:
-    needs: [backend-test]
+    needs: [ci]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
 
@@ -58,8 +58,8 @@ jobs:
           docker push $FRONTEND_IMAGE:${{ github.sha }}
           docker push $FRONTEND_IMAGE:latest
 
-      # Deploy Python API as internal service (no public access)
-      - name: Deploy Python API to Cloud Run (internal)
+      # Deploy Python sidecar (PDF export + Alembic migrations only)
+      - name: Deploy Python sidecar to Cloud Run
         id: deploy-python-api
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

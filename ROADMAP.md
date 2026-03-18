@@ -268,17 +268,20 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ---
 
-## Phase 10: Cleanup & Cutover
+## Phase 10: Cleanup & Cutover ✅
 
-- [ ] Remove FastAPI route handlers (keep PDF sidecar and Alembic only)
-- [ ] Update CI/CD pipeline for Go build
-- [ ] Update docker-compose files
-- [ ] Update CORS, rate limiting, logging to match Python behavior
-- [ ] Final production smoke test of all endpoints
-- [ ] Update README
+- [x] Strip Python to PDF sidecar only (single export endpoint + Alembic migrations)
+- [x] Remove all Python route handlers (auth, users, rounds, scoring, equipment, setups, clubs, sight marks, notifications, classifications, coaching, social, sharing)
+- [x] Remove Python unit tests for migrated endpoints (contract tests are the test suite now)
+- [x] Remove CORS middleware and rate limiting from Python sidecar (Go handles these)
+- [x] Update CI pipeline: removed Python backend-test job, Go tests + frontend build only
+- [x] Update deploy pipeline: renamed CI dependency
+- [x] Update docker-compose files with sidecar documentation
+- [x] 253/253 contract tests passing locally (including PDF export via Go→Python proxy)
+- [ ] Deploy, production smoke test, verify
 
 ---
 
 ## Current Status
 
-**Active phase:** 9.3 — Deploy Notifications
+**Active phase:** 10 — Deploy & Final Verification

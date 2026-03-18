@@ -1,18 +1,20 @@
+"""
+QuiverScore Python sidecar — PDF export and Alembic migrations only.
+
+All API routes are handled by the Go service. The Go API proxies
+PDF export requests to this service. Alembic migrations run on startup.
+"""
+
 import logging
 import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.config import settings
 from app.core.logging import setup_logging
-from app.core.rate_limit import limiter
 from app.database import async_session
 from app.api.v1 import api_router
 from app.seed.round_templates import seed_round_templates
@@ -28,17 +30,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="QuiverScore", version="0.1.0", lifespan=lifespan)
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI(title="QuiverScore PDF Sidecar", version="0.1.0", lifespan=lifespan)
 
 app.include_router(api_router)
 

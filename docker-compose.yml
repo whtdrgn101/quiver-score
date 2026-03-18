@@ -15,6 +15,8 @@ services:
       timeout: 5s
       retries: 5
 
+  # Python sidecar: Alembic migrations + PDF export only.
+  # All API routes are handled by the Go service.
   api:
     build: ./backend
     ports:
@@ -22,8 +24,6 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://quiverscore:quiverscore@db:5432/quiverscore
       SECRET_KEY: dev-secret-key-change-in-production
-      CORS_ORIGINS: '["http://localhost:5173"]'
-      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
     depends_on:
       db:
         condition: service_healthy

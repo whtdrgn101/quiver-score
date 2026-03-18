@@ -8,30 +8,6 @@ on:
   workflow_call:
 
 jobs:
-  backend-test:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: astral-sh/setup-uv@v4
-        with:
-          version: "latest"
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-          allow-prereleases: true
-
-      - name: Install dependencies
-        run: uv sync --frozen
-
-      - name: Run tests
-        run: uv run pytest -x -v
-
   backend-go-test:
     runs-on: ubuntu-latest
     defaults:
