@@ -17,7 +17,6 @@ import (
 	"github.com/quiverscore/backend-go/internal/email"
 	"github.com/quiverscore/backend-go/internal/handler"
 	"github.com/quiverscore/backend-go/internal/middleware"
-	"github.com/quiverscore/backend-go/internal/proxy"
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
@@ -148,12 +147,6 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 
 	// Public profile (no auth required)
 	r.Get("/api/v1/users/{username}", usersHandler.GetPublicProfile)
-
-	// Proxy everything else to the Python API
-	pythonProxy := proxy.New(cfg.PythonAPIURL)
-	r.NotFound(pythonProxy.ServeHTTP)
-
-	slog.Info("proxying unhandled routes to Python API", "url", cfg.PythonAPIURL)
 
 	return r
 }

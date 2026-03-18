@@ -58,28 +58,19 @@ jobs:
           docker push $FRONTEND_IMAGE:${{ github.sha }}
           docker push $FRONTEND_IMAGE:latest
 
-      # Deploy Python sidecar (PDF export + Alembic migrations only)
-      - name: Deploy Python sidecar to Cloud Run
-        id: deploy-python-api
+      # Run Alembic migrations via Cloud Run Job
+      - name: Run database migrations
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
         run: |
-          gcloud run deploy quiverscore-api-python \
+          gcloud run jobs deploy quiverscore-migrations \
             --image $API_IMAGE:${{ github.sha }} \
             --region $GCP_REGION \
-            --platform managed \
-            --no-allow-unauthenticated \
-            --ingress internal \
-            --min-instances 0 \
-            --max-instances 2 \
-            --port 8000 \
-            --timeout 300 \
-            --cpu-boost \
-            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}" \
-            --format "value(status.url)" > /tmp/python_api_url.txt
-          echo "python_api_url=$(cat /tmp/python_api_url.txt)" >> "$GITHUB_OUTPUT"
+            --command "uv" \
+            --args "run,alembic,upgrade,head" \
+            --set-env-vars "DATABASE_URL=${DATABASE_URL}" \
+            --wait-after-update \
+            --execute-now
 
       # Deploy Go API as public-facing service
       - name: Deploy Go API to Cloud Run (public)
@@ -100,7 +91,7 @@ jobs:
             --min-instances 1 \
             --max-instances 2 \
             --port 8080 \
-            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@PYTHON_API_URL=${{ steps.deploy-python-api.outputs.python_api_url }}@@SENDGRID_API_KEY=${SENDGRID_API_KEY}@@SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL}@@FRONTEND_URL=${FRONTEND_URL}" \
+            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@SENDGRID_API_KEY=${SENDGRID_API_KEY}@@SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL}@@FRONTEND_URL=${FRONTEND_URL}" \
             --format "value(status.url)" > /tmp/api_url.txt
           echo "api_url=$(cat /tmp/api_url.txt)" >> "$GITHUB_OUTPUT"
 

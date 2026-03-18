@@ -5,9 +5,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -15,6 +13,7 @@ import (
 
 	"github.com/quiverscore/backend-go/internal/config"
 	"github.com/quiverscore/backend-go/internal/middleware"
+	"github.com/quiverscore/backend-go/internal/pdf"
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
@@ -438,15 +437,21 @@ func (h *ScoringHandler) ExportSingle(w http.ResponseWriter, r *http.Request) {
 		format = "csv"
 	}
 
-	// For PDF, proxy to Python
-	if format == "pdf" {
-		h.proxyToPython(w, r)
-		return
-	}
-
 	out, err := h.Scoring.LoadSessionOut(ctx, sessionID, userID)
 	if err != nil {
 		Error(w, http.StatusNotFound, "Session not found")
+		return
+	}
+
+	if format == "pdf" {
+		pdfBytes, err := pdf.GenerateSessionPDF(out)
+		if err != nil {
+			Error(w, http.StatusInternalServerError, "Internal server error")
+			return
+		}
+		w.Header().Set("Content-Type", "application/pdf")
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=session-%s.pdf", sessionID))
+		w.Write(pdfBytes)
 		return
 	}
 
@@ -516,34 +521,6 @@ func (h *ScoringHandler) ExportBulk(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv")
 	w.Header().Set("Content-Disposition", "attachment; filename=sessions.csv")
 	w.Write(buf.Bytes())
-}
-
-// ── PDF Proxy ─────────────────────────────────────────────────────────
-
-func (h *ScoringHandler) proxyToPython(w http.ResponseWriter, r *http.Request) {
-	targetURL := strings.TrimRight(h.Cfg.PythonAPIURL, "/") + r.URL.Path + "?" + r.URL.RawQuery
-
-	proxyReq, err := http.NewRequestWithContext(r.Context(), r.Method, targetURL, r.Body)
-	if err != nil {
-		Error(w, http.StatusBadGateway, "Upstream service unavailable")
-		return
-	}
-	proxyReq.Header.Set("Authorization", r.Header.Get("Authorization"))
-
-	resp, err := http.DefaultClient.Do(proxyReq)
-	if err != nil {
-		Error(w, http.StatusBadGateway, "Upstream service unavailable")
-		return
-	}
-	defer resp.Body.Close()
-
-	for k, vs := range resp.Header {
-		for _, v := range vs {
-			w.Header().Add(k, v)
-		}
-	}
-	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────

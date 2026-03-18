@@ -20,7 +20,6 @@ type Config struct {
 	FrontendURL                      string
 	PasswordResetTokenExpireMinutes  int
 	EmailVerificationTokenExpireHours int
-	PythonAPIURL                      string
 }
 
 func Load() *Config {
@@ -38,7 +37,6 @@ func Load() *Config {
 		FrontendURL:                      envOrDefault("FRONTEND_URL", "http://localhost:5173"),
 		PasswordResetTokenExpireMinutes:  envOrDefaultInt("PASSWORD_RESET_TOKEN_EXPIRE_MINUTES", 60),
 		EmailVerificationTokenExpireHours: envOrDefaultInt("EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS", 24),
-		PythonAPIURL:                      envOrDefault("PYTHON_API_URL", "http://api:8000"),
 	}
 }
 

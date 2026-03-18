@@ -1,13 +1,8 @@
-# Overlay to run Go API as primary with Python sidecar for PDF export.
+# Overlay to run Go API as primary entrypoint.
 # Usage: docker compose -f docker-compose.yml -f docker-compose.go.yml up -d
 #
-# Go API listens on :8080 (public), proxies PDF export to Python on :8000.
-# Python sidecar runs Alembic migrations on startup and serves PDF export only.
+# Go API listens on :8080 (public). Python runs Alembic migrations then exits.
 services:
-  api:
-    ports: !override
-      - "8001:8000"
-
   api-go:
     build: ./backend-go
     ports:
@@ -17,11 +12,10 @@ services:
       SECRET_KEY: dev-secret-key-change-in-production
       CORS_ORIGINS: "http://localhost:5173"
       PORT: "8080"
-      PYTHON_API_URL: "http://api:8000"
       RATE_LIMIT_ENABLED: "false"
     depends_on:
       db:
         condition: service_healthy
       api:
-        condition: service_started
+        condition: service_completed_successfully
     restart: unless-stopped

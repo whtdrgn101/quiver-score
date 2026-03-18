@@ -2,10 +2,10 @@
 This project serves three purposes. The first is I have a love and passion for target archery and want a solid platform to track scores and create a community on a modern and privacy-focused platform. Second, I use this use-case to learn and stretch my technical skills by experimenting with new programming languages, patterns, practices, frameworks, etc. By having a functioning platform with users, that added pressure helps me really learn and understand real-world applications for technology. Finally, this also serves as a mechanism for me to develop my skill at working with AI coding agents and tools and learning how to operate in a new world for developers with my 28 years of experience.
 
 ## Architecture
-- Python → Go migration in progress (see ROADMAP.md for current phase)
-- Go API (chi router) is the public entrypoint, proxies unhandled routes to Python
-- Python kept for: Alembic migrations, ReportLab PDF generation
-- Both services share the same PostgreSQL database and JWT secret
+- Go API (chi router) is the sole runtime service — handles all routes including PDF export
+- Python kept only for: Alembic database migrations (runs then exits, no runtime server)
+- PDF generation uses go-pdf/fpdf (pure Go, no Python dependency)
+- Both services share the same PostgreSQL database
 
 ## Go API (backend-go/)
 - Router: chi, handlers in `internal/handler/`, one file per resource
@@ -15,16 +15,15 @@ This project serves three purposes. The first is I have a love and passion for t
 - **Repository pattern**: SQL queries belong in `internal/repository/`, not inline in handlers. Handlers should call repository methods for all database access. This separates HTTP concerns from data access and improves testability. Existing handlers need refactoring to follow this pattern.
 - Run: `docker compose -f docker-compose.yml -f docker-compose.go.yml up -d`
 
-## Python API (backend/)
-- Use `uv` to run all Python commands (e.g., `uv run pytest`, `uv run python`)
-- Always run from `backend/` directory for Python/pytest commands
-- FastAPI + SQLAlchemy async, Pydantic schemas
+## Python (backend/) — Migrations Only
+- Use `uv` to run all Python commands (e.g., `uv run alembic upgrade head`)
+- Always run from `backend/` directory for Python commands
+- Alembic migrations run on startup then the container exits
 
 ## Services (Docker)
-- Python API: localhost:8001 (mapped from container 8000)
 - Go API: localhost:8080
 - Postgres: localhost:5432
-- Start both: `docker compose -f docker-compose.yml -f docker-compose.go.yml up -d`
+- Start: `docker compose -f docker-compose.yml -f docker-compose.go.yml up -d`
 - Rebuild Go after changes: same command with `--build api-go`
 
 ## Contract Tests
