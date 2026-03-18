@@ -16,6 +16,8 @@ func GenerateSessionPDF(s *repository.SessionOut) ([]byte, error) {
 	pdf.SetAutoPageBreak(true, 15)
 	pdf.AddPage()
 
+	tr := pdf.UnicodeTranslatorFromDescriptor("")
+
 	templateName := "Unknown"
 	if s.Template != nil {
 		templateName = s.Template.Name
@@ -23,7 +25,7 @@ func GenerateSessionPDF(s *repository.SessionOut) ([]byte, error) {
 
 	// Title
 	pdf.SetFont("Helvetica", "B", 18)
-	pdf.CellFormat(0, 10, fmt.Sprintf("QuiverScore — %s", templateName), "", 1, "L", false, 0, "")
+	pdf.CellFormat(0, 10, tr(fmt.Sprintf("QuiverScore — %s", templateName)), "", 1, "L", false, 0, "")
 	pdf.Ln(4)
 
 	// Info table
@@ -52,7 +54,7 @@ func GenerateSessionPDF(s *repository.SessionOut) ([]byte, error) {
 		pdf.SetFont("Helvetica", "B", 10)
 		pdf.CellFormat(labelW, lineH, row.label, "", 0, "L", false, 0, "")
 		pdf.SetFont("Helvetica", "", 10)
-		pdf.CellFormat(valueW, lineH, row.value, "", 1, "L", false, 0, "")
+		pdf.CellFormat(valueW, lineH, tr(row.value), "", 1, "L", false, 0, "")
 	}
 	pdf.Ln(6)
 
@@ -122,7 +124,7 @@ func GenerateSessionPDF(s *repository.SessionOut) ([]byte, error) {
 		pdf.SetFont("Helvetica", "B", 12)
 		pdf.CellFormat(0, 8, "Notes", "", 1, "L", false, 0, "")
 		pdf.SetFont("Helvetica", "", 10)
-		pdf.MultiCell(0, 5, *s.Notes, "", "L", false)
+		pdf.MultiCell(0, 5, tr(*s.Notes), "", "L", false)
 	}
 
 	var buf bytes.Buffer
