@@ -292,3 +292,51 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] Rate limiting on auth routes (in-memory token bucket, 10 req/min per IP)
 - [x] SendGrid email integration restored (verification + password reset)
 - [x] Deploy pipeline passes `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `FRONTEND_URL` to Go service
+
+---
+
+## Future: Migrate Frontend to Cloudflare Pages
+
+Move the frontend from Cloud Run (nginx container) to Cloudflare Pages (free static hosting on edge CDN). Eliminates a container, reduces cost, improves global latency.
+
+### Current State
+- Vite + React 19 SPA, `npm run build` outputs to `dist/`
+- Deployed as Cloud Run container running nginx
+- nginx reverse-proxies `/api/*` to Go API via `API_URL` env var
+- PWA enabled (service worker, offline caching)
+
+### Migration Steps
+
+#### 1 — Set up Cloudflare Pages
+- [ ] Create Cloudflare Pages project connected to GitHub repo
+- [ ] Build config: command `npm run build`, output directory `frontend/dist`
+- [ ] Configure custom domain (e.g. `app.quiverscore.com` or root domain)
+
+#### 2 — Replace nginx API proxy
+- [ ] Add `frontend/_redirects` file to proxy API calls to Cloud Run:
+  ```
+  /api/* https://<cloud-run-go-url>/api/:splat 200
+  /health https://<cloud-run-go-url>/health 200
+  ```
+- [ ] Verify API calls work through Cloudflare proxy (auth, scoring, etc.)
+- [ ] Alternative: use separate `api.` subdomain and update `src/api/client.js` baseURL
+
+#### 3 — Clean up Cloud Run frontend
+- [ ] Remove frontend Dockerfile, nginx.conf, nginx.conf.template
+- [ ] Remove frontend build/push/deploy steps from `.github/workflows/deploy.yml`
+- [ ] Remove `quiverscore-frontend` Cloud Run service
+- [ ] Update CORS origins in Go API if domain changes
+
+#### 4 — Verify
+- [ ] PWA still works (service worker, manifest, offline)
+- [ ] All contract tests pass via new domain
+- [ ] E2E tests (`npm run test:e2e`) pass against Cloudflare Pages deployment
+
+### Benefits
+- **Cost**: Eliminates frontend Cloud Run service (free tier on Cloudflare Pages)
+- **Performance**: Static assets served from 300+ edge locations worldwide
+- **Simplicity**: No Docker/nginx for static files, automatic deploys from GitHub
+- **DDoS protection**: Cloudflare's free tier includes basic protection
+
+### Estimated Effort
+~1 hour. No frontend code changes needed if using `_redirects` proxy approach.
