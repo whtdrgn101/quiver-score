@@ -198,15 +198,26 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Phase 7: Clubs
 
-### 7.1 — Contract Tests
-- [ ] Club CRUD, member management, roles
-- [ ] Club events, participants
-- [ ] Club teams
-- [ ] Shared rounds
+### 7.1 — Contract Tests ✅
+- [x] Club CRUD (create, list, get, update, delete) — 11 tests
+- [x] Invites (create, list, preview, join, deactivate) — 8 tests
+- [x] Member management (promote, demote, remove, leave) — 4 tests
+- [x] Leaderboard and activity feed — 4 tests
+- [x] Events with RSVP (CRUD + participants) — 8 tests
+- [x] Teams (CRUD + member management) — 8 tests
+- [x] Shared rounds — 1 test
+- [x] Tournaments (create, register, start, score, leaderboard, complete, withdraw) — 10 tests
+- [x] 54/54 contract tests passing against Python baseline
 
-### 7.2 — Go Implementation
-- [ ] All club endpoints
-- [ ] Tests pass against Go
+### 7.2 — Go Implementation ✅
+- [x] Club handler: full CRUD + invite management + member RBAC (owner/admin/member)
+- [x] Events handler: CRUD + RSVP upsert with DB constraint compliance
+- [x] Teams handler: CRUD + member add/remove with team leader permissions
+- [x] Tournaments handler: full lifecycle (create → register → start → score → complete)
+- [x] Leaderboard, activity feed, shared rounds
+- [x] Repository pattern: all SQL in `internal/repository/club.go`
+- [x] 54/54 contract tests passing against Go on :8080
+- [x] 215/215 total contract tests passing
 
 ### 7.3 — Deploy
 - [ ] Deploy, smoke test, verify
@@ -256,4 +267,4 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Active phase:** 6.3 — Deploy Users & Sharing
+**Active phase:** 7.3 — Deploy Clubs

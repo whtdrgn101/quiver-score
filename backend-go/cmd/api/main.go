@@ -89,6 +89,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	sightMarkRepo := &repository.SightMarkRepo{DB: pool}
 	classificationRepo := &repository.ClassificationRepo{DB: pool}
 	scoringRepo := &repository.ScoringRepo{DB: pool}
+	clubRepo := &repository.ClubRepo{DB: pool}
 
 	// Create handlers
 	authHandler := &handler.AuthHandler{Users: userRepo, Cfg: cfg}
@@ -100,6 +101,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	classificationsHandler := &handler.ClassificationsHandler{Classifications: classificationRepo, Cfg: cfg}
 	scoringHandler := &handler.ScoringHandler{Scoring: scoringRepo, Cfg: cfg}
 	sharingHandler := &handler.SharingHandler{Scoring: scoringRepo, Users: userRepo, Rounds: roundRepo, Cfg: cfg}
+	clubsHandler := &handler.ClubsHandler{Clubs: clubRepo, Cfg: cfg}
 
 	r.Route("/api/v1/auth", authHandler.Routes)
 	r.Route("/api/v1/rounds", roundsHandler.Routes)
@@ -108,6 +110,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	r.Route("/api/v1/sight-marks", sightMarksHandler.Routes)
 	r.Route("/api/v1/sessions", scoringHandler.Routes)
 	r.Route("/api/v1/share", sharingHandler.Routes)
+	r.Route("/api/v1/clubs", clubsHandler.Routes)
 
 	// Mount users/me as a group so we can add sub-routes
 	r.Route("/api/v1/users/me", func(ur chi.Router) {
