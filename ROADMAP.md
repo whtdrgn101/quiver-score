@@ -124,20 +124,25 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] 36/36 contract tests passing against Go on :8080
 - [x] 73/73 total contract tests passing (24 auth + 12 rounds + 17 equipment + 19 setups + 1 health)
 
-### 3.3 — Deploy Equipment & Setups
-- [ ] Deploy, smoke test, verify
+### 3.3 — Deploy Equipment & Setups ✅
+- [x] Deploy succeeded (CI + deploy workflow green)
+- [x] Smoke tests pass against production (73/73)
 
 ---
 
 ## Phase 4: Sight Marks & Classifications
 
-### 4.1 — Contract Tests
-- [ ] Sight mark CRUD
-- [ ] Classification records
+### 4.1 — Contract Tests ✅
+- [x] Sight mark CRUD (list, create, update, delete + filters + auth) — 17 tests
+- [x] Classification records (list all, current best, auth) — 4 tests
+- [x] 21/21 contract tests passing against Python baseline
 
-### 4.2 — Go Implementation
-- [ ] Endpoints and queries
-- [ ] Tests pass against Go
+### 4.2 — Go Implementation ✅
+- [x] Sight marks handler: full CRUD with equipment/setup filter support
+- [x] Classifications handler: list all records + current best per system/round_type
+- [x] Registered routes in main.go, users/me subrouter for classifications
+- [x] 21/21 contract tests passing against Go on :8080
+- [x] 94/94 total contract tests passing (24 auth + 12 rounds + 17 equipment + 19 setups + 17 sight marks + 4 classifications + 1 health)
 
 ### 4.3 — Deploy
 - [ ] Deploy, smoke test, verify
@@ -240,4 +245,4 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Active phase:** 3.3 — Deploy Equipment & Setups
+**Active phase:** 4.3 — Deploy Sight Marks & Classifications

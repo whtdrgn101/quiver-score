@@ -213,3 +213,37 @@ def create_setup(client, auth_headers, unique):
             client.delete(f"/api/v1/setups/{setup_id}", headers=headers)
         except Exception:
             pass
+
+
+@pytest.fixture
+def create_sight_mark(client, auth_headers, unique):
+    """
+    Factory fixture: create a sight mark and return its data.
+
+    Cleanup deletes the sight mark after the test.
+    """
+    created = []
+
+    def _create(headers=None, **overrides):
+        headers = headers or auth_headers
+        payload = {
+            "distance": overrides.get("distance", "18m"),
+            "setting": overrides.get("setting", "3.5 turns"),
+            "notes": overrides.get("notes", None),
+            "date_recorded": overrides.get("date_recorded", "2025-06-01T12:00:00Z"),
+            "equipment_id": overrides.get("equipment_id", None),
+            "setup_id": overrides.get("setup_id", None),
+        }
+        resp = client.post("/api/v1/sight-marks", json=payload, headers=headers)
+        assert resp.status_code == 201, f"Sight mark creation failed: {resp.text}"
+        data = resp.json()
+        created.append((data["id"], headers))
+        return data
+
+    yield _create
+
+    for sm_id, headers in created:
+        try:
+            client.delete(f"/api/v1/sight-marks/{sm_id}", headers=headers)
+        except Exception:
+            pass

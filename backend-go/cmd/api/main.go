@@ -85,15 +85,20 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	roundsHandler := &handler.RoundsHandler{DB: pool, Cfg: cfg}
 	equipmentHandler := &handler.EquipmentHandler{DB: pool, Cfg: cfg}
 	setupsHandler := &handler.SetupsHandler{DB: pool, Cfg: cfg}
+	sightMarksHandler := &handler.SightMarksHandler{DB: pool, Cfg: cfg}
+	classificationsHandler := &handler.ClassificationsHandler{DB: pool, Cfg: cfg}
 
 	r.Route("/api/v1/auth", authHandler.Routes)
 	r.Route("/api/v1/rounds", roundsHandler.Routes)
 	r.Route("/api/v1/equipment", equipmentHandler.Routes)
 	r.Route("/api/v1/setups", setupsHandler.Routes)
+	r.Route("/api/v1/sight-marks", sightMarksHandler.Routes)
 
-	// Mount users/me directly (not as a subrouter) so that deeper paths
-	// like /api/v1/users/me/classifications/current fall through to the proxy.
-	r.With(middleware.RequireAuth(cfg.SecretKey)).Get("/api/v1/users/me", usersHandler.GetMe)
+	// Mount users/me as a group so we can add sub-routes
+	r.Route("/api/v1/users/me", func(ur chi.Router) {
+		ur.With(middleware.RequireAuth(cfg.SecretKey)).Get("/", usersHandler.GetMe)
+		ur.Route("/classifications", classificationsHandler.Routes)
+	})
 
 	// Proxy everything else to the Python API
 	pythonProxy := proxy.New(cfg.PythonAPIURL)
