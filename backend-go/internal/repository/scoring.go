@@ -471,7 +471,7 @@ func (r *ScoringRepo) InsertClassification(ctx context.Context, userID, system, 
 func (r *ScoringRepo) InsertNotification(ctx context.Context, userID, nType, title, message, link string, now time.Time) error {
 	notifID := uuid.New().String()
 	_, err := r.DB.Exec(ctx, `
-		INSERT INTO notifications (id, user_id, type, title, message, link, is_read, created_at)
+		INSERT INTO notifications (id, user_id, type, title, message, link, read, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, false, $7)`,
 		notifID, userID, nType, title, message, link, now,
 	)

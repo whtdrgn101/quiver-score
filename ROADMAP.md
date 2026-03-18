@@ -249,12 +249,19 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Phase 9: Notifications
 
-### 9.1 — Contract Tests
-- [ ] Notification CRUD
+### 9.1 — Contract Tests ✅
+- [x] List notifications (empty, with items after PR, unauthenticated) — 3 tests
+- [x] Unread count (zero, after PR, unauthenticated) — 3 tests
+- [x] Mark single notification read (success, not found, unauthenticated) — 3 tests
+- [x] Mark all notifications read (success, unauthenticated) — 2 tests
+- [x] 11/11 contract tests passing against Python baseline
 
-### 9.2 — Go Implementation
-- [ ] Endpoints and queries
-- [ ] Tests pass against Go
+### 9.2 — Go Implementation ✅
+- [x] Notification handler: list, unread count, mark read, mark all read
+- [x] Repository pattern: `internal/repository/notification.go`
+- [x] Fixed `is_read` → `read` column bug in scoring repo's `InsertNotification`
+- [x] 11/11 contract tests passing against Go on :8080
+- [x] 253/253 total contract tests passing
 
 ### 9.3 — Deploy
 - [ ] Deploy, smoke test, verify
@@ -274,4 +281,4 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Active phase:** 8.3 — Deploy Social & Coaching
+**Active phase:** 9.3 — Deploy Notifications
