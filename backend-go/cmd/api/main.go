@@ -87,12 +87,16 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	setupsHandler := &handler.SetupsHandler{DB: pool, Cfg: cfg}
 	sightMarksHandler := &handler.SightMarksHandler{DB: pool, Cfg: cfg}
 	classificationsHandler := &handler.ClassificationsHandler{DB: pool, Cfg: cfg}
+	scoringHandler := &handler.ScoringHandler{DB: pool, Cfg: cfg}
+	sharingHandler := &handler.SharingHandler{DB: pool, Cfg: cfg}
 
 	r.Route("/api/v1/auth", authHandler.Routes)
 	r.Route("/api/v1/rounds", roundsHandler.Routes)
 	r.Route("/api/v1/equipment", equipmentHandler.Routes)
 	r.Route("/api/v1/setups", setupsHandler.Routes)
 	r.Route("/api/v1/sight-marks", sightMarksHandler.Routes)
+	r.Route("/api/v1/sessions", scoringHandler.Routes)
+	r.Route("/api/v1/share", sharingHandler.Routes)
 
 	// Mount users/me as a group so we can add sub-routes
 	r.Route("/api/v1/users/me", func(ur chi.Router) {

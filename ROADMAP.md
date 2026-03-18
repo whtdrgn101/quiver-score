@@ -161,12 +161,13 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] 54/54 contract tests passing against Python baseline
 - [x] 148/148 total contract tests passing
 
-### 5.2 — Go Implementation: Scoring
-- [ ] Session CRUD and scoring logic
-- [ ] Stats/trends queries
-- [ ] CSV export in Go
-- [ ] HTTP call to Python sidecar for PDF
-- [ ] Tests pass against Go
+### 5.2 — Go Implementation: Scoring ✅
+- [x] Session CRUD and scoring logic
+- [x] Stats/trends queries
+- [x] CSV export in Go
+- [x] HTTP call to Python sidecar for PDF
+- [x] Session sharing (create, view, revoke share links)
+- [x] 148/148 contract tests passing against Go on :8080
 
 ### 5.3 — Deploy Scoring
 - [ ] Deploy, smoke test, verify
@@ -248,4 +249,4 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Active phase:** 5.2 — Go Implementation: Scoring Sessions
+**Active phase:** 5.3 — Deploy Scoring
