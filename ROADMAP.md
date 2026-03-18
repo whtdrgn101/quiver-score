@@ -242,8 +242,8 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] 27/27 contract tests passing against Go on :8080
 - [x] 242/242 total contract tests passing
 
-### 8.3 — Deploy
-- [ ] Deploy, smoke test, verify
+### 8.3 — Deploy ✅
+- [x] Deploy succeeded, smoke tests pass against production
 
 ---
 
@@ -263,8 +263,8 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] 11/11 contract tests passing against Go on :8080
 - [x] 253/253 total contract tests passing
 
-### 9.3 — Deploy
-- [ ] Deploy, smoke test, verify
+### 9.3 — Deploy ✅
+- [x] Deploy succeeded, smoke tests pass against production
 
 ---
 
@@ -278,10 +278,10 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] Update deploy pipeline: renamed CI dependency
 - [x] Update docker-compose files with sidecar documentation
 - [x] 253/253 contract tests passing locally (including PDF export via Go→Python proxy)
-- [ ] Deploy, production smoke test, verify
+- [x] Deploy, production smoke test, verify
 
 ---
 
 ## Current Status
 
-**Active phase:** 10 — Deploy & Final Verification
+**Migration complete.** Go API handles all routes. Python retained as sidecar for PDF export and Alembic migrations only.
