@@ -144,8 +144,8 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] 21/21 contract tests passing against Go on :8080
 - [x] 94/94 total contract tests passing (24 auth + 12 rounds + 17 equipment + 19 setups + 17 sight marks + 4 classifications + 1 health)
 
-### 4.3 — Deploy
-- [ ] Deploy, smoke test, verify
+### 4.3 — Deploy ✅
+- [x] Deploy succeeded, smoke tests pass against production
 
 ---
 
@@ -169,8 +169,8 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] Session sharing (create, view, revoke share links)
 - [x] 148/148 contract tests passing against Go on :8080
 
-### 5.3 — Deploy Scoring
-- [ ] Deploy, smoke test, verify
+### 5.3 — Deploy Scoring ✅
+- [x] Deploy succeeded, smoke tests pass against production
 
 ---
 
@@ -191,8 +191,8 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] 13/13 contract tests passing against Go on :8080
 - [x] 161/161 total contract tests passing
 
-### 6.3 — Deploy
-- [ ] Deploy, smoke test, verify
+### 6.3 — Deploy ✅
+- [x] Deploy succeeded, smoke tests pass against production
 
 ---
 
@@ -219,21 +219,28 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] 54/54 contract tests passing against Go on :8080
 - [x] 215/215 total contract tests passing
 
-### 7.3 — Deploy
-- [ ] Deploy, smoke test, verify
+### 7.3 — Deploy ✅
+- [x] Deploy succeeded, smoke tests pass against production
 
 ---
 
 ## Phase 8: Social & Coaching
 
-### 8.1 — Contract Tests
-- [ ] Follow/unfollow, activity feed
-- [ ] Coach/athlete links
-- [ ] Session annotations
+### 8.1 — Contract Tests ✅
+- [x] Follow/unfollow, list followers/following — 8 tests
+- [x] Activity feed (empty, unauthenticated) — 2 tests
+- [x] Coaching invites (create, accept, reject, errors) — 8 tests
+- [x] Coach athlete session viewing — 2 tests
+- [x] Session annotations (create, list, authorization) — 7 tests
+- [x] 27/27 contract tests passing against Python baseline
 
-### 8.2 — Go Implementation
-- [ ] All social and coaching endpoints
-- [ ] Tests pass against Go
+### 8.2 — Go Implementation ✅
+- [x] Social handler: follow/unfollow, list followers/following, activity feed
+- [x] Coaching handler: invite, respond, list athletes/coaches, view sessions, annotations
+- [x] Repository pattern: `internal/repository/social.go` and `internal/repository/coaching.go`
+- [x] Shared sentinel errors in `internal/repository/errors.go`
+- [x] 27/27 contract tests passing against Go on :8080
+- [x] 242/242 total contract tests passing
 
 ### 8.3 — Deploy
 - [ ] Deploy, smoke test, verify
@@ -267,4 +274,4 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Active phase:** 7.3 — Deploy Clubs
+**Active phase:** 8.3 — Deploy Social & Coaching

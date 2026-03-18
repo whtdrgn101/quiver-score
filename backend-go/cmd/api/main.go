@@ -90,6 +90,8 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	classificationRepo := &repository.ClassificationRepo{DB: pool}
 	scoringRepo := &repository.ScoringRepo{DB: pool}
 	clubRepo := &repository.ClubRepo{DB: pool}
+	socialRepo := &repository.SocialRepo{DB: pool}
+	coachingRepo := &repository.CoachingRepo{DB: pool}
 
 	// Create handlers
 	authHandler := &handler.AuthHandler{Users: userRepo, Cfg: cfg}
@@ -102,6 +104,8 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	scoringHandler := &handler.ScoringHandler{Scoring: scoringRepo, Cfg: cfg}
 	sharingHandler := &handler.SharingHandler{Scoring: scoringRepo, Users: userRepo, Rounds: roundRepo, Cfg: cfg}
 	clubsHandler := &handler.ClubsHandler{Clubs: clubRepo, Cfg: cfg}
+	socialHandler := &handler.SocialHandler{Social: socialRepo, Cfg: cfg}
+	coachingHandler := &handler.CoachingHandler{Coaching: coachingRepo, Cfg: cfg}
 
 	r.Route("/api/v1/auth", authHandler.Routes)
 	r.Route("/api/v1/rounds", roundsHandler.Routes)
@@ -111,6 +115,8 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	r.Route("/api/v1/sessions", scoringHandler.Routes)
 	r.Route("/api/v1/share", sharingHandler.Routes)
 	r.Route("/api/v1/clubs", clubsHandler.Routes)
+	r.Route("/api/v1/social", socialHandler.Routes)
+	r.Route("/api/v1/coaching", coachingHandler.Routes)
 
 	// Mount users/me as a group so we can add sub-routes
 	r.Route("/api/v1/users/me", func(ur chi.Router) {
