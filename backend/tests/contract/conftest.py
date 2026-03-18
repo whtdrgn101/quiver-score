@@ -247,3 +247,43 @@ def create_sight_mark(client, auth_headers, unique):
             client.delete(f"/api/v1/sight-marks/{sm_id}", headers=headers)
         except Exception:
             pass
+
+
+@pytest.fixture
+def create_session(client, auth_headers, create_round):
+    """
+    Factory fixture: create a scoring session and return its data.
+
+    Automatically creates a round template if none provided.
+    Cleanup abandons then deletes the session after the test.
+    """
+    created = []
+
+    def _create(headers=None, template_id=None, **overrides):
+        headers = headers or auth_headers
+        if template_id is None:
+            rnd = create_round(headers=headers)
+            template_id = rnd["id"]
+        payload = {
+            "template_id": template_id,
+            "setup_profile_id": overrides.get("setup_profile_id"),
+            "notes": overrides.get("notes"),
+            "location": overrides.get("location"),
+            "weather": overrides.get("weather"),
+        }
+        resp = client.post("/api/v1/sessions", json=payload, headers=headers)
+        assert resp.status_code == 201, f"Session creation failed: {resp.text}"
+        data = resp.json()
+        created.append((data["id"], headers))
+        return data
+
+    yield _create
+
+    for sid, headers in created:
+        try:
+            # Try to abandon first (only works if in_progress)
+            client.post(f"/api/v1/sessions/{sid}/abandon", headers=headers)
+            # Then delete (only works if abandoned)
+            client.delete(f"/api/v1/sessions/{sid}", headers=headers)
+        except Exception:
+            pass

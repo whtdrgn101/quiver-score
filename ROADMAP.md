@@ -151,12 +151,15 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Phase 5: Scoring Sessions (Core Domain)
 
-### 5.1 — Contract Tests for Scoring
-- [ ] Session lifecycle: create, submit ends/arrows, complete, abandon, delete
-- [ ] Stats, trends, personal records
-- [ ] Undo last end
-- [ ] CSV export (Go handles this)
-- [ ] PDF export (routed to Python sidecar)
+### 5.1 — Contract Tests for Scoring ✅
+- [x] Session lifecycle: create, list, get, submit ends, complete, abandon, delete — 33 tests
+- [x] Stats, trends, personal records — 9 tests
+- [x] Undo last end — 3 tests
+- [x] CSV export (single + bulk) — 5 tests
+- [x] PDF export — 1 test
+- [x] Session sharing (create, view, revoke) — 7 tests (under /api/v1/share)
+- [x] 54/54 contract tests passing against Python baseline
+- [x] 148/148 total contract tests passing
 
 ### 5.2 — Go Implementation: Scoring
 - [ ] Session CRUD and scoring logic
@@ -245,4 +248,4 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Active phase:** 4.3 — Deploy Sight Marks & Classifications
+**Active phase:** 5.2 — Go Implementation: Scoring Sessions
