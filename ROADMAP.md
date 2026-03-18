@@ -176,13 +176,20 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Phase 6: Users & Sharing
 
-### 6.1 — Contract Tests
-- [ ] User profile endpoints
-- [ ] Session sharing via public links
+### 6.1 — Contract Tests ✅
+- [x] User profile update (PATCH /users/me) — 4 tests
+- [x] Avatar upload, delete — 5 tests (file upload, invalid type, delete, unauthenticated)
+- [x] Public profile (GET /users/{username}) — 4 tests (public, private, not found, no auth required)
+- [x] 13/13 contract tests passing against Python baseline
+- [x] Session sharing already covered in Phase 5.1
 
-### 6.2 — Go Implementation
-- [ ] Endpoints and queries
-- [ ] Tests pass against Go
+### 6.2 — Go Implementation ✅
+- [x] User profile update (PATCH) with partial field support
+- [x] Avatar upload (multipart file), avatar-from-URL, avatar delete
+- [x] Public profile with stats, personal best, recent sessions, clubs
+- [x] Repository methods in internal/repository/user.go
+- [x] 13/13 contract tests passing against Go on :8080
+- [x] 161/161 total contract tests passing
 
 ### 6.3 — Deploy
 - [ ] Deploy, smoke test, verify
@@ -249,4 +256,4 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Active phase:** 5.3 — Deploy Scoring
+**Active phase:** 6.3 — Deploy Users & Sharing

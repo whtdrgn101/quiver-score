@@ -139,6 +139,196 @@ func (r *UserRepo) GetArcherInfo(ctx context.Context, userID string) (username s
 	return
 }
 
+// UpdateProfile applies partial updates to user profile fields.
+func (r *UserRepo) UpdateProfile(ctx context.Context, userID string,
+	displayName, bowType, classification, bio *string, displayNameSet, bowTypeSet, classificationSet, bioSet bool,
+	profilePublic *bool,
+) (*UserOut, error) {
+	_, err := r.DB.Exec(ctx,
+		`UPDATE users SET
+			display_name    = CASE WHEN $2 THEN $3 ELSE display_name END,
+			bow_type        = CASE WHEN $4 THEN $5 ELSE bow_type END,
+			classification  = CASE WHEN $6 THEN $7 ELSE classification END,
+			bio             = CASE WHEN $8 THEN $9 ELSE bio END,
+			profile_public  = COALESCE($10, profile_public)
+		 WHERE id = $1`,
+		userID,
+		displayNameSet, displayName,
+		bowTypeSet, bowType,
+		classificationSet, classification,
+		bioSet, bio,
+		profilePublic,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return r.GetMe(ctx, userID)
+}
+
+// UpdateAvatar sets the user's avatar to a base64 data URI.
+func (r *UserRepo) UpdateAvatar(ctx context.Context, userID, dataURI string) (*UserOut, error) {
+	_, err := r.DB.Exec(ctx,
+		"UPDATE users SET avatar = $1 WHERE id = $2", dataURI, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return r.GetMe(ctx, userID)
+}
+
+// DeleteAvatar clears the user's avatar.
+func (r *UserRepo) DeleteAvatar(ctx context.Context, userID string) (*UserOut, error) {
+	_, err := r.DB.Exec(ctx,
+		"UPDATE users SET avatar = NULL WHERE id = $1", userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return r.GetMe(ctx, userID)
+}
+
+// ── Public Profile Types ─────────────────────────────────────────────
+
+type PublicProfileOut struct {
+	ID                   string                  `json:"id"`
+	Username             string                  `json:"username"`
+	DisplayName          *string                 `json:"display_name"`
+	BowType              *string                 `json:"bow_type"`
+	Bio                  *string                 `json:"bio"`
+	Avatar               *string                 `json:"avatar"`
+	CreatedAt            time.Time               `json:"created_at"`
+	TotalSessions        int                     `json:"total_sessions"`
+	CompletedSessions    int                     `json:"completed_sessions"`
+	TotalArrows          int                     `json:"total_arrows"`
+	TotalXCount          int                     `json:"total_x_count"`
+	PersonalBestScore    *int                    `json:"personal_best_score"`
+	PersonalBestTemplate *string                 `json:"personal_best_template"`
+	RecentSessions       []PublicSessionSummary  `json:"recent_sessions"`
+	Clubs                []ProfileClubOut        `json:"clubs"`
+}
+
+type PublicSessionSummary struct {
+	TemplateName *string    `json:"template_name"`
+	TotalScore   int        `json:"total_score"`
+	TotalXCount  int        `json:"total_x_count"`
+	TotalArrows  int        `json:"total_arrows"`
+	CompletedAt  *time.Time `json:"completed_at"`
+	ShareToken   *string    `json:"share_token"`
+}
+
+type ProfileClubOut struct {
+	ClubID   string               `json:"club_id"`
+	ClubName string               `json:"club_name"`
+	Role     string               `json:"role"`
+	Teams    []ProfileClubTeamOut `json:"teams"`
+}
+
+type ProfileClubTeamOut struct {
+	TeamID   string `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+// GetPublicProfile returns a user's public profile by username.
+func (r *UserRepo) GetPublicProfile(ctx context.Context, username string) (*PublicProfileOut, error) {
+	var p PublicProfileOut
+	var profilePublic bool
+	err := r.DB.QueryRow(ctx,
+		`SELECT id, username, display_name, bow_type, bio, avatar, created_at, profile_public
+		 FROM users WHERE username = $1`, username,
+	).Scan(&p.ID, &p.Username, &p.DisplayName, &p.BowType, &p.Bio, &p.Avatar, &p.CreatedAt, &profilePublic)
+	if err != nil {
+		return nil, err
+	}
+	if !profilePublic {
+		return nil, pgx.ErrNoRows
+	}
+
+	// Stats from scoring_sessions
+	r.DB.QueryRow(ctx,
+		`SELECT COUNT(*), COUNT(*) FILTER (WHERE status = 'completed'),
+		        COALESCE(SUM(total_arrows) FILTER (WHERE status = 'completed'), 0),
+		        COALESCE(SUM(total_x_count) FILTER (WHERE status = 'completed'), 0)
+		 FROM scoring_sessions WHERE user_id = $1`, p.ID,
+	).Scan(&p.TotalSessions, &p.CompletedSessions, &p.TotalArrows, &p.TotalXCount)
+
+	// Personal best
+	var bestScore *int
+	var bestTemplate *string
+	err = r.DB.QueryRow(ctx,
+		`SELECT s.total_score, rt.name
+		 FROM scoring_sessions s
+		 LEFT JOIN round_templates rt ON rt.id = s.template_id
+		 WHERE s.user_id = $1 AND s.status = 'completed'
+		 ORDER BY s.total_score DESC LIMIT 1`, p.ID,
+	).Scan(&bestScore, &bestTemplate)
+	if err == nil {
+		p.PersonalBestScore = bestScore
+		p.PersonalBestTemplate = bestTemplate
+	}
+
+	// Recent 5 completed sessions
+	rows, err := r.DB.Query(ctx,
+		`SELECT rt.name, s.total_score, s.total_x_count, s.total_arrows,
+		        s.completed_at, s.share_token
+		 FROM scoring_sessions s
+		 LEFT JOIN round_templates rt ON rt.id = s.template_id
+		 WHERE s.user_id = $1 AND s.status = 'completed'
+		 ORDER BY COALESCE(s.completed_at, s.started_at) DESC LIMIT 5`, p.ID,
+	)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var s PublicSessionSummary
+			rows.Scan(&s.TemplateName, &s.TotalScore, &s.TotalXCount, &s.TotalArrows,
+				&s.CompletedAt, &s.ShareToken)
+			p.RecentSessions = append(p.RecentSessions, s)
+		}
+	}
+	if p.RecentSessions == nil {
+		p.RecentSessions = []PublicSessionSummary{}
+	}
+
+	// Clubs
+	clubRows, err := r.DB.Query(ctx,
+		`SELECT c.id, c.name, cm.role
+		 FROM club_members cm
+		 JOIN clubs c ON c.id = cm.club_id
+		 WHERE cm.user_id = $1`, p.ID,
+	)
+	if err == nil {
+		defer clubRows.Close()
+		for clubRows.Next() {
+			var club ProfileClubOut
+			clubRows.Scan(&club.ClubID, &club.ClubName, &club.Role)
+
+			// Teams in this club
+			teamRows, terr := r.DB.Query(ctx,
+				`SELECT ct.id, ct.name
+				 FROM club_team_members ctm
+				 JOIN club_teams ct ON ct.id = ctm.team_id
+				 WHERE ctm.user_id = $1 AND ct.club_id = $2`, p.ID, club.ClubID,
+			)
+			if terr == nil {
+				defer teamRows.Close()
+				for teamRows.Next() {
+					var t ProfileClubTeamOut
+					teamRows.Scan(&t.TeamID, &t.TeamName)
+					club.Teams = append(club.Teams, t)
+				}
+			}
+			if club.Teams == nil {
+				club.Teams = []ProfileClubTeamOut{}
+			}
+			p.Clubs = append(p.Clubs, club)
+		}
+	}
+	if p.Clubs == nil {
+		p.Clubs = []ProfileClubOut{}
+	}
+
+	return &p, nil
+}
+
 // DeleteUserData removes all data associated with a user, mirroring the Python cascade.
 func (r *UserRepo) DeleteUserData(ctx context.Context, userID string) error {
 	tx, err := r.DB.Begin(ctx)

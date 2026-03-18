@@ -112,8 +112,15 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	// Mount users/me as a group so we can add sub-routes
 	r.Route("/api/v1/users/me", func(ur chi.Router) {
 		ur.With(middleware.RequireAuth(cfg.SecretKey)).Get("/", usersHandler.GetMe)
+		ur.With(middleware.RequireAuth(cfg.SecretKey)).Patch("/", usersHandler.UpdateMe)
+		ur.With(middleware.RequireAuth(cfg.SecretKey)).Post("/avatar", usersHandler.UploadAvatar)
+		ur.With(middleware.RequireAuth(cfg.SecretKey)).Post("/avatar-url", usersHandler.UploadAvatarFromURL)
+		ur.With(middleware.RequireAuth(cfg.SecretKey)).Delete("/avatar", usersHandler.DeleteAvatar)
 		ur.Route("/classifications", classificationsHandler.Routes)
 	})
+
+	// Public profile (no auth required)
+	r.Get("/api/v1/users/{username}", usersHandler.GetPublicProfile)
 
 	// Proxy everything else to the Python API
 	pythonProxy := proxy.New(cfg.PythonAPIURL)
