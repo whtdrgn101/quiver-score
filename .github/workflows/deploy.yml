@@ -70,14 +70,14 @@ jobs:
             --image $API_IMAGE:${{ github.sha }} \
             --region $GCP_REGION \
             --platform managed \
-            --allow-unauthenticated \
-            --ingress all \
+            --no-allow-unauthenticated \
+            --ingress internal \
             --min-instances 0 \
             --max-instances 2 \
             --port 8000 \
             --timeout 300 \
             --cpu-boost \
-            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@RATE_LIMIT_ENABLED=false" \
+            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}" \
             --format "value(status.url)" > /tmp/python_api_url.txt
           echo "python_api_url=$(cat /tmp/python_api_url.txt)" >> "$GITHUB_OUTPUT"
 
@@ -88,16 +88,19 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          SENDGRID_FROM_EMAIL: ${{ secrets.SENDGRID_FROM_EMAIL }}
+          FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
         run: |
           gcloud run deploy quiverscore-api \
             --image $API_GO_IMAGE:${{ github.sha }} \
             --region $GCP_REGION \
             --platform managed \
             --allow-unauthenticated \
-            --min-instances 0 \
+            --min-instances 1 \
             --max-instances 2 \
             --port 8080 \
-            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@PYTHON_API_URL=${{ steps.deploy-python-api.outputs.python_api_url }}" \
+            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@PYTHON_API_URL=${{ steps.deploy-python-api.outputs.python_api_url }}@@SENDGRID_API_KEY=${SENDGRID_API_KEY}@@SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL}@@FRONTEND_URL=${FRONTEND_URL}" \
             --format "value(status.url)" > /tmp/api_url.txt
           echo "api_url=$(cat /tmp/api_url.txt)" >> "$GITHUB_OUTPUT"
 

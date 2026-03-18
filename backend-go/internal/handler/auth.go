@@ -12,12 +12,14 @@ import (
 
 	"github.com/quiverscore/backend-go/internal/auth"
 	"github.com/quiverscore/backend-go/internal/config"
+	"github.com/quiverscore/backend-go/internal/email"
 	"github.com/quiverscore/backend-go/internal/middleware"
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
 type AuthHandler struct {
 	Users *repository.UserRepo
+	Email *email.Sender
 	Cfg   *config.Config
 }
 
@@ -116,6 +118,9 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		Error(w, http.StatusInternalServerError, "Internal server error")
 		return
 	}
+
+	// Send verification email (fire and forget)
+	go h.Email.SendVerificationEmail(req.Email, verificationToken, h.Cfg.FrontendURL, h.Cfg.EmailVerificationTokenExpireHours)
 
 	JSON(w, http.StatusCreated, map[string]string{
 		"access_token":  accessToken,
@@ -238,6 +243,8 @@ func (h *AuthHandler) ResendVerification(w http.ResponseWriter, r *http.Request)
 	token, _ := auth.CreateEmailVerificationToken(email, h.Cfg.EmailVerificationTokenExpireHours, h.Cfg.SecretKey)
 	h.Users.UpdateVerificationToken(r.Context(), userID, token)
 
+	go h.Email.SendVerificationEmail(email, token, h.Cfg.FrontendURL, h.Cfg.EmailVerificationTokenExpireHours)
+
 	JSON(w, http.StatusOK, map[string]string{"detail": "Verification email sent."})
 }
 
@@ -285,9 +292,19 @@ func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Always return success to avoid email enumeration
 	JSON(w, http.StatusOK, map[string]string{
 		"detail": "If that email is registered, you'll receive a reset link shortly.",
 	})
+
+	// Send reset email in background if user exists
+	go func() {
+		exists, _ := h.Users.ExistsByEmail(r.Context(), req.Email)
+		if exists {
+			token, _ := auth.CreateResetToken(req.Email, h.Cfg.PasswordResetTokenExpireMinutes, h.Cfg.SecretKey)
+			h.Email.SendPasswordResetEmail(req.Email, token, h.Cfg.FrontendURL, h.Cfg.PasswordResetTokenExpireMinutes)
+		}
+	}()
 }
 
 // ── Reset Password ─────────────────────────────────────────────────────

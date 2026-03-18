@@ -18,6 +18,7 @@ services:
       CORS_ORIGINS: "http://localhost:5173"
       PORT: "8080"
       PYTHON_API_URL: "http://api:8000"
+      RATE_LIMIT_ENABLED: "false"
     depends_on:
       db:
         condition: service_healthy

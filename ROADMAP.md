@@ -73,8 +73,8 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 - [x] Full account deletion cascade matching Python behavior
 - [x] 24/24 contract tests passing against Go on :8080
 - [x] 24/24 contract tests still passing against Python on :8000
-- [ ] Rate limiting middleware (deferred — will add before production deploy)
-- [ ] SendGrid email integration (deferred — will add before production deploy)
+- [x] Rate limiting middleware (token bucket per IP on auth routes, configurable via RATE_LIMIT_ENABLED)
+- [x] SendGrid email integration (verification, password reset emails via SendGrid v3 API)
 
 ### 1.3 — Deploy Auth ✅
 - [x] Reverse proxy: Go handles auth natively, proxies all other routes to Python
@@ -285,3 +285,10 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 ## Current Status
 
 **Migration complete.** Go API handles all routes. Python retained as sidecar for PDF export and Alembic migrations only.
+
+### Post-Migration Hardening
+- [x] Python sidecar locked down: `--ingress internal` + `--no-allow-unauthenticated`
+- [x] Go API: `--min-instances 1` to eliminate cold starts
+- [x] Rate limiting on auth routes (in-memory token bucket, 10 req/min per IP)
+- [x] SendGrid email integration restored (verification + password reset)
+- [x] Deploy pipeline passes `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `FRONTEND_URL` to Go service

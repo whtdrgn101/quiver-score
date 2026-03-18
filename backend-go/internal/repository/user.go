@@ -48,6 +48,14 @@ func (r *UserRepo) Create(ctx context.Context, id, email, username, hashedPw, di
 	return err
 }
 
+func (r *UserRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
+	var exists bool
+	err := r.DB.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email,
+	).Scan(&exists)
+	return exists, err
+}
+
 func (r *UserRepo) GetCredentialsByUsername(ctx context.Context, username string) (userID, hashedPw string, err error) {
 	err = r.DB.QueryRow(ctx,
 		"SELECT id, hashed_password FROM users WHERE username = $1", username,

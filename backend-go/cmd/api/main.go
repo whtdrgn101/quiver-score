@@ -14,6 +14,7 @@ import (
 
 	"github.com/quiverscore/backend-go/internal/config"
 	"github.com/quiverscore/backend-go/internal/database"
+	"github.com/quiverscore/backend-go/internal/email"
 	"github.com/quiverscore/backend-go/internal/handler"
 	"github.com/quiverscore/backend-go/internal/middleware"
 	"github.com/quiverscore/backend-go/internal/proxy"
@@ -94,8 +95,17 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	coachingRepo := &repository.CoachingRepo{DB: pool}
 	notificationRepo := &repository.NotificationRepo{DB: pool}
 
+	// Email sender
+	emailSender := &email.Sender{
+		APIKey:    cfg.SendGridAPIKey,
+		FromEmail: cfg.SendGridFromEmail,
+	}
+
+	// Rate limiters
+	authLimiter := middleware.NewRateLimiter(10, 5)   // 10/min, burst 5 (register, login, etc.)
+
 	// Create handlers
-	authHandler := &handler.AuthHandler{Users: userRepo, Cfg: cfg}
+	authHandler := &handler.AuthHandler{Users: userRepo, Email: emailSender, Cfg: cfg}
 	usersHandler := &handler.UsersHandler{Users: userRepo, Cfg: cfg}
 	roundsHandler := &handler.RoundsHandler{Rounds: roundRepo, Cfg: cfg}
 	equipmentHandler := &handler.EquipmentHandler{Equipment: equipmentRepo, Cfg: cfg}
@@ -109,7 +119,12 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	coachingHandler := &handler.CoachingHandler{Coaching: coachingRepo, Cfg: cfg}
 	notificationsHandler := &handler.NotificationsHandler{Notifications: notificationRepo, Cfg: cfg}
 
-	r.Route("/api/v1/auth", authHandler.Routes)
+	r.Route("/api/v1/auth", func(ar chi.Router) {
+		if cfg.RateLimitEnabled {
+			ar.Use(middleware.RateLimit(authLimiter))
+		}
+		authHandler.Routes(ar)
+	})
 	r.Route("/api/v1/rounds", roundsHandler.Routes)
 	r.Route("/api/v1/equipment", equipmentHandler.Routes)
 	r.Route("/api/v1/setups", setupsHandler.Routes)
