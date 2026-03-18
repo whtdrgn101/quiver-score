@@ -69,8 +69,8 @@ jobs:
             --command "uv" \
             --args "run,alembic,upgrade,head" \
             --set-env-vars "DATABASE_URL=${DATABASE_URL}" \
-            --wait-after-update \
-            --execute-now
+            --execute-now \
+            --wait
 
       # Deploy Go API as public-facing service
       - name: Deploy Go API to Cloud Run (public)
