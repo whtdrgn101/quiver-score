@@ -8,15 +8,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/quiverscore/backend-go/internal/config"
 	"github.com/quiverscore/backend-go/internal/middleware"
+	"github.com/quiverscore/backend-go/internal/repository"
 )
 
 type SharingHandler struct {
-	DB  *pgxpool.Pool
-	Cfg *config.Config
+	Scoring *repository.ScoringRepo
+	Users   *repository.UserRepo
+	Rounds  *repository.RoundRepo
+	Cfg     *config.Config
 }
 
 func (h *SharingHandler) Routes(r chi.Router) {
@@ -33,19 +35,19 @@ type shareLinkOut struct {
 }
 
 type sharedSessionOut struct {
-	ArcherName   string           `json:"archer_name"`
-	ArcherAvatar *string          `json:"archer_avatar"`
-	TemplateName string           `json:"template_name"`
-	Template     *roundTemplateOut `json:"template"`
-	TotalScore   int              `json:"total_score"`
-	TotalXCount  int              `json:"total_x_count"`
-	TotalArrows  int              `json:"total_arrows"`
-	Notes        *string          `json:"notes"`
-	Location     *string          `json:"location"`
-	Weather      *string          `json:"weather"`
-	StartedAt    time.Time        `json:"started_at"`
-	CompletedAt  *time.Time       `json:"completed_at"`
-	Ends         []endOut         `json:"ends"`
+	ArcherName   string                   `json:"archer_name"`
+	ArcherAvatar *string                  `json:"archer_avatar"`
+	TemplateName string                   `json:"template_name"`
+	Template     *repository.RoundTemplateOut `json:"template"`
+	TotalScore   int                      `json:"total_score"`
+	TotalXCount  int                      `json:"total_x_count"`
+	TotalArrows  int                      `json:"total_arrows"`
+	Notes        *string                  `json:"notes"`
+	Location     *string                  `json:"location"`
+	Weather      *string                  `json:"weather"`
+	StartedAt    time.Time                `json:"started_at"`
+	CompletedAt  *time.Time               `json:"completed_at"`
+	Ends         []repository.EndOut      `json:"ends"`
 }
 
 // ── Create Share Link ─────────────────────────────────────────────────
@@ -60,24 +62,15 @@ func (h *SharingHandler) CreateShareLink(w http.ResponseWriter, r *http.Request)
 	userID := middleware.GetUserID(r.Context())
 	ctx := r.Context()
 
-	var shareToken *string
-	err := h.DB.QueryRow(ctx,
-		"SELECT share_token FROM scoring_sessions WHERE id = $1 AND user_id = $2",
-		sessionID, userID,
-	).Scan(&shareToken)
+	shareToken, err := h.Scoring.GetShareToken(ctx, sessionID, userID)
 	if err != nil {
 		Error(w, http.StatusNotFound, "Session not found")
 		return
 	}
 
-	// If no share token yet, generate one
 	if shareToken == nil || *shareToken == "" {
 		token := generateURLSafeToken(16)
-		_, err := h.DB.Exec(ctx,
-			"UPDATE scoring_sessions SET share_token = $1 WHERE id = $2",
-			token, sessionID,
-		)
-		if err != nil {
+		if err := h.Scoring.SetShareToken(ctx, sessionID, token); err != nil {
 			Error(w, http.StatusInternalServerError, "Internal server error")
 			return
 		}
@@ -100,13 +93,9 @@ func (h *SharingHandler) RevokeShareLink(w http.ResponseWriter, r *http.Request)
 	}
 
 	userID := middleware.GetUserID(r.Context())
-	ctx := r.Context()
 
-	tag, err := h.DB.Exec(ctx,
-		"UPDATE scoring_sessions SET share_token = NULL WHERE id = $1 AND user_id = $2",
-		sessionID, userID,
-	)
-	if err != nil || tag.RowsAffected() == 0 {
+	ok, err := h.Scoring.RevokeShareToken(r.Context(), sessionID, userID)
+	if err != nil || !ok {
 		Error(w, http.StatusNotFound, "Session not found")
 		return
 	}
@@ -120,32 +109,14 @@ func (h *SharingHandler) GetSharedSession(w http.ResponseWriter, r *http.Request
 	token := chi.URLParam(r, "token")
 	ctx := r.Context()
 
-	var sessionID, templateID string
-	var totalScore, totalXCount, totalArrows int
-	var notes, location, weather *string
-	var startedAt time.Time
-	var completedAt *time.Time
-	var userID string
-
-	err := h.DB.QueryRow(ctx, `
-		SELECT ss.id, ss.template_id, ss.total_score, ss.total_x_count, ss.total_arrows,
-		       ss.notes, ss.location, ss.weather, ss.started_at, ss.completed_at, ss.user_id
-		FROM scoring_sessions ss
-		WHERE ss.share_token = $1`, token,
-	).Scan(&sessionID, &templateID, &totalScore, &totalXCount, &totalArrows,
-		&notes, &location, &weather, &startedAt, &completedAt, &userID)
+	data, err := h.Scoring.GetSharedSession(ctx, token)
 	if err != nil {
 		Error(w, http.StatusNotFound, "Shared session not found")
 		return
 	}
 
 	// Load archer info
-	var username string
-	var displayName, avatar *string
-	h.DB.QueryRow(ctx,
-		"SELECT username, display_name, avatar FROM users WHERE id = $1", userID,
-	).Scan(&username, &displayName, &avatar)
-
+	username, displayName, avatar, _ := h.Users.GetArcherInfo(ctx, data.UserID)
 	archerName := username
 	if displayName != nil && *displayName != "" {
 		archerName = *displayName
@@ -153,39 +124,31 @@ func (h *SharingHandler) GetSharedSession(w http.ResponseWriter, r *http.Request
 
 	// Load template
 	var templateName string
-	var template *roundTemplateOut
-	var t roundTemplateOut
-	err = h.DB.QueryRow(ctx, `
-		SELECT id, name, organization, description, is_official, created_by
-		FROM round_templates WHERE id = $1`, templateID,
-	).Scan(&t.ID, &t.Name, &t.Organization, &t.Description, &t.IsOfficial, &t.CreatedBy)
+	var template *repository.RoundTemplateOut
+	t, err := h.Rounds.Get(ctx, data.TemplateID)
 	if err == nil {
 		templateName = t.Name
-		stages, err := loadStages(ctx, h.DB, t.ID)
-		if err == nil {
-			t.Stages = stages
-		}
-		template = &t
+		template = t
 	} else {
 		templateName = "Unknown"
 	}
 
 	// Load ends
-	ends, _ := loadEnds(ctx, h.DB, sessionID)
+	ends, _ := h.Scoring.LoadEnds(ctx, data.SessionID)
 
 	JSON(w, http.StatusOK, sharedSessionOut{
 		ArcherName:   archerName,
 		ArcherAvatar: avatar,
 		TemplateName: templateName,
 		Template:     template,
-		TotalScore:   totalScore,
-		TotalXCount:  totalXCount,
-		TotalArrows:  totalArrows,
-		Notes:        notes,
-		Location:     location,
-		Weather:      weather,
-		StartedAt:    startedAt,
-		CompletedAt:  completedAt,
+		TotalScore:   data.TotalScore,
+		TotalXCount:  data.TotalXCount,
+		TotalArrows:  data.TotalArrows,
+		Notes:        data.Notes,
+		Location:     data.Location,
+		Weather:      data.Weather,
+		StartedAt:    data.StartedAt,
+		CompletedAt:  data.CompletedAt,
 		Ends:         ends,
 	})
 }

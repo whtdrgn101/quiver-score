@@ -17,6 +17,7 @@ import (
 	"github.com/quiverscore/backend-go/internal/handler"
 	"github.com/quiverscore/backend-go/internal/middleware"
 	"github.com/quiverscore/backend-go/internal/proxy"
+	"github.com/quiverscore/backend-go/internal/repository"
 )
 
 func main() {
@@ -80,15 +81,25 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 
 	r.Get("/health", handler.Health)
 
-	authHandler := &handler.AuthHandler{DB: pool, Cfg: cfg}
-	usersHandler := &handler.UsersHandler{DB: pool, Cfg: cfg}
-	roundsHandler := &handler.RoundsHandler{DB: pool, Cfg: cfg}
-	equipmentHandler := &handler.EquipmentHandler{DB: pool, Cfg: cfg}
-	setupsHandler := &handler.SetupsHandler{DB: pool, Cfg: cfg}
-	sightMarksHandler := &handler.SightMarksHandler{DB: pool, Cfg: cfg}
-	classificationsHandler := &handler.ClassificationsHandler{DB: pool, Cfg: cfg}
-	scoringHandler := &handler.ScoringHandler{DB: pool, Cfg: cfg}
-	sharingHandler := &handler.SharingHandler{DB: pool, Cfg: cfg}
+	// Create repositories
+	userRepo := &repository.UserRepo{DB: pool}
+	roundRepo := &repository.RoundRepo{DB: pool}
+	equipmentRepo := &repository.EquipmentRepo{DB: pool}
+	setupRepo := &repository.SetupRepo{DB: pool}
+	sightMarkRepo := &repository.SightMarkRepo{DB: pool}
+	classificationRepo := &repository.ClassificationRepo{DB: pool}
+	scoringRepo := &repository.ScoringRepo{DB: pool}
+
+	// Create handlers
+	authHandler := &handler.AuthHandler{Users: userRepo, Cfg: cfg}
+	usersHandler := &handler.UsersHandler{Users: userRepo, Cfg: cfg}
+	roundsHandler := &handler.RoundsHandler{Rounds: roundRepo, Cfg: cfg}
+	equipmentHandler := &handler.EquipmentHandler{Equipment: equipmentRepo, Cfg: cfg}
+	setupsHandler := &handler.SetupsHandler{Setups: setupRepo, Cfg: cfg}
+	sightMarksHandler := &handler.SightMarksHandler{SightMarks: sightMarkRepo, Cfg: cfg}
+	classificationsHandler := &handler.ClassificationsHandler{Classifications: classificationRepo, Cfg: cfg}
+	scoringHandler := &handler.ScoringHandler{Scoring: scoringRepo, Cfg: cfg}
+	sharingHandler := &handler.SharingHandler{Scoring: scoringRepo, Users: userRepo, Rounds: roundRepo, Cfg: cfg}
 
 	r.Route("/api/v1/auth", authHandler.Routes)
 	r.Route("/api/v1/rounds", roundsHandler.Routes)

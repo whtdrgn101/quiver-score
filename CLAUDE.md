@@ -11,7 +11,8 @@ This project serves three purposes. The first is I have a love and passion for t
 - Router: chi, handlers in `internal/handler/`, one file per resource
 - Each handler follows: struct with DB+Cfg → Routes() method → CRUD methods
 - Auth: `middleware.RequireAuth(secretKey)` injects user ID into context
-- Direct SQL via pgx (no ORM), UUIDs as strings, COALESCE for partial updates
+- SQL via pgx (no ORM), UUIDs as strings, COALESCE for partial updates
+- **Repository pattern**: SQL queries belong in `internal/repository/`, not inline in handlers. Handlers should call repository methods for all database access. This separates HTTP concerns from data access and improves testability. Existing handlers need refactoring to follow this pattern.
 - Run: `docker compose -f docker-compose.yml -f docker-compose.go.yml up -d`
 
 ## Python API (backend/)
