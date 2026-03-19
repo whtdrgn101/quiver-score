@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"net/http"
@@ -15,8 +16,50 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type ClubRepository interface {
+	Create(ctx context.Context, id, name string, description *string, ownerID string) (*repository.ClubOut, error)
+	ListForUser(ctx context.Context, userID string) ([]repository.ClubOut, error)
+	GetDetail(ctx context.Context, clubID, userID string) (*repository.ClubDetailOut, error)
+	Update(ctx context.Context, clubID, userID string, name, description *string) (*repository.ClubOut, error)
+	Delete(ctx context.Context, clubID, userID string) error
+	CreateInvite(ctx context.Context, id, clubID, userID, code string, maxUses *int, expiresAt *time.Time, frontendURL string) (*repository.InviteOut, error)
+	ListInvites(ctx context.Context, clubID, userID string, frontendURL string) ([]repository.InviteOut, error)
+	DeactivateInvite(ctx context.Context, clubID, inviteID, userID string) error
+	PreviewInvite(ctx context.Context, code, userID string) (*repository.ClubOut, error)
+	JoinViaInvite(ctx context.Context, code, userID string) (*repository.JoinResult, error)
+	PromoteMember(ctx context.Context, clubID, targetUserID, userID string) error
+	DemoteMember(ctx context.Context, clubID, targetUserID, userID string) error
+	RemoveMember(ctx context.Context, clubID, targetUserID, userID string) error
+	Leaderboard(ctx context.Context, clubID, userID string, templateID *string) ([]repository.LeaderboardOut, error)
+	Activity(ctx context.Context, clubID, userID string, limit, offset int) ([]repository.ActivityItem, error)
+	CreateEvent(ctx context.Context, id, clubID, userID, name string, description *string, templateID string, eventDate time.Time, location *string) (*repository.EventOut, error)
+	ListEvents(ctx context.Context, clubID, userID string) ([]repository.EventOut, error)
+	GetEvent(ctx context.Context, clubID, eventID, userID string) (*repository.EventOut, error)
+	UpdateEvent(ctx context.Context, clubID, eventID, userID string, name *string, description *string, descriptionSet bool, eventDate *time.Time, location *string, locationSet bool) (*repository.EventOut, error)
+	DeleteEvent(ctx context.Context, clubID, eventID, userID string) error
+	RSVPEvent(ctx context.Context, clubID, eventID, userID, status string) (*repository.EventOut, error)
+	CreateTeam(ctx context.Context, id, clubID, userID, name string, description *string, leaderID string) (*repository.TeamOut, error)
+	ListTeams(ctx context.Context, clubID, userID string) ([]repository.TeamOut, error)
+	GetTeamDetail(ctx context.Context, clubID, teamID, userID string) (*repository.TeamDetailOut, error)
+	UpdateTeam(ctx context.Context, clubID, teamID, userID string, name, description *string, leaderID *string) (*repository.TeamOut, error)
+	DeleteTeam(ctx context.Context, clubID, teamID, userID string) error
+	AddTeamMember(ctx context.Context, clubID, teamID, targetUserID, userID string) error
+	RemoveTeamMember(ctx context.Context, clubID, teamID, targetUserID, userID string) error
+	ListSharedRounds(ctx context.Context, clubID, userID string) ([]repository.ClubSharedRoundOut, error)
+	RemoveSharedRound(ctx context.Context, clubID, roundID, userID string) error
+	CreateTournament(ctx context.Context, id, clubID, userID, name string, description *string, templateID string, maxParticipants *int, registrationDeadline, startDate, endDate time.Time) (*repository.TournamentOut, error)
+	ListTournaments(ctx context.Context, clubID, userID string, status *string) ([]repository.TournamentOut, error)
+	GetTournamentDetail(ctx context.Context, clubID, tournamentID, userID string) (*repository.TournamentDetailOut, error)
+	RegisterForTournament(ctx context.Context, clubID, tournamentID, userID string) error
+	StartTournament(ctx context.Context, clubID, tournamentID, userID string) (*repository.TournamentOut, error)
+	TournamentLeaderboard(ctx context.Context, clubID, tournamentID, userID string) ([]repository.TournamentLeaderboardEntry, error)
+	CompleteTournament(ctx context.Context, clubID, tournamentID, userID string) (*repository.TournamentOut, error)
+	WithdrawFromTournament(ctx context.Context, clubID, tournamentID, userID string) error
+	SubmitTournamentScore(ctx context.Context, clubID, tournamentID, userID, sessionID string) (int, int, error)
+}
+
 type ClubsHandler struct {
-	Clubs *repository.ClubRepo
+	Clubs ClubRepository
 	Cfg   *config.Config
 }
 

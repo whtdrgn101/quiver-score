@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"net/mail"
@@ -12,14 +13,32 @@ import (
 
 	"github.com/quiverscore/backend-go/internal/auth"
 	"github.com/quiverscore/backend-go/internal/config"
-	"github.com/quiverscore/backend-go/internal/email"
 	"github.com/quiverscore/backend-go/internal/middleware"
-	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type AuthUserRepository interface {
+	ExistsByEmailOrUsername(ctx context.Context, email, username string) (bool, error)
+	Create(ctx context.Context, id, email, username, hashedPw, displayName, verificationToken string) error
+	GetCredentialsByUsername(ctx context.Context, username string) (userID, hashedPw string, err error)
+	Exists(ctx context.Context, id string) (bool, error)
+	VerifyEmail(ctx context.Context, email string) (bool, error)
+	GetEmailInfo(ctx context.Context, userID string) (email string, verified bool, err error)
+	UpdateVerificationToken(ctx context.Context, userID, token string) error
+	GetHashedPassword(ctx context.Context, userID string) (string, error)
+	UpdatePassword(ctx context.Context, userID, hashedPw string) error
+	ExistsByEmail(ctx context.Context, email string) (bool, error)
+	ResetPasswordByEmail(ctx context.Context, email, hashedPw string) (bool, error)
+	DeleteUserData(ctx context.Context, userID string) error
+}
+
+type AuthEmailSender interface {
+	SendVerificationEmail(toEmail, token, frontendURL string, expireHours int) error
+	SendPasswordResetEmail(toEmail, token, frontendURL string, expireMinutes int) error
+}
+
 type AuthHandler struct {
-	Users *repository.UserRepo
-	Email *email.Sender
+	Users AuthUserRepository
+	Email AuthEmailSender
 	Cfg   *config.Config
 }
 

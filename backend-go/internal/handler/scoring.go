@@ -2,6 +2,7 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -17,8 +18,34 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type ScoringRepository interface {
+	SetupProfileExists(ctx context.Context, setupID, userID string) (bool, error)
+	CreateSession(ctx context.Context, id, userID, templateID string, setupProfileID *string, notes, location, weather *string, now time.Time) error
+	LoadSessionOut(ctx context.Context, sessionID, userID string) (*repository.SessionOut, error)
+	ListSessions(ctx context.Context, userID string, templateID, dateFrom, dateTo, search *string) ([]repository.SessionSummary, error)
+	GetSessionStatus(ctx context.Context, sessionID, userID string) (string, error)
+	IsPersonalBest(ctx context.Context, userID, sessionID string) bool
+	GetStageInfo(ctx context.Context, stageID string) (*repository.StageInfo, error)
+	GetEndCount(ctx context.Context, sessionID string) int
+	SubmitEnd(ctx context.Context, sessionID, stageID string, endNumber int, arrows []repository.ArrowIn, scoreMap map[string]int) (*repository.EndOut, error)
+	UndoLastEnd(ctx context.Context, sessionID string) error
+	GetSessionForComplete(ctx context.Context, sessionID, userID string) (templateID, status string, totalScore int, err error)
+	CompleteSession(ctx context.Context, sessionID string, now time.Time, notes, location, weather *string) error
+	UpsertPersonalRecord(ctx context.Context, userID, templateID, sessionID string, totalScore int, now time.Time) (bool, error)
+	GetTemplateName(ctx context.Context, templateID string) string
+	InsertClassification(ctx context.Context, userID, system, classification, roundType string, score int, now time.Time, sessionID string) error
+	InsertNotification(ctx context.Context, userID, nType, title, message, link string, now time.Time) error
+	InsertFeedItem(ctx context.Context, userID, feedType string, data map[string]any, now time.Time) error
+	AbandonSession(ctx context.Context, sessionID string) error
+	DeleteSession(ctx context.Context, sessionID string) error
+	Stats(ctx context.Context, userID string) (*repository.StatsOut, error)
+	PersonalRecords(ctx context.Context, userID string) ([]repository.PersonalRecordOut, error)
+	Trends(ctx context.Context, userID string) ([]repository.TrendDataItem, error)
+	ExportBulkData(ctx context.Context, userID string, templateID, dateFrom, dateTo, search *string) ([]repository.BulkExportRow, error)
+}
+
 type ScoringHandler struct {
-	Scoring *repository.ScoringRepo
+	Scoring ScoringRepository
 	Cfg     *config.Config
 }
 

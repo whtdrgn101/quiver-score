@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -13,8 +14,16 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type UserRepository interface {
+	GetMe(ctx context.Context, userID string) (*repository.UserOut, error)
+	UpdateProfile(ctx context.Context, userID string, displayName, bowType, classification, bio *string, displayNameSet, bowTypeSet, classificationSet, bioSet bool, profilePublic *bool) (*repository.UserOut, error)
+	UpdateAvatar(ctx context.Context, userID, dataURI string) (*repository.UserOut, error)
+	DeleteAvatar(ctx context.Context, userID string) (*repository.UserOut, error)
+	GetPublicProfile(ctx context.Context, username string) (*repository.PublicProfileOut, error)
+}
+
 type UsersHandler struct {
-	Users *repository.UserRepo
+	Users UserRepository
 	Cfg   *config.Config
 }
 

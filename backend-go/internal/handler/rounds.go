@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -11,8 +12,22 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type RoundRepository interface {
+	List(ctx context.Context, userID string) ([]repository.RoundTemplateOut, error)
+	Get(ctx context.Context, id string) (*repository.RoundTemplateOut, error)
+	Create(ctx context.Context, name, organization string, description *string, userID string, stages []repository.StageParams) (*repository.RoundTemplateOut, error)
+	Update(ctx context.Context, id, name, organization string, description *string, stages []repository.StageParams) (*repository.RoundTemplateOut, error)
+	Delete(ctx context.Context, id string) error
+	GetPermissions(ctx context.Context, id string) (isOfficial bool, createdBy *string, err error)
+	HasInProgressSessions(ctx context.Context, templateID string) (bool, error)
+	IsMemberOfClub(ctx context.Context, clubID, userID string) (bool, error)
+	IsSharedWithClub(ctx context.Context, clubID, templateID string) (bool, error)
+	ShareWithClub(ctx context.Context, templateID, clubID, userID string) error
+	UnshareFromClub(ctx context.Context, clubID, templateID string) (bool, error)
+}
+
 type RoundsHandler struct {
-	Rounds *repository.RoundRepo
+	Rounds RoundRepository
 	Cfg    *config.Config
 }
 
