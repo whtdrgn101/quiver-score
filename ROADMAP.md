@@ -284,7 +284,7 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Migration complete.** Go API handles all routes. Python retained as sidecar for PDF export and Alembic migrations only.
+**Migration complete.** Go API handles all routes including PDF export (pure Go via go-pdf/fpdf). Python retained only for Alembic database migrations (runs on deploy then exits).
 
 ### Post-Migration Hardening
 - [x] Python sidecar locked down: `--ingress internal` + `--no-allow-unauthenticated`
@@ -295,48 +295,60 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ---
 
-## Future: Migrate Frontend to Cloudflare Pages
+## Future: Migrate Frontend to Firebase Hosting
 
-Move the frontend from Cloud Run (nginx container) to Cloudflare Pages (free static hosting on edge CDN). Eliminates a container, reduces cost, improves global latency.
+Move the frontend from Cloud Run (nginx container) to Firebase Hosting (free static hosting on Google's edge CDN). Eliminates a container, reduces cost, improves global latency, and keeps everything within GCP.
 
 ### Current State
 - Vite + React 19 SPA, `npm run build` outputs to `dist/`
 - Deployed as Cloud Run container running nginx
 - nginx reverse-proxies `/api/*` to Go API via `API_URL` env var
 - PWA enabled (service worker, offline caching)
+- Domain: `quiverscore.com`, DNS managed in Squarespace
 
 ### Migration Steps
 
-#### 1 — Set up Cloudflare Pages
-- [ ] Create Cloudflare Pages project connected to GitHub repo
-- [ ] Build config: command `npm run build`, output directory `frontend/dist`
-- [ ] Configure custom domain (e.g. `app.quiverscore.com` or root domain)
+#### 1 — Set up Firebase project & hosting ✅
+- [x] Install Firebase CLI (`npm install -g firebase-tools`)
+- [x] Run `firebase init hosting` in the `frontend/` directory
+- [x] Configure `firebase.json` with build output, API rewrites, and SPA fallback
+- [x] Deploy to default `*.web.app` URL and verify site loads (https://quiverscore.web.app)
 
-#### 2 — Replace nginx API proxy
-- [ ] Add `frontend/_redirects` file to proxy API calls to Cloud Run:
-  ```
-  /api/* https://<cloud-run-go-url>/api/:splat 200
-  /health https://<cloud-run-go-url>/health 200
-  ```
-- [ ] Verify API calls work through Cloudflare proxy (auth, scoring, etc.)
-- [ ] Alternative: use separate `api.` subdomain and update `src/api/client.js` baseURL
+#### 2 — Verify on staging URL before cutover ✅
+- [x] API calls work through Firebase `run` rewrite (rounds, auth, health verified)
+- [x] PWA still works (service worker, manifest, offline)
+- [x] Contract tests: API routing confirmed working (failures are rate-limit expected, not routing issues)
+- [x] Manual verification: login, navigation, and app behavior confirmed on https://quiverscore.web.app
 
-#### 3 — Clean up Cloud Run frontend
+#### 3 — Domain cutover ✅
+- [x] Add `quiverscore.com` as custom domain in Firebase Console
+- [x] Firebase provides A record and TXT record for verification
+- [x] In Squarespace DNS: add TXT record, swap A record to Firebase IP, CNAME www → quiverscore.web.app
+- [x] Firebase auto-provisions SSL cert
+- [x] Verified site and API rewrite working on `https://quiverscore.com`
+
+#### 4 — Set up GitHub Actions deploy
+- [ ] Add Firebase deploy step to `.github/workflows/deploy.yml`
+- [ ] Use `FirebaseExtended/action-hosting-deploy` action
+- [ ] Configure `FIREBASE_SERVICE_ACCOUNT` secret in GitHub repo
+
+#### 5 — Clean up Cloud Run frontend
 - [ ] Remove frontend Dockerfile, nginx.conf, nginx.conf.template
 - [ ] Remove frontend build/push/deploy steps from `.github/workflows/deploy.yml`
-- [ ] Remove `quiverscore-frontend` Cloud Run service
-- [ ] Update CORS origins in Go API if domain changes
+- [ ] Delete `quiverscore-frontend` Cloud Run service
+- [ ] Remove Cloud Run domain mapping for `quiverscore.com`
 
-#### 4 — Verify
-- [ ] PWA still works (service worker, manifest, offline)
-- [ ] All contract tests pass via new domain
-- [ ] E2E tests (`npm run test:e2e`) pass against Cloudflare Pages deployment
+### Notes
+- Squarespace DNS propagation may take up to a few hours
+- Lower TTL on existing records before cutover to speed transition if possible
+- Go API keeps `--min-instances 1` on Cloud Run (cheap for small container, avoids cold starts)
 
 ### Benefits
-- **Cost**: Eliminates frontend Cloud Run service (free tier on Cloudflare Pages)
-- **Performance**: Static assets served from 300+ edge locations worldwide
-- **Simplicity**: No Docker/nginx for static files, automatic deploys from GitHub
-- **DDoS protection**: Cloudflare's free tier includes basic protection
+- **Cost**: Eliminates frontend Cloud Run service (Firebase free tier: 10GB storage, ~10GB/month bandwidth)
+- **Performance**: Static assets served from Google's global edge CDN
+- **Simplicity**: No Docker/nginx for static files, deploy via `firebase deploy` or GitHub Actions
+- **API routing**: `run` rewrites route directly to Cloud Run within Google's network — no separate proxy URL, no CORS changes
+- **Single ecosystem**: Billing, IAM, and networking all within GCP
 
 ### Estimated Effort
-~1 hour. No frontend code changes needed if using `_redirects` proxy approach.
+~1 hour. No frontend code changes needed — Firebase `run` rewrites replace the nginx API proxy transparently.

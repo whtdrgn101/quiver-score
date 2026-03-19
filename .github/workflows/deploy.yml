@@ -23,7 +23,6 @@ jobs:
       GCP_REGION: ${{ secrets.GCP_REGION }}
       API_IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiverscore/api
       API_GO_IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiverscore/api-go
-      FRONTEND_IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/quiverscore/frontend
 
     steps:
       - uses: actions/checkout@v6
@@ -52,11 +51,17 @@ jobs:
           docker push $API_GO_IMAGE:${{ github.sha }}
           docker push $API_GO_IMAGE:latest
 
-      - name: Build and push frontend image
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
         run: |
-          docker build -t $FRONTEND_IMAGE:${{ github.sha }} -t $FRONTEND_IMAGE:latest ./frontend
-          docker push $FRONTEND_IMAGE:${{ github.sha }}
-          docker push $FRONTEND_IMAGE:latest
+          cd frontend
+          npm ci
+          npm run build
 
       # Run Alembic migrations via Cloud Run Job
       - name: Run database migrations
@@ -95,13 +100,8 @@ jobs:
             --format "value(status.url)" > /tmp/api_url.txt
           echo "api_url=$(cat /tmp/api_url.txt)" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy frontend to Cloud Run
+      - name: Deploy frontend to Firebase Hosting
         run: |
-          gcloud run deploy quiverscore-frontend \
-            --image $FRONTEND_IMAGE:${{ github.sha }} \
-            --region $GCP_REGION \
-            --platform managed \
-            --allow-unauthenticated \
-            --min-instances 0 \
-            --max-instances 2 \
-            --update-env-vars "API_URL=${{ steps.deploy-api.outputs.api_url }}"
+          npm install -g firebase-tools
+          cd frontend
+          firebase deploy --only hosting --project $GCP_PROJECT
