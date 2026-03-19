@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -10,8 +11,13 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type ClassificationRepository interface {
+	List(ctx context.Context, userID string) ([]repository.ClassificationRecordOut, error)
+	Current(ctx context.Context, userID string) ([]repository.CurrentClassificationOut, error)
+}
+
 type ClassificationsHandler struct {
-	Classifications *repository.ClassificationRepo
+	Classifications ClassificationRepository
 	Cfg             *config.Config
 }
 

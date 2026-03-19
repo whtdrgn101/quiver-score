@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -12,8 +13,16 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type SightMarkRepository interface {
+	List(ctx context.Context, userID string, equipmentID, setupID *string) ([]repository.SightMarkOut, error)
+	Create(ctx context.Context, id, userID string, equipmentID, setupID *string, distance, setting string, notes *string, dateRecorded time.Time) (*repository.SightMarkOut, error)
+	Exists(ctx context.Context, id, userID string) (bool, error)
+	Update(ctx context.Context, id, userID string, distance, setting *string, notes *string, notesSet bool, dateRecorded *time.Time, dateSet bool, equipmentID *string, eqSet bool, setupID *string, setupSet bool) (*repository.SightMarkOut, error)
+	Delete(ctx context.Context, id, userID string) (bool, error)
+}
+
 type SightMarksHandler struct {
-	SightMarks *repository.SightMarkRepo
+	SightMarks SightMarkRepository
 	Cfg        *config.Config
 }
 

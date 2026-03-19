@@ -7,22 +7,19 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 ## Architecture
 
 ```
-                    ┌─────────────────────────┐
-                    │      Cloud Run          │
-                    │                         │
-  HTTP ──────────▶  │  Go API (primary)       │
-                    │    ├── all routes        │
-                    │    └── calls Python ───▶ │  Python sidecar
-                    │         for PDF export   │    ├── PDF generation
-                    │                         │    └── Alembic migrations
-                    └─────────────────────────┘
-                               │
-                               ▼
-                          PostgreSQL
+                  ┌──────────────────────┐
+  HTTP ────────▶  │  Firebase Hosting     │
+                  │  (static CDN)         │
+                  │    ├── SPA assets     │
+                  │    └── /api/** ───────┼──▶  Cloud Run: Go API
+                  └──────────────────────┘     ├── all routes + PDF export
+                                               └──▶ PostgreSQL
+
+  On deploy:  Cloud Run Job (Python/Alembic) → run migrations → exit
 ```
 
-**Go stack:** `chi` router, `sqlc` (type-safe SQL), `golang-migrate`, `golang-jwt`, `bcrypt`
-**Kept in Python:** Alembic migrations, ReportLab PDF export
+**Go stack:** `chi` router, `pgx` (SQL), `golang-jwt`, `bcrypt`, `go-pdf/fpdf`
+**Python (deploy-only):** Alembic migrations
 
 ## Workflow (per phase)
 
@@ -284,71 +281,19 @@ Migrate the FastAPI backend to Go while keeping Python for PDF generation and Al
 
 ## Current Status
 
-**Migration complete.** Go API handles all routes including PDF export (pure Go via go-pdf/fpdf). Python retained only for Alembic database migrations (runs on deploy then exits).
+**All migrations complete.** Platform architecture:
 
-### Post-Migration Hardening
-- [x] Python sidecar locked down: `--ingress internal` + `--no-allow-unauthenticated`
-- [x] Go API: `--min-instances 1` to eliminate cold starts
-- [x] Rate limiting on auth routes (in-memory token bucket, 10 req/min per IP)
-- [x] SendGrid email integration restored (verification + password reset)
-- [x] Deploy pipeline passes `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL`, `FRONTEND_URL` to Go service
+- **Frontend**: Firebase Hosting (global CDN, free tier) — Vite + React 19 SPA with PWA
+- **API**: Go (chi router) on Cloud Run (`quiverscore-api`, min-instances 1)
+- **Database**: PostgreSQL (Cloud SQL)
+- **Migrations**: Python/Alembic via Cloud Run Job (runs on deploy then exits)
+- **PDF export**: Pure Go (go-pdf/fpdf, no Python dependency)
+- **CI/CD**: GitHub Actions → Go tests + frontend build → deploy API to Cloud Run + frontend to Firebase
+- **Domain**: `quiverscore.com` via Firebase Hosting, DNS managed in Squarespace
+- **Email**: SendGrid (verification + password reset)
 
----
-
-## Future: Migrate Frontend to Firebase Hosting
-
-Move the frontend from Cloud Run (nginx container) to Firebase Hosting (free static hosting on Google's edge CDN). Eliminates a container, reduces cost, improves global latency, and keeps everything within GCP.
-
-### Current State
-- Vite + React 19 SPA, `npm run build` outputs to `dist/`
-- Deployed as Cloud Run container running nginx
-- nginx reverse-proxies `/api/*` to Go API via `API_URL` env var
-- PWA enabled (service worker, offline caching)
-- Domain: `quiverscore.com`, DNS managed in Squarespace
-
-### Migration Steps
-
-#### 1 — Set up Firebase project & hosting ✅
-- [x] Install Firebase CLI (`npm install -g firebase-tools`)
-- [x] Run `firebase init hosting` in the `frontend/` directory
-- [x] Configure `firebase.json` with build output, API rewrites, and SPA fallback
-- [x] Deploy to default `*.web.app` URL and verify site loads (https://quiverscore.web.app)
-
-#### 2 — Verify on staging URL before cutover ✅
-- [x] API calls work through Firebase `run` rewrite (rounds, auth, health verified)
-- [x] PWA still works (service worker, manifest, offline)
-- [x] Contract tests: API routing confirmed working (failures are rate-limit expected, not routing issues)
-- [x] Manual verification: login, navigation, and app behavior confirmed on https://quiverscore.web.app
-
-#### 3 — Domain cutover ✅
-- [x] Add `quiverscore.com` as custom domain in Firebase Console
-- [x] Firebase provides A record and TXT record for verification
-- [x] In Squarespace DNS: add TXT record, swap A record to Firebase IP, CNAME www → quiverscore.web.app
-- [x] Firebase auto-provisions SSL cert
-- [x] Verified site and API rewrite working on `https://quiverscore.com`
-
-#### 4 — Set up GitHub Actions deploy ✅
-- [x] Add Firebase deploy step to `.github/workflows/deploy.yml`
-- [x] Uses `firebase deploy --only hosting` with existing GCP service account credentials
-- [x] Granted `roles/firebasehosting.admin` to `github-deploy` service account
-- [x] Deploy pipeline verified working
-
-#### 5 — Clean up Cloud Run frontend ✅
-- [x] Remove frontend Dockerfile, nginx.conf, nginx.conf.template
-- [x] Frontend build/push/deploy steps already replaced in Step 4
-- [x] Deleted `quiverscore-frontend` Cloud Run service
-
-### Notes
-- Squarespace DNS propagation may take up to a few hours
-- Lower TTL on existing records before cutover to speed transition if possible
-- Go API keeps `--min-instances 1` on Cloud Run (cheap for small container, avoids cold starts)
-
-### Benefits
-- **Cost**: Eliminates frontend Cloud Run service (Firebase free tier: 10GB storage, ~10GB/month bandwidth)
-- **Performance**: Static assets served from Google's global edge CDN
-- **Simplicity**: No Docker/nginx for static files, deploy via `firebase deploy` or GitHub Actions
-- **API routing**: `run` rewrites route directly to Cloud Run within Google's network — no separate proxy URL, no CORS changes
-- **Single ecosystem**: Billing, IAM, and networking all within GCP
-
-### Estimated Effort
-~1 hour. No frontend code changes needed — Firebase `run` rewrites replace the nginx API proxy transparently.
+### Completed Milestones
+- Phases 0–10: Full Python → Go API migration (253 contract tests)
+- Post-migration hardening (rate limiting, min-instances, SendGrid, sidecar lockdown)
+- PDF generation moved to pure Go
+- Frontend migrated from Cloud Run (nginx) to Firebase Hosting

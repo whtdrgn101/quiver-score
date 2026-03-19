@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"net/http"
@@ -14,10 +15,26 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type SharingScoringRepository interface {
+	GetShareToken(ctx context.Context, sessionID, userID string) (*string, error)
+	SetShareToken(ctx context.Context, sessionID, token string) error
+	RevokeShareToken(ctx context.Context, sessionID, userID string) (bool, error)
+	GetSharedSession(ctx context.Context, token string) (*repository.SharedSessionData, error)
+	LoadEnds(ctx context.Context, sessionID string) ([]repository.EndOut, error)
+}
+
+type SharingUserRepository interface {
+	GetArcherInfo(ctx context.Context, userID string) (username string, displayName, avatar *string, err error)
+}
+
+type SharingRoundRepository interface {
+	Get(ctx context.Context, id string) (*repository.RoundTemplateOut, error)
+}
+
 type SharingHandler struct {
-	Scoring *repository.ScoringRepo
-	Users   *repository.UserRepo
-	Rounds  *repository.RoundRepo
+	Scoring SharingScoringRepository
+	Users   SharingUserRepository
+	Rounds  SharingRoundRepository
 	Cfg     *config.Config
 }
 

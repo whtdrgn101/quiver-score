@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -11,8 +12,15 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type NotificationRepository interface {
+	List(ctx context.Context, userID string) ([]repository.NotificationOut, error)
+	UnreadCount(ctx context.Context, userID string) (int, error)
+	MarkRead(ctx context.Context, userID, notificationID string) (*repository.NotificationOut, error)
+	MarkAllRead(ctx context.Context, userID string) error
+}
+
 type NotificationsHandler struct {
-	Notifications *repository.NotificationRepo
+	Notifications NotificationRepository
 	Cfg           *config.Config
 }
 

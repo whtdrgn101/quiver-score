@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -11,8 +12,19 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type CoachingRepository interface {
+	Invite(ctx context.Context, coachID, athleteUsername string) (*repository.CoachAthleteLinkOut, error)
+	Respond(ctx context.Context, athleteID, linkID string, accept bool) (*repository.CoachAthleteLinkOut, error)
+	ListAthletes(ctx context.Context, coachID string) ([]repository.CoachAthleteLinkOut, error)
+	ListCoaches(ctx context.Context, athleteID string) ([]repository.CoachAthleteLinkOut, error)
+	GetAthleteSessions(ctx context.Context, coachID, athleteID string) ([]repository.AthleteSessionOut, error)
+	CheckSessionAccess(ctx context.Context, userID, sessionID string) (string, error)
+	AddAnnotation(ctx context.Context, sessionID, authorID string, endNumber, arrowNumber *int, text string) (*repository.AnnotationOut, error)
+	ListAnnotations(ctx context.Context, sessionID string) ([]repository.AnnotationOut, error)
+}
+
 type CoachingHandler struct {
-	Coaching *repository.CoachingRepo
+	Coaching CoachingRepository
 	Cfg      *config.Config
 }
 

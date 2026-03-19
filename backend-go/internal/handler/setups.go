@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -11,8 +12,21 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type SetupRepository interface {
+	List(ctx context.Context, userID string) ([]repository.SetupProfileSummary, error)
+	Create(ctx context.Context, userID, name string, description *string, braceHeight, tiller, drawWeight, drawLength, arrowFOC *float64) (string, error)
+	LoadWithEquipment(ctx context.Context, setupID, userID string) (*repository.SetupProfileOut, error)
+	Exists(ctx context.Context, id, userID string) (bool, error)
+	Update(ctx context.Context, id, userID string, name *string, description *string, descSet bool, braceHeight *float64, bhSet bool, tiller *float64, tillerSet bool, drawWeight *float64, dwSet bool, drawLength *float64, dlSet bool, arrowFOC *float64, focSet bool) (bool, error)
+	Delete(ctx context.Context, id, userID string) (bool, error)
+	EquipmentExists(ctx context.Context, equipmentID, userID string) (bool, error)
+	EquipmentLinked(ctx context.Context, setupID, equipmentID string) (bool, error)
+	AddEquipment(ctx context.Context, setupID, equipmentID string) error
+	RemoveEquipment(ctx context.Context, setupID, equipmentID string) (bool, error)
+}
+
 type SetupsHandler struct {
-	Setups *repository.SetupRepo
+	Setups SetupRepository
 	Cfg    *config.Config
 }
 

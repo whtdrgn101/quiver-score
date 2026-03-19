@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
@@ -12,8 +13,17 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type EquipmentRepository interface {
+	List(ctx context.Context, userID string) ([]repository.EquipmentOut, error)
+	Create(ctx context.Context, id, userID, category, name string, brand, model *string, specs json.RawMessage, notes *string) (*repository.EquipmentOut, error)
+	Get(ctx context.Context, id, userID string) (*repository.EquipmentOut, error)
+	Update(ctx context.Context, id, userID string, category, name *string, brand, model *string, brandSet, modelSet bool, specs json.RawMessage, specsSet bool, notes *string, notesSet bool) (*repository.EquipmentOut, error)
+	Delete(ctx context.Context, id, userID string) (bool, error)
+	Stats(ctx context.Context, userID string) ([]repository.EquipmentUsageOut, error)
+}
+
 type EquipmentHandler struct {
-	Equipment *repository.EquipmentRepo
+	Equipment EquipmentRepository
 	Cfg       *config.Config
 }
 

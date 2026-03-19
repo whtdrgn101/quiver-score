@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -12,8 +13,16 @@ import (
 	"github.com/quiverscore/backend-go/internal/repository"
 )
 
+type SocialRepository interface {
+	Follow(ctx context.Context, followerID, followingID string) (*repository.FollowOut, error)
+	Unfollow(ctx context.Context, followerID, followingID string) error
+	ListFollowers(ctx context.Context, userID string) ([]repository.FollowOut, error)
+	ListFollowing(ctx context.Context, userID string) ([]repository.FollowOut, error)
+	GetFeed(ctx context.Context, userID string, limit, offset int) ([]repository.FeedItemOut, error)
+}
+
 type SocialHandler struct {
-	Social *repository.SocialRepo
+	Social SocialRepository
 	Cfg    *config.Config
 }
 

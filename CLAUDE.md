@@ -12,7 +12,7 @@ This project serves three purposes. The first is I have a love and passion for t
 - Each handler follows: struct with DB+Cfg → Routes() method → CRUD methods
 - Auth: `middleware.RequireAuth(secretKey)` injects user ID into context
 - SQL via pgx (no ORM), UUIDs as strings, COALESCE for partial updates
-- **Repository pattern**: SQL queries belong in `internal/repository/`, not inline in handlers. Handlers should call repository methods for all database access. This separates HTTP concerns from data access and improves testability. Existing handlers need refactoring to follow this pattern.
+- **Repository pattern**: SQL queries live in `internal/repository/`, handlers call repository methods for all database access. This separates HTTP concerns from data access and improves testability.
 - Run: `docker compose -f docker-compose.yml -f docker-compose.go.yml up -d`
 
 ## Python (backend/) — Migrations Only
