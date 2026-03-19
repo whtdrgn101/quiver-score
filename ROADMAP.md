@@ -327,16 +327,16 @@ Move the frontend from Cloud Run (nginx container) to Firebase Hosting (free sta
 - [x] Firebase auto-provisions SSL cert
 - [x] Verified site and API rewrite working on `https://quiverscore.com`
 
-#### 4 — Set up GitHub Actions deploy
-- [ ] Add Firebase deploy step to `.github/workflows/deploy.yml`
-- [ ] Use `FirebaseExtended/action-hosting-deploy` action
-- [ ] Configure `FIREBASE_SERVICE_ACCOUNT` secret in GitHub repo
+#### 4 — Set up GitHub Actions deploy ✅
+- [x] Add Firebase deploy step to `.github/workflows/deploy.yml`
+- [x] Uses `firebase deploy --only hosting` with existing GCP service account credentials
+- [x] Granted `roles/firebasehosting.admin` to `github-deploy` service account
+- [x] Deploy pipeline verified working
 
-#### 5 — Clean up Cloud Run frontend
-- [ ] Remove frontend Dockerfile, nginx.conf, nginx.conf.template
-- [ ] Remove frontend build/push/deploy steps from `.github/workflows/deploy.yml`
-- [ ] Delete `quiverscore-frontend` Cloud Run service
-- [ ] Remove Cloud Run domain mapping for `quiverscore.com`
+#### 5 — Clean up Cloud Run frontend ✅
+- [x] Remove frontend Dockerfile, nginx.conf, nginx.conf.template
+- [x] Frontend build/push/deploy steps already replaced in Step 4
+- [x] Deleted `quiverscore-frontend` Cloud Run service
 
 ### Notes
 - Squarespace DNS propagation may take up to a few hours
