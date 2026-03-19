@@ -18,14 +18,22 @@ export default function ScoreSession() {
   const [finalWeather, setFinalWeather] = useState('');
   const [undoing, setUndoing] = useState(false);
   const [showPRBanner, setShowPRBanner] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   const loadSession = useCallback(async () => {
-    const res = await getSession(sessionId);
-    setSession(res.data);
-    if (res.data.notes) setFinalNotes(res.data.notes);
-    if (res.data.location) setFinalLocation(res.data.location);
-    if (res.data.weather) setFinalWeather(res.data.weather);
-    setLoading(false);
+    try {
+      const res = await getSession(sessionId);
+      setSession(res.data);
+      if (res.data.notes) setFinalNotes(res.data.notes);
+      if (res.data.location) setFinalLocation(res.data.location);
+      if (res.data.weather) setFinalWeather(res.data.weather);
+      setLoadError(false);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [sessionId]);
 
   useEffect(() => {
@@ -56,7 +64,23 @@ export default function ScoreSession() {
     [stages]
   );
 
-  if (loading || !session) return <Spinner />;
+  if (loading) return <Spinner />;
+
+  if (loadError || !session) {
+    return (
+      <div className="max-w-lg mx-auto text-center py-16">
+        <p className="text-gray-600 dark:text-gray-300 mb-4">
+          {navigator.onLine ? 'Failed to load session.' : "You're offline and this session isn't cached yet."}
+        </p>
+        <button
+          onClick={() => { setLoading(true); setLoadError(false); loadSession(); }}
+          className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   if (session.status === 'completed') {
     navigate(`/sessions/${sessionId}`);
@@ -122,25 +146,33 @@ export default function ScoreSession() {
   };
 
   const handleComplete = async () => {
+    setActionError('');
     const data = {};
     if (finalNotes.trim()) data.notes = finalNotes.trim();
     if (finalLocation.trim()) data.location = finalLocation.trim();
     if (finalWeather.trim()) data.weather = finalWeather.trim();
-    const res = await completeSession(sessionId, Object.keys(data).length ? data : undefined);
-    if (res.data.is_personal_best) {
-      setShowPRBanner(true);
-      setTimeout(() => navigate(`/sessions/${sessionId}`), 2500);
-    } else {
-      navigate(`/sessions/${sessionId}`);
+    try {
+      const res = await completeSession(sessionId, Object.keys(data).length ? data : undefined);
+      if (res.data.is_personal_best) {
+        setShowPRBanner(true);
+        setTimeout(() => navigate(`/sessions/${sessionId}`), 2500);
+      } else {
+        navigate(`/sessions/${sessionId}`);
+      }
+    } catch (err) {
+      setActionError(err.response ? 'Failed to complete session.' : "You're offline. Please reconnect to finish this session.");
     }
   };
 
   const handleUndoLastEnd = async () => {
     if (!confirm('Undo the last submitted end?')) return;
     setUndoing(true);
+    setActionError('');
     try {
       await undoLastEnd(sessionId);
       await loadSession();
+    } catch (err) {
+      setActionError(err.response ? 'Failed to undo last end.' : "You're offline. Undo requires a connection.");
     } finally {
       setUndoing(false);
     }
@@ -148,8 +180,13 @@ export default function ScoreSession() {
 
   const handleAbandon = async () => {
     if (!confirm('Abandon this session? This cannot be undone.')) return;
-    await abandonSession(sessionId);
-    navigate('/');
+    setActionError('');
+    try {
+      await abandonSession(sessionId);
+      navigate('/');
+    } catch (err) {
+      setActionError(err.response ? 'Failed to abandon session.' : "You're offline. Abandon requires a connection.");
+    }
   };
 
   const getScoreColor = (value) => {
@@ -191,6 +228,13 @@ export default function ScoreSession() {
           </div>
         )}
       </div>
+
+      {actionError && (
+        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-2 mb-4 flex items-center justify-between">
+          <span className="text-sm text-red-700 dark:text-red-300">{actionError}</span>
+          <button onClick={() => setActionError('')} className="text-red-400 hover:text-red-600 ml-2">&times;</button>
+        </div>
+      )}
 
       {/* Score summary */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4 flex justify-between items-center">

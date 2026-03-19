@@ -8,17 +8,6 @@ export function OnlineProvider({ children }) {
   const [pendingCount, setPendingCount] = useState(() => getPendingEnds().length);
   const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
-    const goOnline = () => setOnline(true);
-    const goOffline = () => setOnline(false);
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
-    return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
-    };
-  }, []);
-
   const refreshPendingCount = useCallback(() => {
     setPendingCount(getPendingEnds().length);
   }, []);
@@ -43,6 +32,24 @@ export function OnlineProvider({ children }) {
     setPendingCount(failed.length);
     setSyncing(false);
   }, []);
+
+  useEffect(() => {
+    const goOnline = () => {
+      setOnline(true);
+      // Auto-sync pending ends when reconnecting
+      const pending = getPendingEnds();
+      if (pending.length) {
+        syncPending();
+      }
+    };
+    const goOffline = () => setOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, [syncPending]);
 
   return (
     <OnlineContext.Provider value={{ online, pendingCount, syncing, refreshPendingCount, syncPending }}>
