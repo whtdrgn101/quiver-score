@@ -93,6 +93,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	socialRepo := &repository.SocialRepo{DB: pool}
 	coachingRepo := &repository.CoachingRepo{DB: pool}
 	notificationRepo := &repository.NotificationRepo{DB: pool}
+	endImageRepo := &repository.EndImageRepo{DB: pool}
 
 	// Email sender
 	emailSender := &email.Sender{
@@ -117,6 +118,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	socialHandler := &handler.SocialHandler{Social: socialRepo, Cfg: cfg}
 	coachingHandler := &handler.CoachingHandler{Coaching: coachingRepo, Cfg: cfg}
 	notificationsHandler := &handler.NotificationsHandler{Notifications: notificationRepo, Cfg: cfg}
+	endImagesHandler := &handler.EndImagesHandler{Images: endImageRepo, Cfg: cfg}
 
 	r.Route("/api/v1/auth", func(ar chi.Router) {
 		if cfg.RateLimitEnabled {
@@ -134,6 +136,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	r.Route("/api/v1/social", socialHandler.Routes)
 	r.Route("/api/v1/coaching", coachingHandler.Routes)
 	r.Route("/api/v1/notifications", notificationsHandler.Routes)
+	r.Route("/api/v1/scoring", endImagesHandler.Routes)
 
 	// Mount users/me as a group so we can add sub-routes
 	r.Route("/api/v1/users/me", func(ur chi.Router) {

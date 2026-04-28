@@ -1,0 +1,200 @@
+# QuiverScore: Mobile App & End Images Roadmap
+
+## Overview
+
+Build a Flutter mobile app for offline-first round scoring and tournament play, paired with API enhancements for end-of-end target photography. The mobile app lives in `mobile/` and targets both Android and iOS.
+
+## Architecture
+
+```
+                  ┌──────────────────────┐
+  Mobile App ──▶  │  Go API (Cloud Run)  │
+  (Flutter)       │    /api/v1/scoring   │
+  offline-first   │    /api/v1/scoring/  │──▶ PostgreSQL
+  SQLite local    │      {id}/ends/      │      ├── end_images (bytea)
+                  │      {endId}/images  │      └── (future: GCS bucket)
+                  └──────────────────────┘
+```
+
+---
+
+## Phase 1: End Images API
+
+### 1.1 — Database Migration
+
+- [x] Alembic migration: `end_images` table (id, end_id, session_id, user_id, image_data bytea, content_type, file_size, created_at)
+- [x] Foreign keys: end_id → ends, session_id → scoring_sessions, user_id → users (all CASCADE delete)
+- [x] Indexes on end_id, session_id, user_id
+
+### 1.2 — Go Repository
+
+- [x] `EndImageRepo` with: Upload, GetMeta, GetImageData, ListByEnd, ListBySession, Delete
+- [x] Ownership verification helpers: EndBelongsToSession, SessionBelongsToUser
+
+### 1.3 — Go Handler & Routes
+
+- [x] `EndImagesHandler` with routes under `/api/v1/scoring`:
+  - `POST /{sessionId}/ends/{endId}/images` — multipart upload (jpeg, png, webp, heic; 10 MB max)
+  - `GET /{sessionId}/ends/{endId}/images` — list images for an end
+  - `GET /{sessionId}/images` — list all images for a session
+  - `GET /{sessionId}/images/{imageId}` — download image binary
+  - `DELETE /{sessionId}/images/{imageId}` — delete image
+- [x] Auth required, session ownership verified on all routes
+
+### 1.4 — Unit Tests
+
+- [x] 14 handler tests covering: upload success, session not owned, end not in session, missing field, get image success/not found/not owned, list by end (with results + empty), list by session (success + not owned), delete (success + not found + not owned)
+- [x] Verify all existing tests still pass after wiring (265/265 pass)
+
+### 1.5 — Contract Tests
+
+- [x] 12 pytest contract tests covering: upload (success, not found, wrong end, no auth, wrong user), get image (success, not found), list by end (with results, empty), list by session, delete (success, not found)
+- [x] Run against Go API on :8080 — 265/265 pass
+
+### 1.6 — Deploy & Verify
+
+- [x] Run migration locally (alembic upgrade e9f0a1b2c3d4 -> f0a1b2c3d4e5)
+- [ ] Push to main → CI/CD deploys migration + Go API to production
+- [ ] Smoke test image upload/download in production
+
+---
+
+## Phase 2: Web UI — End Images
+
+### 2.1 — Session Detail View
+
+- [ ] Display end images in the session detail page (thumbnail per end)
+- [ ] Click thumbnail to view full-size image
+- [ ] Upload button per end (file picker, drag-and-drop)
+- [ ] Delete button per image
+
+### 2.2 — Scoring Flow Integration
+
+- [ ] After submitting an end, optional prompt to attach a photo
+- [ ] Photo thumbnail visible in the end history during scoring
+
+---
+
+## Phase 3: Mobile App — Core Scoring
+
+### 3.1 — Project Scaffold
+
+- [x] Flutter project at `mobile/` with Android + iOS targets
+- [x] Dependencies: Riverpod, Dio, Drift (SQLite), connectivity_plus, image_picker, flutter_secure_storage
+- [x] Core architecture: api client, secure storage, connectivity service, sync engine, local DB tables
+
+### 3.2 — Auth Flow
+
+- [x] Login screen (email + password)
+- [x] Token persistence in secure storage
+- [x] Auto token refresh interceptor on Dio
+- [x] Auth-gated routing (login vs sessions list)
+- [ ] Handle token expiry gracefully (redirect to login)
+- [ ] "Logged in as" indicator + logout
+
+### 3.3 — Round Templates (Read-Only Sync)
+
+- [x] Pull round templates from API on login/app open
+- [x] Cache in local SQLite (Drift)
+- [x] Round selection screen for new session
+- [ ] Show template details (stages, distances, arrows per end)
+- [ ] Pull-to-refresh
+
+### 3.4 — Scoring UX
+
+- [x] New session screen (select round, optional location/notes)
+- [x] End-by-end arrow input pad (dynamic based on allowed_values)
+- [x] Running score display (total, arrows, Xs, current end)
+- [x] End history with arrow values
+- [x] Complete / abandon session
+- [ ] Undo last end
+- [ ] Multi-stage support (auto-advance between stages with distance change indicator)
+- [ ] Haptic feedback on arrow input
+- [ ] Score validation (prevent submitting partial ends)
+
+### 3.5 — Offline Sync Engine
+
+- [x] SyncQueue table for pending mutations
+- [x] Connectivity listener triggers sync on reconnect
+- [x] Session create → enqueue for API sync
+- [x] End submit → enqueue for API sync
+- [x] Session complete/abandon → enqueue for API sync
+- [ ] Sync status indicator in UI (pending count, last sync time)
+- [ ] Error handling: retry with backoff, skip after N failures
+- [ ] Handle server ID mapping (client UUID → server UUID)
+- [ ] Pull completed sessions from server to show consistent history
+
+---
+
+## Phase 4: Mobile App — Target Photos
+
+### 4.1 — Camera Capture
+
+- [x] Camera screen after end submission (optional)
+- [x] Save photo to app documents directory
+- [x] Store metadata in local SQLite (EndImages table)
+- [ ] Gallery picker as alternative to camera
+- [ ] Image compression before upload (configurable quality)
+- [ ] Photo preview in end history
+
+### 4.2 — Photo Sync
+
+- [x] Enqueue image upload in sync queue
+- [ ] Implement actual multipart upload to `POST /api/v1/scoring/{sessionId}/ends/{endId}/images`
+- [ ] Track sync status per image (pending, uploading, synced, failed)
+- [ ] Retry failed uploads
+
+---
+
+## Phase 5: Mobile App — Tournament Play
+
+### 5.1 — Tournament List
+
+- [ ] Pull active tournaments user is registered for (via clubs API)
+- [ ] Tournament detail screen (name, template, dates, status)
+- [ ] "Score This Round" button → starts session with tournament's template
+
+### 5.2 — Score Submission
+
+- [ ] After completing a tournament round, prompt to submit score
+- [ ] Call `POST /api/v1/clubs/{clubId}/tournaments/{tournamentId}/submit-score?session_id=X`
+- [ ] Show submission confirmation with score + ranking
+
+### 5.3 — Leaderboard
+
+- [ ] View tournament leaderboard from mobile
+- [ ] Highlight user's own position
+
+---
+
+## Phase 6: Image Storage Migration (Future)
+
+### 6.1 — Object Storage Backend
+
+- [ ] Add GCS bucket for end images
+- [ ] Go API: write to GCS, store URL in `end_images.storage_url` column
+- [ ] Migration: add `storage_url` column, make `image_data` nullable
+- [ ] Backfill: move existing bytea data to GCS
+- [ ] Update GET endpoint: serve from GCS (signed URLs or proxy)
+- [ ] Drop `image_data` column after backfill verified
+
+### 6.2 — CDN & Optimization
+
+- [ ] Serve images via CDN (Cloud CDN or Firebase Hosting proxy)
+- [ ] Generate thumbnails on upload (for list views)
+- [ ] Consider WebP conversion for bandwidth savings
+
+---
+
+## Phase 7: Social & Future Features (Future)
+
+### 7.1 — Challenge Friends (Future)
+
+- [ ] Challenge a friend to shoot the same round
+- [ ] Real-time or async comparison
+- [ ] Leverage existing social/follow infrastructure
+
+### 7.2 — Push Notifications (Future)
+
+- [ ] Firebase Cloud Messaging integration
+- [ ] Tournament reminders, challenge notifications, personal record alerts
