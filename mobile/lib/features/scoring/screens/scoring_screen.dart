@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
@@ -23,11 +24,31 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
   List<String> _allowedValues = [];
   Map<String, int> _valueScoreMap = {};
   String? _currentStageId;
+  Set<String> _endIdsWithImages = {};
 
   @override
   void initState() {
     super.initState();
     _loadStageInfo();
+    _loadImageFlags();
+  }
+
+  Future<void> _loadImageFlags() async {
+    final db = ref.read(databaseProvider);
+    final session = ref.read(scoringProvider).activeSession;
+    if (session == null) return;
+
+    final ends = ref.read(scoringProvider).ends;
+    final endIds = ends.map((e) => e.id).toSet();
+    if (endIds.isEmpty) return;
+
+    final images = await (db.select(db.endImages)
+          ..where((t) => t.endId.isIn(endIds)))
+        .get();
+
+    setState(() {
+      _endIdsWithImages = images.map((i) => i.endId).toSet();
+    });
   }
 
   Future<void> _loadStageInfo() async {
@@ -64,8 +85,8 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
       endsSoFar += stage.numEnds;
     }
 
-    // All ends complete — session can be completed
-    _showCompleteDialog();
+    // All ends complete — no more arrow input needed
+    // (completion dialog is handled by _submitEnd after photo capture)
   }
 
   void _addArrow(String value) {
@@ -100,36 +121,104 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
       _currentArrows = [];
     });
 
-    // Offer to take a photo
-    if (mounted) {
-      _offerPhotoCapture(endNumber);
-    }
+    // Check if all ends are now complete BEFORE offering photo
+    final isRoundComplete = await _checkAllEndsComplete();
 
-    // Reload stage info (may have moved to next stage)
-    _loadStageInfo();
+    if (isRoundComplete) {
+      // Final end: navigate directly to photo capture, then show complete dialog
+      if (mounted) {
+        await _offerPhotoCaptureDirect();
+        if (mounted) _showCompleteDialog();
+      }
+    } else {
+      // Non-final end: snackbar with optional photo, then load next stage
+      if (mounted) {
+        _offerPhotoSnackbar(endNumber);
+      }
+      _loadStageInfo();
+    }
   }
 
-  void _offerPhotoCapture(int endNumber) {
+  /// Check if all ends for all stages are complete without triggering the dialog
+  Future<bool> _checkAllEndsComplete() async {
+    final db = ref.read(databaseProvider);
+    final session = ref.read(scoringProvider).activeSession;
+    if (session == null) return false;
+
+    final stages = await (db.select(db.stages)
+          ..where((t) => t.templateId.equals(session.templateId))
+          ..orderBy([(t) => OrderingTerm.asc(t.stageOrder)]))
+        .get();
+
+    final totalEndsRequired = stages.fold<int>(0, (sum, s) => sum + s.numEnds);
+    final endsCompleted = ref.read(scoringProvider).ends.length;
+
+    return endsCompleted >= totalEndsRequired;
+  }
+
+  /// Final end: navigate directly to camera so user can capture before complete dialog
+  Future<void> _offerPhotoCaptureDirect() async {
+    final ends = ref.read(scoringProvider).ends;
+    if (ends.isEmpty) return;
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CaptureScreen(endId: ends.last.id),
+      ),
+    );
+
+    _loadImageFlags();
+  }
+
+  /// Non-final end: snackbar with optional photo action
+  void _offerPhotoSnackbar(int endNumber) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('End $endNumber submitted'),
         action: SnackBarAction(
           label: 'Take Photo',
           onPressed: () {
-            final session = ref.read(scoringProvider).activeSession;
             final ends = ref.read(scoringProvider).ends;
-            if (session != null && ends.isNotEmpty) {
+            if (ends.isNotEmpty) {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => CaptureScreen(endId: ends.last.id),
                 ),
-              );
+              ).then((_) => _loadImageFlags());
             }
           },
         ),
         duration: const Duration(seconds: 4),
       ),
     );
+  }
+
+  Future<void> _viewEndImage(String endId) async {
+    final db = ref.read(databaseProvider);
+    final images = await (db.select(db.endImages)
+          ..where((t) => t.endId.equals(endId))
+          ..orderBy([(t) => OrderingTerm.desc(t.capturedAt)]))
+        .get();
+
+    if (images.isEmpty || !mounted) return;
+
+    final file = File(images.first.filePath);
+    if (!await file.exists()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image file not found')),
+        );
+      }
+      return;
+    }
+
+    if (mounted) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => _ImageViewer(file: file),
+        ),
+      );
+    }
   }
 
   void _showCompleteDialog() {
@@ -240,7 +329,14 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
                 // End history
                 ...scoringState.ends.reversed.map((end) {
                   final arrows = scoringState.arrowsByEnd[end.id] ?? [];
-                  return EndSummaryRow(end: end, arrows: arrows);
+                  return EndSummaryRow(
+                    end: end,
+                    arrows: arrows,
+                    hasImage: _endIdsWithImages.contains(end.id),
+                    onImageTap: _endIdsWithImages.contains(end.id)
+                        ? () => _viewEndImage(end.id)
+                        : null,
+                  );
                 }),
               ],
             ),
@@ -331,6 +427,29 @@ class _StatColumn extends StatelessWidget {
                 ?.copyWith(fontWeight: FontWeight.bold)),
         Text(label, style: theme.textTheme.bodySmall),
       ],
+    );
+  }
+}
+
+class _ImageViewer extends StatelessWidget {
+  final File file;
+
+  const _ImageViewer({required this.file});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('Target Photo'),
+      ),
+      body: Center(
+        child: InteractiveViewer(
+          child: Image.file(file),
+        ),
+      ),
     );
   }
 }

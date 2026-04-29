@@ -1,8 +1,12 @@
+import 'dart:developer' as dev;
+
+import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../../core/database/database.dart';
 
-/// Fetches completed scoring sessions from the server API
+/// Merges local completed/abandoned sessions with server-side data
 final historyProvider =
     AsyncNotifierProvider<HistoryNotifier, List<SessionSummary>>(
         HistoryNotifier.new);
@@ -12,10 +16,87 @@ class HistoryNotifier extends AsyncNotifier<List<SessionSummary>> {
   Future<List<SessionSummary>> build() => _fetch();
 
   Future<List<SessionSummary>> _fetch() async {
+    // Always load local sessions first (offline-first)
+    final localSessions = await _loadLocal();
+
+    // Try to merge with server data
+    List<SessionSummary> serverSessions = [];
+    try {
+      serverSessions = await _loadServer();
+    } catch (e) {
+      dev.log('History: server fetch failed: $e', name: 'HistoryProvider');
+    }
+
+    return _merge(localSessions, serverSessions);
+  }
+
+  Future<List<SessionSummary>> _loadLocal() async {
+    final db = ref.read(databaseProvider);
+    final sessions = await (db.select(db.scoringSessionsLocal)
+          ..where((t) => t.status.isIn(['completed', 'abandoned']))
+          ..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
+        .get();
+
+    // Look up template names
+    final templateIds = sessions.map((s) => s.templateId).toSet();
+    final templates = templateIds.isEmpty
+        ? <RoundTemplate>[]
+        : await (db.select(db.roundTemplates)
+              ..where((t) => t.id.isIn(templateIds)))
+            .get();
+    final templateNameMap = {for (final t in templates) t.id: t.name};
+
+    return sessions
+        .map((s) => SessionSummary(
+              id: s.serverId ?? s.id,
+              localId: s.id,
+              templateName: templateNameMap[s.templateId],
+              status: s.status,
+              totalScore: s.totalScore,
+              totalXCount: s.totalXCount,
+              totalArrows: s.totalArrows,
+              startedAt: s.startedAt,
+              completedAt: s.completedAt,
+              synced: s.synced,
+            ))
+        .toList();
+  }
+
+  Future<List<SessionSummary>> _loadServer() async {
     final api = ref.read(apiClientProvider);
     final response = await api.dio.get('/api/v1/sessions');
     final list = response.data as List;
-    return list.map((j) => SessionSummary.fromJson(j as Map<String, dynamic>)).toList();
+    return list
+        .map((j) => SessionSummary.fromJson(j as Map<String, dynamic>))
+        .where((s) => s.status == 'completed' || s.status == 'abandoned')
+        .toList();
+  }
+
+  /// Merge local and server sessions, preferring local data for duplicates
+  List<SessionSummary> _merge(
+    List<SessionSummary> local,
+    List<SessionSummary> server,
+  ) {
+    // Index local sessions by their server ID (if synced) and local ID
+    final seen = <String>{};
+    final merged = <SessionSummary>[];
+
+    for (final s in local) {
+      seen.add(s.id);
+      if (s.localId != null) seen.add(s.localId!);
+      merged.add(s);
+    }
+
+    // Add server sessions that don't exist locally
+    for (final s in server) {
+      if (!seen.contains(s.id)) {
+        merged.add(s);
+      }
+    }
+
+    // Sort by date descending
+    merged.sort((a, b) => b.startedAt.compareTo(a.startedAt));
+    return merged;
   }
 
   Future<void> refresh() async {
@@ -26,6 +107,7 @@ class HistoryNotifier extends AsyncNotifier<List<SessionSummary>> {
 
 class SessionSummary {
   final String id;
+  final String? localId;
   final String? templateName;
   final String status;
   final int totalScore;
@@ -33,9 +115,11 @@ class SessionSummary {
   final int totalArrows;
   final DateTime startedAt;
   final DateTime? completedAt;
+  final bool synced;
 
   const SessionSummary({
     required this.id,
+    this.localId,
     this.templateName,
     required this.status,
     required this.totalScore,
@@ -43,6 +127,7 @@ class SessionSummary {
     required this.totalArrows,
     required this.startedAt,
     this.completedAt,
+    this.synced = true,
   });
 
   factory SessionSummary.fromJson(Map<String, dynamic> json) {
@@ -57,6 +142,7 @@ class SessionSummary {
       completedAt: json['completed_at'] != null
           ? DateTime.parse(json['completed_at'] as String)
           : null,
+      synced: true, // Server data is always synced
     );
   }
 }

@@ -13,14 +13,6 @@ final scoringProvider =
   );
 });
 
-/// All local sessions, ordered by most recent
-final sessionsListProvider = StreamProvider<List<ScoringSessionsLocalData>>((ref) {
-  final db = ref.watch(databaseProvider);
-  return (db.select(db.scoringSessionsLocal)
-        ..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
-      .watch();
-});
-
 class ScoringState {
   final ScoringSessionsLocalData? activeSession;
   final List<EndsLocalData> ends;
@@ -229,6 +221,7 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
         .write(ScoringSessionsLocalCompanion(
       status: const Value('completed'),
       completedAt: Value(now),
+      synced: const Value(false),
       notes: Value(notes),
       location: Value(location),
       weather: Value(weather),
@@ -257,6 +250,7 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
           ..where((t) => t.id.equals(session.id)))
         .write(const ScoringSessionsLocalCompanion(
       status: Value('abandoned'),
+      synced: Value(false),
     ));
 
     await syncService.enqueue(

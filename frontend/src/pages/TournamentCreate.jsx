@@ -16,7 +16,9 @@ export default function TournamentCreate() {
   const [description, setDescription] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [maxParticipants, setMaxParticipants] = useState('');
+  const [registrationDeadline, setRegistrationDeadline] = useState('');
   const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     getRounds()
@@ -37,7 +39,9 @@ export default function TournamentCreate() {
         template_id: templateId,
         description: description || null,
         max_participants: maxParticipants ? parseInt(maxParticipants) : null,
-        start_date: startDate ? new Date(startDate).toISOString() : null,
+        registration_deadline: new Date(registrationDeadline).toISOString(),
+        start_date: new Date(startDate).toISOString(),
+        end_date: new Date(endDate).toISOString(),
       };
       const res = await createTournament(clubId, data);
       navigate(`/clubs/${clubId}/tournaments/${res.data.id}`);
@@ -98,24 +102,46 @@ export default function TournamentCreate() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Participants (optional)</label>
+          <input
+            type="number"
+            value={maxParticipants}
+            onChange={(e) => setMaxParticipants(e.target.value)}
+            min={2}
+            className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Participants (optional)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Registration Deadline</label>
             <input
-              type="number"
-              value={maxParticipants}
-              onChange={(e) => setMaxParticipants(e.target.value)}
-              min={2}
+              type="datetime-local"
+              value={registrationDeadline}
+              onChange={(e) => setRegistrationDeadline(e.target.value)}
               className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+              required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date (optional)</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Start Date</label>
             <input
               type="datetime-local"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">End Date</label>
+            <input
+              type="datetime-local"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="w-full border dark:border-gray-600 rounded-lg px-3 py-2 text-sm dark:bg-gray-700 dark:text-white"
+              required
             />
           </div>
         </div>

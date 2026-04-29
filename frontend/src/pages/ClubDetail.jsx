@@ -80,12 +80,12 @@ export default function ClubDetail() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b dark:border-gray-700 mb-4">
+      <div className="flex overflow-x-auto border-b dark:border-gray-700 mb-4">
         {TABS.map((t) => (
           <button
             key={t}
             onClick={() => { if (t !== 'members') setTabLoading(true); setTab(t); }}
-            className={`px-4 py-2 text-sm font-medium capitalize ${
+            className={`px-4 py-2 text-sm font-medium capitalize whitespace-nowrap ${
               tab === t
                 ? 'border-b-2 border-emerald-600 text-emerald-600 dark:text-emerald-400'
                 : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'

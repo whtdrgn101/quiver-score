@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer' as dev;
+import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,6 +18,14 @@ final syncServiceProvider = Provider<SyncService>((ref) {
     ref: ref,
   );
 });
+
+class SyncResult {
+  final int synced;
+  final int failed;
+  final String? lastError;
+
+  const SyncResult({this.synced = 0, this.failed = 0, this.lastError});
+}
 
 class SyncService {
   final AppDatabase db;
@@ -54,10 +65,14 @@ class SyncService {
     }
   }
 
-  /// Process all pending sync items in order
-  Future<void> syncPendingItems() async {
-    if (_syncing) return;
+  /// Process all pending sync items in order. Returns result with counts.
+  Future<SyncResult> syncPendingItems() async {
+    if (_syncing) return const SyncResult();
     _syncing = true;
+
+    int syncedCount = 0;
+    int failedCount = 0;
+    String? lastError;
 
     try {
       final pending = await (db.select(db.syncQueue)
@@ -65,7 +80,15 @@ class SyncService {
             ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
           .get();
 
+      dev.log('Sync: ${pending.length} pending items', name: 'SyncService');
+
       for (final item in pending) {
+        dev.log(
+          'Sync: processing ${item.entityType}/${item.action} '
+          '(id: ${item.entityId}, retry: ${item.retryCount})',
+          name: 'SyncService',
+        );
+
         try {
           await _processItem(item);
 
@@ -75,7 +98,18 @@ class SyncService {
               .write(SyncQueueCompanion(
             syncedAt: Value(DateTime.now()),
           ));
+
+          syncedCount++;
+          dev.log('Sync: success ${item.entityType}/${item.action}',
+              name: 'SyncService');
         } catch (e) {
+          failedCount++;
+          lastError = e.toString();
+          dev.log(
+            'Sync: FAILED ${item.entityType}/${item.action}: $e',
+            name: 'SyncService',
+          );
+
           // Record error and increment retry count
           await (db.update(db.syncQueue)
                 ..where((t) => t.id.equals(item.id)))
@@ -84,14 +118,19 @@ class SyncService {
             lastError: Value(e.toString()),
           ));
 
-          // Stop processing if we hit an error (maintain order)
-          if (item.retryCount >= 5) continue; // Skip items that failed too many times
+          // Skip items that failed too many times, otherwise stop
+          if (item.retryCount >= 5) continue;
           break;
         }
       }
     } finally {
       _syncing = false;
     }
+
+    dev.log('Sync: done (synced: $syncedCount, failed: $failedCount)',
+        name: 'SyncService');
+    return SyncResult(
+        synced: syncedCount, failed: failedCount, lastError: lastError);
   }
 
   Future<void> _processItem(SyncQueueData item) async {
@@ -113,8 +152,10 @@ class SyncService {
       String action, String entityId, Map<String, dynamic> payload) async {
     switch (action) {
       case 'create':
-        final response = await api.dio.post('/api/v1/scoring', data: payload);
+        final response = await api.dio.post('/api/v1/sessions', data: payload);
         final serverId = response.data['id'] as String;
+        dev.log('Sync: session created on server, serverId=$serverId',
+            name: 'SyncService');
         // Update local record with server ID
         await (db.update(db.scoringSessionsLocal)
               ..where((t) => t.id.equals(entityId)))
@@ -123,13 +164,14 @@ class SyncService {
           synced: const Value(true),
         ));
       case 'complete':
-        // Use server ID if available, otherwise client ID
         final session = await (db.select(db.scoringSessionsLocal)
               ..where((t) => t.id.equals(entityId)))
             .getSingle();
         final syncId = session.serverId ?? entityId;
+        dev.log('Sync: completing session on server, syncId=$syncId',
+            name: 'SyncService');
         await api.dio
-            .post('/api/v1/scoring/$syncId/complete', data: payload);
+            .post('/api/v1/sessions/$syncId/complete', data: payload);
         await (db.update(db.scoringSessionsLocal)
               ..where((t) => t.id.equals(entityId)))
             .write(const ScoringSessionsLocalCompanion(
@@ -140,7 +182,14 @@ class SyncService {
               ..where((t) => t.id.equals(entityId)))
             .getSingle();
         final syncId = session.serverId ?? entityId;
-        await api.dio.post('/api/v1/scoring/$syncId/abandon');
+        dev.log('Sync: abandoning session on server, syncId=$syncId',
+            name: 'SyncService');
+        await api.dio.post('/api/v1/sessions/$syncId/abandon');
+        await (db.update(db.scoringSessionsLocal)
+              ..where((t) => t.id.equals(entityId)))
+            .write(const ScoringSessionsLocalCompanion(
+          synced: Value(true),
+        ));
     }
   }
 
@@ -153,17 +202,75 @@ class SyncService {
             ..where((t) => t.id.equals(sessionId)))
           .getSingle();
       final syncSessionId = session.serverId ?? sessionId;
-      await api.dio.post(
-        '/api/v1/scoring/$syncSessionId/ends',
+      dev.log(
+        'Sync: submitting end to server, syncSessionId=$syncSessionId',
+        name: 'SyncService',
+      );
+      final response = await api.dio.post(
+        '/api/v1/sessions/$syncSessionId/ends',
         data: payload,
       );
+
+      // Capture server-assigned end ID
+      final serverEndId = response.data['id'] as String?;
+      if (serverEndId != null) {
+        await (db.update(db.endsLocal)
+              ..where((t) => t.id.equals(entityId)))
+            .write(EndsLocalCompanion(
+          serverId: Value(serverEndId),
+        ));
+        dev.log('Sync: end server ID=$serverEndId', name: 'SyncService');
+      }
     }
   }
 
   Future<void> _syncImage(
       String action, String entityId, Map<String, dynamic> payload) async {
-    // Image upload will be implemented when the API endpoint is ready
-    // For now, mark as synced to not block the queue
+    if (action != 'upload') return;
+
+    final endId = payload['end_id'] as String;
+    final filePath = payload['file_path'] as String;
+
+    // Look up server IDs for the end and session
+    final end = await (db.select(db.endsLocal)
+          ..where((t) => t.id.equals(endId)))
+        .getSingle();
+    final session = await (db.select(db.scoringSessionsLocal)
+          ..where((t) => t.id.equals(end.sessionId)))
+        .getSingle();
+
+    final syncSessionId = session.serverId ?? session.id;
+    final syncEndId = end.serverId ?? end.id;
+
+    final file = File(filePath);
+    if (!await file.exists()) {
+      dev.log('Sync: image file not found: $filePath', name: 'SyncService');
+      return; // Skip — file was deleted
+    }
+
+    dev.log(
+      'Sync: uploading image for session=$syncSessionId end=$syncEndId',
+      name: 'SyncService',
+    );
+
+    final formData = FormData.fromMap({
+      'image': await MultipartFile.fromFile(
+        filePath,
+        contentType: DioMediaType.parse('image/jpeg'),
+      ),
+    });
+
+    await api.dio.post(
+      '/api/v1/scoring/$syncSessionId/ends/$syncEndId/images',
+      data: formData,
+    );
+
+    // Mark local image as synced
+    await (db.update(db.endImages)
+          ..where((t) => t.id.equals(entityId)))
+        .write(const EndImagesCompanion(
+      synced: Value(true),
+    ));
   }
 
   /// Pull round templates from the API and update local DB

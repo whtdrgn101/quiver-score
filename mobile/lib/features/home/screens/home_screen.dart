@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../scoring/screens/sessions_screen.dart';
+import '../../scoring/screens/dashboard_screen.dart';
 import '../../scoring/screens/history_screen.dart';
 import '../../more/screens/more_screen.dart';
 
@@ -15,7 +15,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
 
   static const _screens = [
-    SessionsScreen(),
+    DashboardScreen(),
     HistoryScreen(),
     MoreScreen(),
   ];
@@ -41,9 +41,9 @@ class _HomeScreenState extends State<HomeScreen> {
         onDestinationSelected: (index) => setState(() => _currentIndex = index),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.track_changes_outlined),
-            selectedIcon: Icon(Icons.track_changes),
-            label: 'Score',
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Dashboard',
           ),
           NavigationDestination(
             icon: Icon(Icons.history_outlined),

@@ -61,6 +61,7 @@ class EndsLocal extends Table {
   IntColumn get endNumber => integer()();
   IntColumn get endTotal => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
+  TextColumn get serverId => text().nullable()(); // server-assigned ID after sync
 
   @override
   Set<Column> get primaryKey => {id};

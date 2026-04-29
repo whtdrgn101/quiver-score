@@ -5,11 +5,15 @@ import '../../../core/database/database.dart';
 class EndSummaryRow extends StatelessWidget {
   final EndsLocalData end;
   final List<ArrowsLocalData> arrows;
+  final bool hasImage;
+  final VoidCallback? onImageTap;
 
   const EndSummaryRow({
     super.key,
     required this.end,
     required this.arrows,
+    this.hasImage = false,
+    this.onImageTap,
   });
 
   @override
@@ -55,6 +59,19 @@ class EndSummaryRow extends StatelessWidget {
                 }).toList(),
               ),
             ),
+            // Photo indicator
+            if (hasImage)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: GestureDetector(
+                  onTap: onImageTap,
+                  child: Icon(
+                    Icons.camera_alt,
+                    size: 18,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
             // End total
             Text(
               '${end.endTotal}',
