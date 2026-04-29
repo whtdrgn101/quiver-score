@@ -36,21 +36,37 @@ export default function ClubDetail() {
   useEffect(() => {
     if (!club) return;
     if (tab === 'members') return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        if (tab === 'leaderboard') {
+          const res = await getLeaderboard(clubId);
+          if (!cancelled) setLeaderboard(res.data);
+        } else if (tab === 'activity') {
+          const res = await getActivity(clubId);
+          if (!cancelled) setActivity(res.data);
+        } else if (tab === 'events') {
+          const res = await getEvents(clubId);
+          if (!cancelled) setEvents(res.data);
+        } else if (tab === 'teams') {
+          const res = await getTeams(clubId);
+          if (!cancelled) setTeams(res.data);
+        } else if (tab === 'rounds') {
+          const res = await getClubRounds(clubId);
+          if (!cancelled) setSharedRounds(res.data);
+        } else if (tab === 'tournaments') {
+          const res = await listTournaments(clubId);
+          if (!cancelled) setTournaments(res.data);
+        }
+      } catch (e) {
+        console.error(`Failed to load ${tab}:`, e);
+      } finally {
+        if (!cancelled) setTabLoading(false);
+      }
+    };
     setTabLoading(true);
-    const done = () => setTabLoading(false);
-    if (tab === 'leaderboard') {
-      getLeaderboard(clubId).then((res) => setLeaderboard(res.data)).catch(() => {}).finally(done);
-    } else if (tab === 'activity') {
-      getActivity(clubId).then((res) => setActivity(res.data)).catch(() => {}).finally(done);
-    } else if (tab === 'events') {
-      getEvents(clubId).then((res) => setEvents(res.data)).catch(() => {}).finally(done);
-    } else if (tab === 'teams') {
-      getTeams(clubId).then((res) => setTeams(res.data)).catch(() => {}).finally(done);
-    } else if (tab === 'rounds') {
-      getClubRounds(clubId).then((res) => setSharedRounds(res.data)).catch(() => {}).finally(done);
-    } else if (tab === 'tournaments') {
-      listTournaments(clubId).then((res) => setTournaments(res.data)).catch((e) => console.error('Failed to load tournaments:', e)).finally(done);
-    }
+    load();
+    return () => { cancelled = true; };
   }, [club, tab, clubId]);
 
   if (loading) return <Spinner />;
