@@ -22,7 +22,6 @@ dependencies:
 
   # Local database
   drift: ^2.28.2
-  sqlite3_flutter_libs: ^0.6.0+eol
 
   # Secure storage (auth tokens)
   flutter_secure_storage: ^10.0.0
@@ -37,6 +36,7 @@ dependencies:
   json_annotation: ^4.9.0
   freezed_annotation: ^3.1.0
   url_launcher: ^6.3.2
+  sqlite3_flutter_libs: ">=0.5.0 <0.6.0"
 
 dev_dependencies:
   flutter_test:
