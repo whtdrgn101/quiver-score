@@ -9,7 +9,8 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 });
 
 class ApiClient {
-  static const String _defaultBaseUrl = 'https://api.quiverscore.com';
+  // Production: Firebase Hosting proxies /api/** to Cloud Run
+  static const String _defaultBaseUrl = 'https://quiverscore.com';
 
   final SecureStorage storage;
   late final Dio dio;
