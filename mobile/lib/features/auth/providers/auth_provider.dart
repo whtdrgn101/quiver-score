@@ -1,3 +1,5 @@
+import 'dart:developer' as dev;
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -95,17 +97,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   String _extractError(dynamic e) {
-    if (e is DioException && e.response?.data is Map) {
-      final data = e.response!.data as Map;
-      final serverMsg = data['error'] as String?;
-      if (serverMsg != null && serverMsg.isNotEmpty) return serverMsg;
-    }
+    dev.log('Auth error: $e', name: 'AuthNotifier');
     if (e is DioException) {
+      dev.log('DioException type: ${e.type}', name: 'AuthNotifier');
+      dev.log('DioException status: ${e.response?.statusCode}', name: 'AuthNotifier');
+      dev.log('DioException data: ${e.response?.data}', name: 'AuthNotifier');
+      dev.log('DioException message: ${e.message}', name: 'AuthNotifier');
+
+      if (e.response?.data is Map) {
+        final data = e.response!.data as Map;
+        final serverMsg = data['error'] as String?;
+        if (serverMsg != null && serverMsg.isNotEmpty) return serverMsg;
+      }
+      // Firebase Hosting may return HTML error pages
+      if (e.response?.data is String) {
+        final body = e.response!.data as String;
+        if (body.contains('Not Found')) return 'Service not available. Please try again later.';
+      }
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.connectionTimeout) {
         return 'No internet connection. Please try again.';
       }
+      if (e.response?.statusCode != null) {
+        return 'Request failed (${e.response!.statusCode}). ${e.message ?? ''}';
+      }
+      return 'Connection error: ${e.type.name}. ${e.message ?? ''}';
     }
-    return 'Something went wrong. Please try again.';
+    return 'Unexpected error: $e';
   }
 }
