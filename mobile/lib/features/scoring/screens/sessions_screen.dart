@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
-import '../../auth/providers/auth_provider.dart';
 import '../providers/scoring_provider.dart';
 import 'new_session_screen.dart';
 import 'scoring_screen.dart';
@@ -16,22 +15,6 @@ class SessionsScreen extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('QuiverScore'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.sync),
-            onPressed: () {
-              // Manual sync trigger
-              // ref.read(syncServiceProvider).syncPendingItems();
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => ref.read(authProvider.notifier).logout(),
-          ),
-        ],
-      ),
       body: sessionsAsync.when(
         data: (sessions) {
           if (sessions.isEmpty) {
@@ -135,7 +118,10 @@ class _SessionCard extends ConsumerWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          session.status.toString().replaceAll('_', ' ').toUpperCase(),
+                          session.status
+                              .toString()
+                              .replaceAll('_', ' ')
+                              .toUpperCase(),
                           style: theme.textTheme.labelSmall?.copyWith(
                             color: statusColor,
                             fontWeight: FontWeight.bold,

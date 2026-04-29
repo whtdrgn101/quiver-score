@@ -90,7 +90,7 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] Auto token refresh interceptor on Dio
 - [x] Auth-gated routing (login vs sessions list)
 - [ ] Handle token expiry gracefully (redirect to login)
-- [ ] "Logged in as" indicator + logout
+- [x] "Logged in as" indicator + logout (More tab with user profile card)
 
 ### 3.3 — Round Templates (Read-Only Sync)
 

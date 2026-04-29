@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
-import 'features/scoring/screens/sessions_screen.dart';
+import 'features/home/screens/home_screen.dart';
 
 class QuiverScoreApp extends ConsumerWidget {
   const QuiverScoreApp({super.key});
@@ -29,7 +29,7 @@ class QuiverScoreApp extends ConsumerWidget {
         useMaterial3: true,
       ),
       home: authState.isAuthenticated
-          ? const SessionsScreen()
+          ? const HomeScreen()
           : const LoginScreen(),
     );
   }
