@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -739,6 +740,7 @@ func (h *ClubsHandler) ListTournaments(w http.ResponseWriter, r *http.Request) {
 
 	tournaments, err := h.Clubs.ListTournaments(r.Context(), clubID, userID, status)
 	if err != nil {
+		log.Printf("ListTournaments error club=%s user=%s: %v", clubID, userID, err)
 		Error(w, http.StatusNotFound, "Club not found")
 		return
 	}

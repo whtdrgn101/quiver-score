@@ -168,9 +168,9 @@ type TournamentOut struct {
 	TemplateName         *string   `json:"template_name"`
 	Status               string    `json:"status"`
 	MaxParticipants      *int      `json:"max_participants"`
-	RegistrationDeadline time.Time `json:"registration_deadline"`
-	StartDate            time.Time `json:"start_date"`
-	EndDate              time.Time `json:"end_date"`
+	RegistrationDeadline *time.Time `json:"registration_deadline"`
+	StartDate            *time.Time `json:"start_date"`
+	EndDate              *time.Time `json:"end_date"`
 	ParticipantCount     int       `json:"participant_count"`
 	ClubID               string    `json:"club_id"`
 	ClubName             string    `json:"club_name"`

@@ -708,9 +708,9 @@ func TestCreateTournament_Success(t *testing.T) {
 				OrganizerID:          uID,
 				TemplateID:           tplID,
 				Status:               "registration",
-				RegistrationDeadline: rd,
-				StartDate:            sd,
-				EndDate:              ed,
+				RegistrationDeadline: &rd,
+				StartDate:            &sd,
+				EndDate:              &ed,
 				ClubID:               cID,
 				CreatedAt:            time.Now().UTC(),
 			}, nil
