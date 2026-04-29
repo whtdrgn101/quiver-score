@@ -14,6 +14,11 @@ class UserInfo {
   final String username;
   final String? displayName;
   final String? bowType;
+  final String? classification;
+  final String? bio;
+  final String? avatar;
+  final bool profilePublic;
+  final Map<String, dynamic>? socialLinks;
 
   const UserInfo({
     required this.id,
@@ -21,6 +26,11 @@ class UserInfo {
     required this.username,
     this.displayName,
     this.bowType,
+    this.classification,
+    this.bio,
+    this.avatar,
+    this.profilePublic = false,
+    this.socialLinks,
   });
 
   factory UserInfo.fromJson(Map<String, dynamic> json) {
@@ -30,6 +40,11 @@ class UserInfo {
       username: json['username'] as String,
       displayName: json['display_name'] as String?,
       bowType: json['bow_type'] as String?,
+      classification: json['classification'] as String?,
+      bio: json['bio'] as String?,
+      avatar: json['avatar'] as String?,
+      profilePublic: json['profile_public'] as bool? ?? false,
+      socialLinks: json['social_links'] as Map<String, dynamic>?,
     );
   }
 }

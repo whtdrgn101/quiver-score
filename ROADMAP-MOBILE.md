@@ -92,15 +92,15 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] Auto token refresh interceptor on Dio
 - [x] Auth-gated routing (login vs home)
 - [x] "Logged in as" indicator + logout (More tab with user profile card)
-- [ ] Handle token expiry gracefully (redirect to login)
+- [x] Handle token expiry gracefully (redirect to login)
 
 ### 3.3 — Round Templates (Read-Only Sync)
 
 - [x] Pull round templates from API on login/app open
 - [x] Cache in local SQLite (Drift)
 - [x] Round selection screen for new session
-- [ ] Show template details (stages, distances, arrows per end)
-- [ ] Pull-to-refresh
+- [x] Show template details (stages, distances, arrows per end)
+- [x] Pull-to-refresh
 
 ### 3.4 — Scoring UX
 
@@ -110,9 +110,9 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] End history with arrow values and photo indicators
 - [x] Complete / abandon session
 - [x] Final end flow: photo capture before complete dialog
-- [ ] Undo last end
+- [x] Undo last end
 - [ ] Multi-stage support (auto-advance between stages with distance change indicator)
-- [ ] Haptic feedback on arrow input
+- [x] Haptic feedback on arrow input
 
 ### 3.5 — Offline Sync Engine
 
@@ -124,8 +124,8 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] Handle server ID mapping (client UUID → server UUID for sessions and ends)
 - [x] Actionable sync button with success/failure feedback
 - [x] Debug logging throughout sync pipeline
-- [ ] Sync status indicator in UI (pending count, last sync time)
-- [ ] Error handling: retry with exponential backoff
+- [x] Sync status indicator in UI (pending count badge on sync button)
+- [x] Error handling: retry with exponential backoff
 
 ### 3.6 — Dashboard & History
 
@@ -154,11 +154,11 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] Enqueue image upload in sync queue
 - [x] Multipart upload to `POST /api/v1/scoring/{sessionId}/ends/{endId}/images`
 - [x] Server end ID tracking (EndsLocal.serverId, schema v2) for image upload mapping
-- [ ] Track sync status per image (pending, uploading, synced, failed)
+- [x] Track sync status per image (pending, uploading, synced, failed)
 
 ---
 
-## Phase 5: User Profiles & Social Links
+## Phase 5: User Profiles & Social Links ✅
 
 ### 5.1 — Social Links — Database & API ✅
 
@@ -175,14 +175,14 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] Display social links on PublicProfile.jsx
 - [x] Icon buttons linking to external profiles
 
-### 5.3 — Mobile — Profile Edit Screen
+### 5.3 — Mobile — Profile Edit Screen ✅
 
-- [ ] Full `UserInfo` model (add bio, avatar, classification, profile_public, social_links)
-- [ ] Profile edit screen: display name, bio, bow type, classification, profile public toggle
-- [ ] Avatar upload (camera or gallery → `POST /api/v1/users/me/avatar`)
-- [ ] Avatar display on More tab and profile screen
-- [ ] Social links editor (add/remove platforms with URL input)
-- [ ] Navigate to profile edit from More tab
+- [x] Full `UserInfo` model (add bio, avatar, classification, profile_public, social_links)
+- [x] Profile edit screen: display name, bio, bow type, classification, profile public toggle
+- [x] Avatar upload (camera or gallery → `POST /api/v1/users/me/avatar`)
+- [x] Avatar display on More tab and profile screen
+- [x] Social links editor (add/remove platforms with URL input)
+- [x] Navigate to profile edit from More tab
 
 ---
 

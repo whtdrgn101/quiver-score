@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/providers/auth_provider.dart';
 import '../providers/user_provider.dart';
+import 'profile_edit_screen.dart';
 
 class MoreScreen extends ConsumerWidget {
   const MoreScreen({super.key});
@@ -26,14 +27,19 @@ class MoreScreen extends ConsumerWidget {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: theme.colorScheme.primaryContainer,
-                    child: Text(
-                      (user.displayName ?? user.username)
-                          .substring(0, 1)
-                          .toUpperCase(),
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
-                      ),
-                    ),
+                    backgroundImage: user.avatar != null
+                        ? NetworkImage(user.avatar!)
+                        : null,
+                    child: user.avatar == null
+                        ? Text(
+                            (user.displayName ?? user.username)
+                                .substring(0, 1)
+                                .toUpperCase(),
+                            style: theme.textTheme.headlineSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -89,6 +95,24 @@ class MoreScreen extends ConsumerWidget {
             ),
           ),
         ),
+
+        const SizedBox(height: 8),
+
+        // Edit profile
+        userAsync.whenOrNull(
+              data: (user) => _MenuTile(
+                icon: Icons.edit_outlined,
+                title: 'Edit Profile',
+                subtitle: 'Name, bio, bow type, social links',
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ProfileEditScreen(user: user),
+                  ),
+                ),
+              ),
+            ) ??
+            const SizedBox.shrink(),
 
         const SizedBox(height: 24),
 

@@ -23,6 +23,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
   List<EndsLocalData> _ends = [];
   Map<String, List<ArrowsLocalData>> _arrowsByEnd = {};
   Map<String, int> _imageCountByEnd = {};
+  Map<String, bool> _imageSyncedByEnd = {};
   bool _loading = true;
 
   @override
@@ -61,8 +62,10 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
             .get();
 
     final counts = <String, int>{};
+    final synced = <String, bool>{};
     for (final img in images) {
       counts[img.endId] = (counts[img.endId] ?? 0) + 1;
+      synced[img.endId] = (synced[img.endId] ?? true) && img.synced;
     }
 
     setState(() {
@@ -70,6 +73,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
       _ends = ends;
       _arrowsByEnd = arrowsByEnd;
       _imageCountByEnd = counts;
+      _imageSyncedByEnd = synced;
       _loading = false;
     });
   }
@@ -156,10 +160,12 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
           ..._ends.map((end) {
             final arrows = _arrowsByEnd[end.id] ?? [];
             final count = _imageCountByEnd[end.id] ?? 0;
+            final synced = _imageSyncedByEnd[end.id] ?? true;
             return EndSummaryRow(
               end: end,
               arrows: arrows,
               imageCount: count,
+              imageSynced: synced,
               onImageTap: count > 0
                   ? () => _viewEndImage(end.id)
                   : null,

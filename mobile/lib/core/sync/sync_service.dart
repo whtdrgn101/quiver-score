@@ -32,15 +32,28 @@ class SyncService {
   final ApiClient api;
   final Ref ref;
   bool _syncing = false;
+  Timer? _retryTimer;
+  static const _maxRetries = 10;
 
   SyncService({required this.db, required this.api, required this.ref}) {
-    // Listen for connectivity changes and trigger sync
     ref.listen(connectivityProvider, (prev, next) {
       final isOnline = next.valueOrNull ?? false;
       if (isOnline) {
         syncPendingItems();
       }
     });
+  }
+
+  Duration _backoffDelay(int retryCount) {
+    final seconds = 2 << retryCount.clamp(0, 6); // 2, 4, 8, 16, 32, 64, 128
+    return Duration(seconds: seconds);
+  }
+
+  void _scheduleRetry(int nextRetryCount) {
+    _retryTimer?.cancel();
+    final delay = _backoffDelay(nextRetryCount);
+    dev.log('Sync: scheduling retry in ${delay.inSeconds}s', name: 'SyncService');
+    _retryTimer = Timer(delay, () => syncPendingItems());
   }
 
   /// Enqueue a mutation to be synced later
@@ -82,6 +95,9 @@ class SyncService {
 
       dev.log('Sync: ${pending.length} pending items', name: 'SyncService');
 
+      int highestRetry = 0;
+      bool hasRetryable = false;
+
       for (final item in pending) {
         dev.log(
           'Sync: processing ${item.entityType}/${item.action} '
@@ -92,7 +108,6 @@ class SyncService {
         try {
           await _processItem(item);
 
-          // Mark as synced
           await (db.update(db.syncQueue)
                 ..where((t) => t.id.equals(item.id)))
               .write(SyncQueueCompanion(
@@ -105,23 +120,29 @@ class SyncService {
         } catch (e) {
           failedCount++;
           lastError = e.toString();
+          final newRetry = item.retryCount + 1;
           dev.log(
-            'Sync: FAILED ${item.entityType}/${item.action}: $e',
+            'Sync: FAILED ${item.entityType}/${item.action} '
+            '(retry $newRetry/$_maxRetries): $e',
             name: 'SyncService',
           );
 
-          // Record error and increment retry count
           await (db.update(db.syncQueue)
                 ..where((t) => t.id.equals(item.id)))
               .write(SyncQueueCompanion(
-            retryCount: Value(item.retryCount + 1),
+            retryCount: Value(newRetry),
             lastError: Value(e.toString()),
           ));
 
-          // Skip items that failed too many times, otherwise stop
-          if (item.retryCount >= 5) continue;
+          if (newRetry >= _maxRetries) continue;
+          hasRetryable = true;
+          if (newRetry > highestRetry) highestRetry = newRetry;
           break;
         }
+      }
+
+      if (hasRetryable) {
+        _scheduleRetry(highestRetry);
       }
     } finally {
       _syncing = false;

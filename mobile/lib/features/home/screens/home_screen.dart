@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/database/database.dart';
 import '../../../core/sync/sync_service.dart';
 import '../../scoring/screens/dashboard_screen.dart';
 import '../../scoring/screens/history_screen.dart';
 import '../../more/screens/more_screen.dart';
+
+final pendingSyncCountProvider = StreamProvider<int>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.syncQueue)..where((t) => t.syncedAt.isNull()))
+      .watch()
+      .map((items) => items.length);
+});
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -57,6 +65,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pendingCount = ref.watch(pendingSyncCountProvider).valueOrNull ?? 0;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_titles[_currentIndex]),
@@ -69,8 +79,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     height: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.sync),
-            tooltip: 'Sync now',
+                : Badge(
+                    isLabelVisible: pendingCount > 0,
+                    label: Text('$pendingCount'),
+                    child: const Icon(Icons.sync),
+                  ),
+            tooltip: pendingCount > 0
+                ? '$pendingCount pending'
+                : 'Sync now',
           ),
         ],
       ),

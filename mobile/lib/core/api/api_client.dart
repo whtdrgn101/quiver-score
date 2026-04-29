@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,6 +17,8 @@ class ApiClient {
   final SecureStorage storage;
   late final Dio dio;
 
+  VoidCallback? onAuthExpired;
+
   ApiClient({required this.storage, String? baseUrl}) {
     dio = Dio(BaseOptions(
       baseUrl: baseUrl ?? _defaultBaseUrl,
@@ -23,15 +27,16 @@ class ApiClient {
       headers: {'Content-Type': 'application/json'},
     ));
 
-    dio.interceptors.add(_AuthInterceptor(storage, dio));
+    dio.interceptors.add(_AuthInterceptor(storage, dio, this));
   }
 }
 
 class _AuthInterceptor extends Interceptor {
   final SecureStorage _storage;
   final Dio _dio;
+  final ApiClient _client;
 
-  _AuthInterceptor(this._storage, this._dio);
+  _AuthInterceptor(this._storage, this._dio, this._client);
 
   @override
   void onRequest(
@@ -48,7 +53,6 @@ class _AuthInterceptor extends Interceptor {
     if (err.response?.statusCode == 401) {
       final refreshed = await _tryRefresh();
       if (refreshed) {
-        // Retry the original request with new token
         final token = await _storage.getAccessToken();
         err.requestOptions.headers['Authorization'] = 'Bearer $token';
         try {
@@ -57,6 +61,8 @@ class _AuthInterceptor extends Interceptor {
         } on DioException catch (e) {
           return handler.next(e);
         }
+      } else {
+        _client.onAuthExpired?.call();
       }
     }
     handler.next(err);

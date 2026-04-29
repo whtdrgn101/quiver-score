@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class ArrowInputPad extends StatelessWidget {
   final List<String> allowedValues;
@@ -42,7 +43,10 @@ class ArrowInputPad extends StatelessWidget {
               width: 52,
               height: 44,
               child: ElevatedButton(
-                onPressed: () => onValueTap(value),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  onValueTap(value);
+                },
                 style: ElevatedButton.styleFrom(
                   padding: EdgeInsets.zero,
                   backgroundColor: _getValueColor(value).withValues(alpha: 0.2),
@@ -64,13 +68,21 @@ class ArrowInputPad extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             OutlinedButton.icon(
-              onPressed: onBackspace,
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                onBackspace();
+              },
               icon: const Icon(Icons.backspace_outlined, size: 18),
               label: const Text('Undo'),
             ),
             const SizedBox(width: 16),
             FilledButton.icon(
-              onPressed: onSubmit,
+              onPressed: onSubmit != null
+                  ? () {
+                      HapticFeedback.heavyImpact();
+                      onSubmit!();
+                    }
+                  : null,
               icon: const Icon(Icons.check),
               label: const Text('Submit End'),
             ),

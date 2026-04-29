@@ -25,6 +25,7 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
   Map<String, int> _valueScoreMap = {};
   String? _currentStageId;
   Map<String, int> _imageCountByEnd = {};
+  Map<String, bool> _imageSyncedByEnd = {};
 
   @override
   void initState() {
@@ -47,12 +48,15 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
         .get();
 
     final counts = <String, int>{};
+    final synced = <String, bool>{};
     for (final img in images) {
       counts[img.endId] = (counts[img.endId] ?? 0) + 1;
+      synced[img.endId] = (synced[img.endId] ?? true) && img.synced;
     }
 
     setState(() {
       _imageCountByEnd = counts;
+      _imageSyncedByEnd = synced;
     });
   }
 
@@ -248,6 +252,44 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
       appBar: AppBar(
         title: Text('Score: ${session.totalScore}'),
         actions: [
+          if (scoringState.ends.isNotEmpty)
+            IconButton(
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Undo Last End?'),
+                    content: Text(
+                      'Remove end ${scoringState.ends.length} '
+                      '(${scoringState.ends.last.endTotal} pts)?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                        child: const Text('Undo'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  final removed =
+                      await ref.read(scoringProvider.notifier).undoLastEnd();
+                  if (removed && mounted) {
+                    _loadStageInfo();
+                    _loadImageCounts();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('End removed')),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.undo),
+              tooltip: 'Undo last end',
+            ),
           PopupMenuButton<String>(
             onSelected: (value) async {
               if (value == 'abandon') {
@@ -314,10 +356,12 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
                 ...scoringState.ends.reversed.map((end) {
                   final arrows = scoringState.arrowsByEnd[end.id] ?? [];
                   final count = _imageCountByEnd[end.id] ?? 0;
+                  final synced = _imageSyncedByEnd[end.id] ?? true;
                   return EndSummaryRow(
                     end: end,
                     arrows: arrows,
                     imageCount: count,
+                    imageSynced: synced,
                     onImageTap: count > 0
                         ? () => _viewEndImage(end.id)
                         : null,

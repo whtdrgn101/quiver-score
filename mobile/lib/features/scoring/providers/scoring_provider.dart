@@ -206,6 +206,52 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     await loadSession(session.id);
   }
 
+  /// Undo the most recent end
+  Future<bool> undoLastEnd() async {
+    final session = state.activeSession;
+    if (session == null) return false;
+    if (state.ends.isEmpty) return false;
+
+    final lastEnd = state.ends.last;
+    final lastArrows = state.arrowsByEnd[lastEnd.id] ?? [];
+
+    // Calculate totals to subtract
+    final endScore = lastEnd.endTotal;
+    final arrowCount = lastArrows.length;
+    final xCount = lastArrows.where((a) => a.scoreValue == 'X').length;
+
+    // Delete arrows, then end
+    await (db.delete(db.arrowsLocal)
+          ..where((t) => t.endId.equals(lastEnd.id)))
+        .go();
+    await (db.delete(db.endsLocal)
+          ..where((t) => t.id.equals(lastEnd.id)))
+        .go();
+
+    // Also delete any images for this end
+    await (db.delete(db.endImages)
+          ..where((t) => t.endId.equals(lastEnd.id)))
+        .go();
+
+    // Update session totals
+    await (db.update(db.scoringSessionsLocal)
+          ..where((t) => t.id.equals(session.id)))
+        .write(ScoringSessionsLocalCompanion(
+      totalScore: Value(session.totalScore - endScore),
+      totalArrows: Value(session.totalArrows - arrowCount),
+      totalXCount: Value(session.totalXCount - xCount),
+    ));
+
+    // Remove any unsynced sync queue entries for this end
+    await (db.delete(db.syncQueue)
+          ..where((t) =>
+              t.entityId.equals(lastEnd.id) & t.syncedAt.isNull()))
+        .go();
+
+    await loadSession(session.id);
+    return true;
+  }
+
   /// Complete the current session
   Future<void> completeSession({
     String? notes,

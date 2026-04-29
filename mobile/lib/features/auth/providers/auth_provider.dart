@@ -26,7 +26,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required this.storage,
     required this.syncService,
   }) : super(const AuthState.initial()) {
+    api.onAuthExpired = _onAuthExpired;
     _tryRestoreSession();
+  }
+
+  void _onAuthExpired() {
+    storage.clearTokens();
+    state = const AuthState.initial();
   }
 
   Future<void> _tryRestoreSession() async {

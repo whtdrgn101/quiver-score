@@ -6,6 +6,7 @@ class EndSummaryRow extends StatelessWidget {
   final EndsLocalData end;
   final List<ArrowsLocalData> arrows;
   final int imageCount;
+  final bool imageSynced;
   final VoidCallback? onImageTap;
   final VoidCallback? onAddPhoto;
 
@@ -14,6 +15,7 @@ class EndSummaryRow extends StatelessWidget {
     required this.end,
     required this.arrows,
     this.imageCount = 0,
+    this.imageSynced = true,
     this.onImageTap,
     this.onAddPhoto,
   });
@@ -67,13 +69,20 @@ class EndSummaryRow extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.photo, size: 18,
-                          color: theme.colorScheme.primary),
+                      Icon(
+                        imageSynced ? Icons.photo : Icons.cloud_upload_outlined,
+                        size: 18,
+                        color: imageSynced
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.outline,
+                      ),
                       if (imageCount > 1) ...[
                         const SizedBox(width: 2),
                         Text('$imageCount',
                             style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.primary,
+                              color: imageSynced
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.outline,
                             )),
                       ],
                     ],
