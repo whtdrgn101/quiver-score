@@ -20,6 +20,7 @@ type UserRepository interface {
 	UpdateAvatar(ctx context.Context, userID, dataURI string) (*repository.UserOut, error)
 	DeleteAvatar(ctx context.Context, userID string) (*repository.UserOut, error)
 	GetPublicProfile(ctx context.Context, username string) (*repository.PublicProfileOut, error)
+	GetActiveTournaments(ctx context.Context, userID string) ([]repository.ActiveTournamentOut, error)
 }
 
 type UsersHandler struct {
@@ -45,6 +46,18 @@ func (h *UsersHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	JSON(w, http.StatusOK, u)
+}
+
+func (h *UsersHandler) GetMyActiveTournaments(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+
+	tournaments, err := h.Users.GetActiveTournaments(r.Context(), userID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	JSON(w, http.StatusOK, tournaments)
 }
 
 // ── Profile Update ───────────────────────────────────────────────────

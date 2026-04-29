@@ -25,8 +25,10 @@ type mockUserRepo struct {
 	updateAvatarErr     error
 	deleteAvatarResult  *repository.UserOut
 	deleteAvatarErr     error
-	publicProfileResult *repository.PublicProfileOut
-	publicProfileErr    error
+	publicProfileResult      *repository.PublicProfileOut
+	publicProfileErr         error
+	activeTournamentsResult  []repository.ActiveTournamentOut
+	activeTournamentsErr     error
 }
 
 func (m *mockUserRepo) GetMe(_ context.Context, _ string) (*repository.UserOut, error) {
@@ -49,6 +51,10 @@ func (m *mockUserRepo) DeleteAvatar(_ context.Context, _ string) (*repository.Us
 
 func (m *mockUserRepo) GetPublicProfile(_ context.Context, _ string) (*repository.PublicProfileOut, error) {
 	return m.publicProfileResult, m.publicProfileErr
+}
+
+func (m *mockUserRepo) GetActiveTournaments(_ context.Context, _ string) ([]repository.ActiveTournamentOut, error) {
+	return m.activeTournamentsResult, m.activeTournamentsErr
 }
 
 func sampleUser() *repository.UserOut {
@@ -329,5 +335,82 @@ func TestGetPublicProfile_WithSocialLinks(t *testing.T) {
 	}
 	if parsed["twitter"] != "https://x.com/archer" {
 		t.Errorf("expected twitter link, got %s", parsed["twitter"])
+	}
+}
+
+// ── Active Tournaments ──────────────────────────────────────────────
+
+func TestGetMyActiveTournaments_Empty(t *testing.T) {
+	mock := &mockUserRepo{
+		activeTournamentsResult: []repository.ActiveTournamentOut{},
+	}
+	h := &UsersHandler{Users: mock}
+
+	req := authedRequest(http.MethodGet, "/users/me/tournaments", "user-1")
+	rr := httptest.NewRecorder()
+	h.GetMyActiveTournaments(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+	var result []repository.ActiveTournamentOut
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+	if len(result) != 0 {
+		t.Fatalf("expected empty list, got %d items", len(result))
+	}
+}
+
+func TestGetMyActiveTournaments_WithData(t *testing.T) {
+	tplName := "WA 720"
+	mock := &mockUserRepo{
+		activeTournamentsResult: []repository.ActiveTournamentOut{
+			{
+				TournamentID:   "t-1",
+				TournamentName: "Spring Shoot",
+				ClubID:         "c-1",
+				ClubName:       "Archery Club",
+				TemplateID:     "tpl-1",
+				TemplateName:   &tplName,
+			},
+		},
+	}
+	h := &UsersHandler{Users: mock}
+
+	req := authedRequest(http.MethodGet, "/users/me/tournaments", "user-1")
+	rr := httptest.NewRecorder()
+	h.GetMyActiveTournaments(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+	var result []repository.ActiveTournamentOut
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 tournament, got %d", len(result))
+	}
+	if result[0].TournamentName != "Spring Shoot" {
+		t.Errorf("expected 'Spring Shoot', got %q", result[0].TournamentName)
+	}
+	if result[0].ClubName != "Archery Club" {
+		t.Errorf("expected 'Archery Club', got %q", result[0].ClubName)
+	}
+}
+
+func TestGetMyActiveTournaments_Error(t *testing.T) {
+	mock := &mockUserRepo{
+		activeTournamentsErr: errors.New("db error"),
+	}
+	h := &UsersHandler{Users: mock}
+
+	req := authedRequest(http.MethodGet, "/users/me/tournaments", "user-1")
+	rr := httptest.NewRecorder()
+	h.GetMyActiveTournaments(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rr.Code)
 	}
 }

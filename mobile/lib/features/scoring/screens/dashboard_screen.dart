@@ -12,17 +12,32 @@ final _statsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   return response.data as Map<String, dynamic>;
 });
 
+final _activeTournamentsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final api = ref.read(apiClientProvider);
+  try {
+    final response = await api.dio.get('/api/v1/users/me/tournaments');
+    return (response.data as List).cast<Map<String, dynamic>>();
+  } catch (_) {
+    return [];
+  }
+});
+
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(_statsProvider);
+    final tournamentsAsync = ref.watch(_activeTournamentsProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(_statsProvider),
+        onRefresh: () async {
+          ref.invalidate(_statsProvider);
+          ref.invalidate(_activeTournamentsProvider);
+        },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -41,6 +56,78 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
+
+            // Active Tournaments
+            tournamentsAsync.when(
+              data: (tournaments) {
+                if (tournaments.isEmpty) return const SizedBox.shrink();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Active Tournaments',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...tournaments.map((t) => Card(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                            color: Colors.amber.shade400, width: 2),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    t['tournament_name'] as String? ?? '',
+                                    style: theme.textTheme.bodyMedium
+                                        ?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${t['club_name']} · ${t['template_name'] ?? ''}',
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(
+                                      color: theme
+                                          .colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            FilledButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const NewSessionScreen(),
+                                  ),
+                                );
+                              },
+                              child: const Text('Score'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )),
+                    const SizedBox(height: 24),
+                  ],
+                );
+              },
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
 
             // Stats
             statsAsync.when(

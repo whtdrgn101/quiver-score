@@ -30,6 +30,15 @@ type UserOut struct {
 	CreatedAt      time.Time       `json:"created_at"`
 }
 
+type ActiveTournamentOut struct {
+	TournamentID   string  `json:"tournament_id"`
+	TournamentName string  `json:"tournament_name"`
+	ClubID         string  `json:"club_id"`
+	ClubName       string  `json:"club_name"`
+	TemplateID     string  `json:"template_id"`
+	TemplateName   *string `json:"template_name"`
+}
+
 // ── Methods ───────────────────────────────────────────────────────────
 
 func (r *UserRepo) ExistsByEmailOrUsername(ctx context.Context, email, username string) (bool, error) {
@@ -140,6 +149,37 @@ func (r *UserRepo) GetMe(ctx context.Context, userID string) (*UserOut, error) {
 		return nil, err
 	}
 	return &u, nil
+}
+
+func (r *UserRepo) GetActiveTournaments(ctx context.Context, userID string) ([]ActiveTournamentOut, error) {
+	rows, err := r.DB.Query(ctx,
+		`SELECT t.id, t.name, t.club_id, c.name, t.template_id, rt.name
+		 FROM tournament_participants tp
+		 JOIN tournaments t ON t.id = tp.tournament_id
+		 JOIN clubs c ON c.id = t.club_id
+		 LEFT JOIN round_templates rt ON rt.id = t.template_id
+		 WHERE tp.user_id = $1
+		   AND tp.status = 'active'
+		   AND t.status = 'in_progress'
+		 ORDER BY t.start_date ASC`, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []ActiveTournamentOut
+	for rows.Next() {
+		var at ActiveTournamentOut
+		if err := rows.Scan(&at.TournamentID, &at.TournamentName, &at.ClubID, &at.ClubName, &at.TemplateID, &at.TemplateName); err != nil {
+			return nil, err
+		}
+		result = append(result, at)
+	}
+	if result == nil {
+		result = []ActiveTournamentOut{}
+	}
+	return result, rows.Err()
 }
 
 func (r *UserRepo) GetArcherInfo(ctx context.Context, userID string) (username string, displayName, avatar *string, err error) {

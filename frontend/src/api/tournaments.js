@@ -10,3 +10,4 @@ export const withdrawFromTournament = (clubId, id) => client.post(`/clubs/${club
 export const submitTournamentScore = (clubId, id, sessionId) =>
   client.post(`/clubs/${clubId}/tournaments/${id}/submit-score?session_id=${sessionId}`);
 export const getLeaderboard = (clubId, id) => client.get(`/clubs/${clubId}/tournaments/${id}/leaderboard`);
+export const getMyActiveTournaments = () => client.get('/users/me/tournaments');

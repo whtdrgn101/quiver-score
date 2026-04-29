@@ -296,3 +296,51 @@ def test_social_links_default_null(client, register_user):
     resp = client.get("/api/v1/users/me", headers=user["headers"])
     assert resp.status_code == 200
     assert resp.json()["social_links"] is None
+
+
+# ── Active Tournaments ────────────────────────────────────────────────
+
+
+def test_active_tournaments_empty(client, register_user):
+    """Users with no active tournaments get an empty list."""
+    user = register_user()
+    resp = client.get("/api/v1/users/me/tournaments", headers=user["headers"])
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_active_tournaments_shows_in_progress(client, register_user, unique, create_round):
+    """Active tournament participants see their tournaments."""
+    user = register_user()
+    # Create club and tournament
+    club = client.post("/api/v1/clubs", json={"name": unique("club")}, headers=user["headers"]).json()
+    rnd = create_round(headers=user["headers"])
+    tourney = client.post(f"/api/v1/clubs/{club['id']}/tournaments", json={
+        "name": unique("tourney"),
+        "template_id": rnd["id"],
+        "registration_deadline": "2026-06-01T00:00:00Z",
+        "start_date": "2026-06-02T10:00:00Z",
+        "end_date": "2026-06-02T18:00:00Z",
+    }, headers=user["headers"]).json()
+
+    # Register for the tournament
+    client.post(f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/register", headers=user["headers"])
+
+    # Before starting: should be empty (registered but tournament not in_progress)
+    resp = client.get("/api/v1/users/me/tournaments", headers=user["headers"])
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+    # Start tournament
+    client.post(f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/start", headers=user["headers"])
+
+    # Now should appear
+    resp = client.get("/api/v1/users/me/tournaments", headers=user["headers"])
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 1
+    assert data[0]["tournament_id"] == tourney["id"]
+    assert data[0]["tournament_name"] == tourney["name"]
+    assert data[0]["club_id"] == club["id"]
+    assert data[0]["club_name"] == club["name"]
+    assert data[0]["template_id"] == rnd["id"]

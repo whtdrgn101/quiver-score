@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getSessions, getStats } from '../api/scoring';
 import { getCurrentClassifications } from '../api/classifications';
+import { getMyActiveTournaments } from '../api/tournaments';
 import { useAuth } from '../hooks/useAuth';
 import Spinner from '../components/Spinner';
 import ScoreTrend from '../components/scoring/ScoreTrend';
@@ -78,15 +79,22 @@ export default function Dashboard() {
   const [sessions, setSessions] = useState([]);
   const [stats, setStats] = useState(null);
   const [classifications, setClassifications] = useState([]);
+  const [activeTournaments, setActiveTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [welcomeDismissed, setWelcomeDismissed] = useState(() => localStorage.getItem('welcome_dismissed') === 'true');
 
   useEffect(() => {
-    Promise.all([getSessions(), getStats(), getCurrentClassifications()])
-      .then(([sessionsRes, statsRes, classRes]) => {
+    Promise.all([
+      getSessions(),
+      getStats(),
+      getCurrentClassifications(),
+      getMyActiveTournaments().catch(() => ({ data: [] })),
+    ])
+      .then(([sessionsRes, statsRes, classRes, tourneysRes]) => {
         setSessions(sessionsRes.data);
         setStats(statsRes.data);
         setClassifications(classRes.data);
+        setActiveTournaments(tourneysRes.data);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -176,6 +184,39 @@ export default function Dashboard() {
               );
             })}
           </div>
+
+          {/* Active Tournaments */}
+          {activeTournaments.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-lg font-semibold mb-3 dark:text-white">Active Tournaments</h2>
+              <div className="space-y-3">
+                {activeTournaments.map((t) => (
+                  <div
+                    key={t.tournament_id}
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 flex items-center justify-between border-l-4 border-amber-500"
+                  >
+                    <div>
+                      <div className="font-medium dark:text-gray-100">{t.tournament_name}</div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {t.club_name} &middot; {t.template_name}
+                      </div>
+                    </div>
+                    <Link
+                      to="/rounds"
+                      state={{
+                        tournamentTemplateId: t.template_id,
+                        tournamentId: t.tournament_id,
+                        clubId: t.club_id,
+                      }}
+                      className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 whitespace-nowrap"
+                    >
+                      Score This Round
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Personal Records */}
           {stats?.personal_records?.length > 0 && (
