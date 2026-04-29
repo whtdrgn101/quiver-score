@@ -383,6 +383,50 @@ func (r *UserRepo) GetPublicProfile(ctx context.Context, username string) (*Publ
 	return &p, nil
 }
 
+func (r *UserRepo) GetMyClubs(ctx context.Context, userID string) ([]ProfileClubOut, error) {
+	clubRows, err := r.DB.Query(ctx,
+		`SELECT c.id, c.name, cm.role
+		 FROM club_members cm
+		 JOIN clubs c ON c.id = cm.club_id
+		 WHERE cm.user_id = $1`, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer clubRows.Close()
+
+	var clubs []ProfileClubOut
+	for clubRows.Next() {
+		var club ProfileClubOut
+		if err := clubRows.Scan(&club.ClubID, &club.ClubName, &club.Role); err != nil {
+			return nil, err
+		}
+
+		teamRows, err := r.DB.Query(ctx,
+			`SELECT ct.id, ct.name
+			 FROM club_team_members ctm
+			 JOIN club_teams ct ON ct.id = ctm.team_id
+			 WHERE ctm.user_id = $1 AND ct.club_id = $2`, userID, club.ClubID,
+		)
+		if err == nil {
+			for teamRows.Next() {
+				var t ProfileClubTeamOut
+				teamRows.Scan(&t.TeamID, &t.TeamName)
+				club.Teams = append(club.Teams, t)
+			}
+			teamRows.Close()
+		}
+		if club.Teams == nil {
+			club.Teams = []ProfileClubTeamOut{}
+		}
+		clubs = append(clubs, club)
+	}
+	if clubs == nil {
+		clubs = []ProfileClubOut{}
+	}
+	return clubs, clubRows.Err()
+}
+
 // DeleteUserData removes all data associated with a user, mirroring the Python cascade.
 func (r *UserRepo) DeleteUserData(ctx context.Context, userID string) error {
 	tx, err := r.DB.Begin(ctx)

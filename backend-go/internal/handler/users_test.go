@@ -29,6 +29,8 @@ type mockUserRepo struct {
 	publicProfileErr         error
 	activeTournamentsResult  []repository.ActiveTournamentOut
 	activeTournamentsErr     error
+	myClubsResult            []repository.ProfileClubOut
+	myClubsErr               error
 }
 
 func (m *mockUserRepo) GetMe(_ context.Context, _ string) (*repository.UserOut, error) {
@@ -55,6 +57,10 @@ func (m *mockUserRepo) GetPublicProfile(_ context.Context, _ string) (*repositor
 
 func (m *mockUserRepo) GetActiveTournaments(_ context.Context, _ string) ([]repository.ActiveTournamentOut, error) {
 	return m.activeTournamentsResult, m.activeTournamentsErr
+}
+
+func (m *mockUserRepo) GetMyClubs(_ context.Context, _ string) ([]repository.ProfileClubOut, error) {
+	return m.myClubsResult, m.myClubsErr
 }
 
 func sampleUser() *repository.UserOut {

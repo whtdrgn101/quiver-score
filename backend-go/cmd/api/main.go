@@ -146,6 +146,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 		ur.With(middleware.RequireAuth(cfg.SecretKey)).Post("/avatar-url", usersHandler.UploadAvatarFromURL)
 		ur.With(middleware.RequireAuth(cfg.SecretKey)).Delete("/avatar", usersHandler.DeleteAvatar)
 		ur.With(middleware.RequireAuth(cfg.SecretKey)).Get("/tournaments", usersHandler.GetMyActiveTournaments)
+		ur.With(middleware.RequireAuth(cfg.SecretKey)).Get("/clubs", usersHandler.GetMyClubs)
 		ur.Route("/classifications", classificationsHandler.Routes)
 	})
 

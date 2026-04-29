@@ -21,6 +21,7 @@ type UserRepository interface {
 	DeleteAvatar(ctx context.Context, userID string) (*repository.UserOut, error)
 	GetPublicProfile(ctx context.Context, username string) (*repository.PublicProfileOut, error)
 	GetActiveTournaments(ctx context.Context, userID string) ([]repository.ActiveTournamentOut, error)
+	GetMyClubs(ctx context.Context, userID string) ([]repository.ProfileClubOut, error)
 }
 
 type UsersHandler struct {
@@ -58,6 +59,18 @@ func (h *UsersHandler) GetMyActiveTournaments(w http.ResponseWriter, r *http.Req
 	}
 
 	JSON(w, http.StatusOK, tournaments)
+}
+
+func (h *UsersHandler) GetMyClubs(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+
+	clubs, err := h.Users.GetMyClubs(r.Context(), userID)
+	if err != nil {
+		Error(w, http.StatusInternalServerError, "Internal server error")
+		return
+	}
+
+	JSON(w, http.StatusOK, clubs)
 }
 
 // ── Profile Update ───────────────────────────────────────────────────
