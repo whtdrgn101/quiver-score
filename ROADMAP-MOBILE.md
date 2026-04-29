@@ -63,15 +63,15 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 
 ### 2.1 — Session Detail View
 
-- [ ] Display end images in the session detail page (thumbnail per end)
-- [ ] Click thumbnail to view full-size image
-- [ ] Upload button per end (file picker, drag-and-drop)
-- [ ] Delete button per image
+- [x] Display end images in the session detail page (thumbnail per end)
+- [x] Click thumbnail to view full-size image (lightbox modal)
+- [x] Upload button per end (file picker with camera icon)
+- [x] Delete button per image (in lightbox modal)
 
 ### 2.2 — Scoring Flow Integration
 
-- [ ] After submitting an end, optional prompt to attach a photo
-- [ ] Photo thumbnail visible in the end history during scoring
+- [x] After submitting an end, optional prompt to attach a photo
+- [x] Photo thumbnail visible in the end history during scoring
 
 ---
 

@@ -28,3 +28,16 @@ export const unshareRound = (roundId, clubId) => client.delete(`/rounds/${roundI
 export const createShareLink = (id) => client.post(`/share/sessions/${id}`);
 export const revokeShareLink = (id) => client.delete(`/share/sessions/${id}`);
 export const getSharedSession = (token) => client.get(`/share/s/${token}`);
+
+// End images
+export const uploadEndImage = (sessionId, endId, file) => {
+  const form = new FormData();
+  form.append('image', file);
+  return client.post(`/scoring/${sessionId}/ends/${endId}/images`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+export const listEndImages = (sessionId, endId) => client.get(`/scoring/${sessionId}/ends/${endId}/images`);
+export const listSessionImages = (sessionId) => client.get(`/scoring/${sessionId}/images`);
+export const getEndImage = (sessionId, imageId) => client.get(`/scoring/${sessionId}/images/${imageId}`, { responseType: 'blob' });
+export const deleteEndImage = (sessionId, imageId) => client.delete(`/scoring/${sessionId}/images/${imageId}`);

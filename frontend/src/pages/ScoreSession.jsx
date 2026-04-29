@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getSession, submitEnd, completeSession, undoLastEnd, abandonSession } from '../api/scoring';
+import { getSession, submitEnd, completeSession, undoLastEnd, abandonSession, uploadEndImage, listSessionImages, getEndImage } from '../api/scoring';
 import { addPendingEnd } from '../utils/pendingEnds';
 import { useOnline } from '../hooks/useOnline';
 import Spinner from '../components/Spinner';
@@ -20,6 +20,10 @@ export default function ScoreSession() {
   const [showPRBanner, setShowPRBanner] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [photoPromptEnd, setPhotoPromptEnd] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [endImageCounts, setEndImageCounts] = useState({});
+  const [imageBlobUrls, setImageBlobUrls] = useState({});
 
   const loadSession = useCallback(async () => {
     try {
@@ -38,7 +42,23 @@ export default function ScoreSession() {
 
   useEffect(() => {
     loadSession();
-  }, [loadSession]);
+    listSessionImages(sessionId).then((res) => {
+      const counts = {};
+      const firstPerEnd = {};
+      for (const img of res.data) {
+        counts[img.end_id] = (counts[img.end_id] || 0) + 1;
+        if (!firstPerEnd[img.end_id]) firstPerEnd[img.end_id] = img;
+      }
+      setEndImageCounts(counts);
+      Object.values(firstPerEnd).forEach(async (img) => {
+        try {
+          const r = await getEndImage(sessionId, img.id);
+          const url = URL.createObjectURL(r.data);
+          setImageBlobUrls((prev) => ({ ...prev, [img.end_id]: url }));
+        } catch { /* ignored */ }
+      });
+    }).catch(() => {});
+  }, [loadSession, sessionId]);
 
   const template = session?.template;
   const stages = useMemo(() => template?.stages ?? [], [template]);
@@ -116,6 +136,13 @@ export default function ScoreSession() {
       await submitEnd(sessionId, endData);
       setCurrentArrows([]);
       await loadSession();
+      // Show photo prompt — grab the last submitted end
+      setSession((prev) => {
+        if (prev?.ends?.length) {
+          setPhotoPromptEnd(prev.ends[prev.ends.length - 1]);
+        }
+        return prev;
+      });
     } catch (err) {
       if (!err.response) {
         // Network error — queue for later sync and update optimistically
@@ -361,6 +388,51 @@ export default function ScoreSession() {
         </>
       )}
 
+      {/* Photo prompt after end submission */}
+      {photoPromptEnd && (
+        <div className="mt-4 bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium dark:text-gray-300">Add a target photo for End {photoPromptEnd.end_number}?</span>
+            <button onClick={() => setPhotoPromptEnd(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">&times;</button>
+          </div>
+          <div className="flex gap-2">
+            <label className={`flex-1 py-2 rounded-lg border border-emerald-500 text-emerald-600 text-sm font-medium text-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/20 ${uploadingPhoto ? 'opacity-50' : ''}`}>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic"
+                capture="environment"
+                className="hidden"
+                disabled={uploadingPhoto}
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  setUploadingPhoto(true);
+                  try {
+                    await uploadEndImage(sessionId, photoPromptEnd.id, file);
+                    const endId = photoPromptEnd.id;
+                    setEndImageCounts((prev) => ({ ...prev, [endId]: (prev[endId] || 0) + 1 }));
+                    if (!imageBlobUrls[endId]) {
+                      const url = URL.createObjectURL(file);
+                      setImageBlobUrls((prev) => ({ ...prev, [endId]: url }));
+                    }
+                  } catch { /* ignored */ }
+                  setUploadingPhoto(false);
+                  setPhotoPromptEnd(null);
+                  e.target.value = '';
+                }}
+              />
+              {uploadingPhoto ? 'Uploading...' : 'Take / Choose Photo'}
+            </label>
+            <button
+              onClick={() => setPhotoPromptEnd(null)}
+              className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* End history / Scorecard */}
       {session.ends.length > 0 && (
         <div className="mt-6">
@@ -393,11 +465,12 @@ export default function ScoreSession() {
                       );
                     }
                     lastStageId = end.stage_id;
+                    const imgCount = endImageCounts[end.id] || 0;
                     rows.push(
                       <tr key={end.id} className="border-t dark:border-gray-700">
                         <td className="px-3 py-2 dark:text-gray-300">{end.end_number}</td>
                         <td className="px-3 py-2 text-center">
-                          <div className="flex gap-1 justify-center">
+                          <div className="flex gap-1 justify-center items-center">
                             {end.arrows.map((a) => (
                               <span
                                 key={a.id}
@@ -406,6 +479,13 @@ export default function ScoreSession() {
                                 {a.score_value}
                               </span>
                             ))}
+                            {imgCount > 0 && (
+                              imageBlobUrls[end.id] ? (
+                                <img src={imageBlobUrls[end.id]} alt="" className="w-7 h-7 rounded object-cover border border-gray-200 dark:border-gray-600 ml-1" />
+                              ) : (
+                                <div className="w-7 h-7 rounded bg-gray-200 dark:bg-gray-600 animate-pulse ml-1" />
+                              )
+                            )}
                           </div>
                         </td>
                         <td className="px-3 py-2 text-right font-medium dark:text-gray-100">{end.end_total}</td>
