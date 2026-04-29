@@ -1,24 +1,25 @@
-# QuiverScore: Mobile App & End Images Roadmap
+# QuiverScore: Mobile App & Platform Roadmap
 
 ## Overview
 
-Build a Flutter mobile app for offline-first round scoring and tournament play, paired with API enhancements for end-of-end target photography. The mobile app lives in `mobile/` and targets both Android and iOS.
+Build a Flutter mobile app for offline-first round scoring and tournament play, paired with API enhancements for end-of-end target photography, user profiles, and social features. The mobile app lives in `mobile/` and targets both Android and iOS.
 
 ## Architecture
 
 ```
                   ┌──────────────────────┐
   Mobile App ──▶  │  Go API (Cloud Run)  │
-  (Flutter)       │    /api/v1/scoring   │
-  offline-first   │    /api/v1/scoring/  │──▶ PostgreSQL
-  SQLite local    │      {id}/ends/      │      ├── end_images (bytea)
-                  │      {endId}/images  │      └── (future: GCS bucket)
+  (Flutter)       │  quiverscore.com     │
+  offline-first   │    /api/v1/sessions  │──▶ PostgreSQL
+  SQLite local    │    /api/v1/users/me  │      ├── end_images (bytea)
+                  │    /api/v1/scoring/  │      └── (future: GCS bucket)
+                  │      {id}/images     │
                   └──────────────────────┘
 ```
 
 ---
 
-## Phase 1: End Images API
+## Phase 1: End Images API ✅
 
 ### 1.1 — Database Migration
 
@@ -59,7 +60,7 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 
 ---
 
-## Phase 2: Web UI — End Images
+## Phase 2: Web UI — End Images ✅
 
 ### 2.1 — Session Detail View
 
@@ -75,7 +76,7 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 
 ---
 
-## Phase 3: Mobile App — Core Scoring
+## Phase 3: Mobile App — Core Scoring ✅
 
 ### 3.1 — Project Scaffold
 
@@ -85,12 +86,13 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 
 ### 3.2 — Auth Flow
 
-- [x] Login screen (email + password)
+- [x] Login screen (username + password)
+- [x] Registration screen (email, username, password, display name)
 - [x] Token persistence in secure storage
 - [x] Auto token refresh interceptor on Dio
-- [x] Auth-gated routing (login vs sessions list)
-- [ ] Handle token expiry gracefully (redirect to login)
+- [x] Auth-gated routing (login vs home)
 - [x] "Logged in as" indicator + logout (More tab with user profile card)
+- [ ] Handle token expiry gracefully (redirect to login)
 
 ### 3.3 — Round Templates (Read-Only Sync)
 
@@ -105,12 +107,12 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] New session screen (select round, optional location/notes)
 - [x] End-by-end arrow input pad (dynamic based on allowed_values)
 - [x] Running score display (total, arrows, Xs, current end)
-- [x] End history with arrow values
+- [x] End history with arrow values and photo indicators
 - [x] Complete / abandon session
+- [x] Final end flow: photo capture before complete dialog
 - [ ] Undo last end
 - [ ] Multi-stage support (auto-advance between stages with distance change indicator)
 - [ ] Haptic feedback on arrow input
-- [ ] Score validation (prevent submitting partial ends)
 
 ### 3.5 — Offline Sync Engine
 
@@ -119,57 +121,95 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] Session create → enqueue for API sync
 - [x] End submit → enqueue for API sync
 - [x] Session complete/abandon → enqueue for API sync
+- [x] Handle server ID mapping (client UUID → server UUID for sessions and ends)
+- [x] Actionable sync button with success/failure feedback
+- [x] Debug logging throughout sync pipeline
 - [ ] Sync status indicator in UI (pending count, last sync time)
-- [ ] Error handling: retry with backoff, skip after N failures
-- [ ] Handle server ID mapping (client UUID → server UUID)
-- [ ] Pull completed sessions from server to show consistent history
+- [ ] Error handling: retry with exponential backoff
+
+### 3.6 — Dashboard & History
+
+- [x] Dashboard tab with stats from API (rounds, arrows, Xs, personal best, personal records)
+- [x] History tab merging local + server sessions (deduplicated)
+- [x] Session detail screen for local sessions (end/arrow breakdown, photo indicators)
+- [x] Server session detail screen for cloud-only sessions (fetched from API)
+- [x] Tappable photo icons to view full-size images with pinch-to-zoom
+- [x] Web links to quiverscore.com features (More tab)
 
 ---
 
-## Phase 4: Mobile App — Target Photos
+## Phase 4: Mobile App — Target Photos ✅
 
 ### 4.1 — Camera Capture
 
-- [x] Camera screen after end submission (optional)
+- [x] Camera screen after end submission (snackbar for non-final ends, direct navigation for final end)
 - [x] Save photo to app documents directory
 - [x] Store metadata in local SQLite (EndImages table)
+- [x] Photo indicator on end rows (tappable to view full image)
 - [ ] Gallery picker as alternative to camera
 - [ ] Image compression before upload (configurable quality)
-- [ ] Photo preview in end history
 
 ### 4.2 — Photo Sync
 
 - [x] Enqueue image upload in sync queue
-- [ ] Implement actual multipart upload to `POST /api/v1/scoring/{sessionId}/ends/{endId}/images`
+- [x] Multipart upload to `POST /api/v1/scoring/{sessionId}/ends/{endId}/images`
+- [x] Server end ID tracking (EndsLocal.serverId, schema v2) for image upload mapping
 - [ ] Track sync status per image (pending, uploading, synced, failed)
-- [ ] Retry failed uploads
 
 ---
 
-## Phase 5: Mobile App — Tournament Play
+## Phase 5: User Profiles & Social Links
 
-### 5.1 — Tournament List
+### 5.1 — Social Links — Database & API
+
+- [ ] Alembic migration: add `social_links` JSONB column to `users` table
+- [ ] Update `UserOut` struct to include `social_links`
+- [ ] Update `profileUpdate` struct to accept `social_links`
+- [ ] Update `UpdateProfile` repository method to persist social links
+- [ ] Unit tests for social links CRUD
+- [ ] Contract tests for social links via profile update
+
+### 5.2 — Web — Profile Social Links
+
+- [ ] Add social links section to Profile.jsx (Instagram, X/Twitter, Facebook, YouTube, TikTok, website)
+- [ ] Display social links on PublicProfile.jsx
+- [ ] Icon buttons linking to external profiles
+
+### 5.3 — Mobile — Profile Edit Screen
+
+- [ ] Full `UserInfo` model (add bio, avatar, classification, profile_public, social_links)
+- [ ] Profile edit screen: display name, bio, bow type, classification, profile public toggle
+- [ ] Avatar upload (camera or gallery → `POST /api/v1/users/me/avatar`)
+- [ ] Avatar display on More tab and profile screen
+- [ ] Social links editor (add/remove platforms with URL input)
+- [ ] Navigate to profile edit from More tab
+
+---
+
+## Phase 6: Mobile App — Tournament Play
+
+### 6.1 — Tournament List
 
 - [ ] Pull active tournaments user is registered for (via clubs API)
 - [ ] Tournament detail screen (name, template, dates, status)
 - [ ] "Score This Round" button → starts session with tournament's template
 
-### 5.2 — Score Submission
+### 6.2 — Score Submission
 
 - [ ] After completing a tournament round, prompt to submit score
 - [ ] Call `POST /api/v1/clubs/{clubId}/tournaments/{tournamentId}/submit-score?session_id=X`
 - [ ] Show submission confirmation with score + ranking
 
-### 5.3 — Leaderboard
+### 6.3 — Leaderboard
 
 - [ ] View tournament leaderboard from mobile
 - [ ] Highlight user's own position
 
 ---
 
-## Phase 6: Image Storage Migration (Future)
+## Phase 7: Image Storage Migration (Future)
 
-### 6.1 — Object Storage Backend
+### 7.1 — Object Storage Backend
 
 - [ ] Add GCS bucket for end images
 - [ ] Go API: write to GCS, store URL in `end_images.storage_url` column
@@ -178,7 +218,7 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [ ] Update GET endpoint: serve from GCS (signed URLs or proxy)
 - [ ] Drop `image_data` column after backfill verified
 
-### 6.2 — CDN & Optimization
+### 7.2 — CDN & Optimization
 
 - [ ] Serve images via CDN (Cloud CDN or Firebase Hosting proxy)
 - [ ] Generate thumbnails on upload (for list views)
@@ -186,15 +226,15 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 
 ---
 
-## Phase 7: Social & Future Features (Future)
+## Phase 8: Social & Future Features (Future)
 
-### 7.1 — Challenge Friends (Future)
+### 8.1 — Challenge Friends (Future)
 
 - [ ] Challenge a friend to shoot the same round
 - [ ] Real-time or async comparison
 - [ ] Leverage existing social/follow infrastructure
 
-### 7.2 — Push Notifications (Future)
+### 8.2 — Push Notifications (Future)
 
 - [ ] Firebase Cloud Messaging integration
 - [ ] Tournament reminders, challenge notifications, personal record alerts
