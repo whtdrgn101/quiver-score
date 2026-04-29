@@ -160,20 +160,20 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 
 ## Phase 5: User Profiles & Social Links
 
-### 5.1 — Social Links — Database & API
+### 5.1 — Social Links — Database & API ✅
 
-- [ ] Alembic migration: add `social_links` JSONB column to `users` table
-- [ ] Update `UserOut` struct to include `social_links`
-- [ ] Update `profileUpdate` struct to accept `social_links`
-- [ ] Update `UpdateProfile` repository method to persist social links
-- [ ] Unit tests for social links CRUD
-- [ ] Contract tests for social links via profile update
+- [x] Alembic migration: add `social_links` JSONB column to `users` table
+- [x] Update `UserOut` struct to include `social_links`
+- [x] Update `profileUpdate` struct to accept `social_links`
+- [x] Update `UpdateProfile` repository method to persist social links
+- [x] Unit tests for social links CRUD
+- [x] Contract tests for social links via profile update
 
-### 5.2 — Web — Profile Social Links
+### 5.2 — Web — Profile Social Links ✅
 
-- [ ] Add social links section to Profile.jsx (Instagram, X/Twitter, Facebook, YouTube, TikTok, website)
-- [ ] Display social links on PublicProfile.jsx
-- [ ] Icon buttons linking to external profiles
+- [x] Add social links section to Profile.jsx (Instagram, X/Twitter, Facebook, YouTube, TikTok, website)
+- [x] Display social links on PublicProfile.jsx
+- [x] Icon buttons linking to external profiles
 
 ### 5.3 — Mobile — Profile Edit Screen
 

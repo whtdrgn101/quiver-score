@@ -8,6 +8,15 @@ import Spinner from '../components/Spinner';
 const TABS = ['archer', 'clubs', 'rounds'];
 const TAB_LABELS = { archer: 'Archer Info', clubs: 'Clubs & Teams', rounds: 'Custom Rounds' };
 
+const SOCIAL_PLATFORMS = [
+  { key: 'instagram', label: 'Instagram', placeholder: 'https://instagram.com/username' },
+  { key: 'twitter', label: 'X / Twitter', placeholder: 'https://x.com/username' },
+  { key: 'facebook', label: 'Facebook', placeholder: 'https://facebook.com/username' },
+  { key: 'youtube', label: 'YouTube', placeholder: 'https://youtube.com/@channel' },
+  { key: 'tiktok', label: 'TikTok', placeholder: 'https://tiktok.com/@username' },
+  { key: 'website', label: 'Website', placeholder: 'https://yourwebsite.com' },
+];
+
 export default function Profile() {
   const { user, updateUser, logout } = useAuth();
   const navigate = useNavigate();
@@ -20,6 +29,7 @@ export default function Profile() {
     bow_type: user?.bow_type || '',
     classification: user?.classification || '',
     profile_public: user?.profile_public || false,
+    social_links: user?.social_links || {},
   });
   const [avatarMode, setAvatarMode] = useState('file');
   const [avatarUrl, setAvatarUrl] = useState('');
@@ -262,6 +272,36 @@ export default function Profile() {
   );
 }
 
+function SocialLinksEditor({ links, onChange }) {
+  const handleLinkChange = (key, value) => {
+    const updated = { ...links };
+    if (value) {
+      updated[key] = value;
+    } else {
+      delete updated[key];
+    }
+    onChange(Object.keys(updated).length > 0 ? updated : null);
+  };
+
+  return (
+    <div className="space-y-3">
+      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Social Links</label>
+      {SOCIAL_PLATFORMS.map((p) => (
+        <div key={p.key} className="flex items-center gap-2">
+          <span className="text-sm text-gray-500 dark:text-gray-400 w-24 shrink-0">{p.label}</span>
+          <input
+            type="url"
+            value={links?.[p.key] || ''}
+            onChange={(e) => handleLinkChange(p.key, e.target.value)}
+            placeholder={p.placeholder}
+            className="flex-1 border dark:border-gray-600 rounded px-3 py-1.5 text-sm dark:bg-gray-700 dark:text-white"
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function ArcherTab({
   user, fileRef, form, setForm, avatarMode, setAvatarMode, avatarUrl, setAvatarUrl,
   saving, message, handleChange, handleSave, handleFileUpload, handleUrlUpload,
@@ -457,6 +497,11 @@ function ArcherTab({
             </button>
           </div>
         )}
+
+        <SocialLinksEditor
+          links={form.social_links}
+          onChange={(links) => setForm({ ...form, social_links: links })}
+        />
 
         <div className="flex items-center gap-4">
           <button type="submit" disabled={saving} className="bg-emerald-600 text-white px-6 py-2 rounded hover:bg-emerald-700 disabled:opacity-50">

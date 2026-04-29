@@ -4,6 +4,15 @@ import { getPublicProfile } from '../api/auth';
 import { useAuth } from '../hooks/useAuth';
 import { followUser, unfollowUser, getFollowing } from '../api/social';
 
+const SOCIAL_ICONS = {
+  instagram: { label: 'Instagram', icon: '📷' },
+  twitter: { label: 'X / Twitter', icon: '𝕏' },
+  facebook: { label: 'Facebook', icon: '📘' },
+  youtube: { label: 'YouTube', icon: '▶️' },
+  tiktok: { label: 'TikTok', icon: '🎵' },
+  website: { label: 'Website', icon: '🌐' },
+};
+
 export default function PublicProfile() {
   const { username } = useParams();
   const { user } = useAuth();
@@ -99,6 +108,25 @@ export default function PublicProfile() {
           )}
           {profile.bio && (
             <p className="text-gray-600 dark:text-gray-400 mt-2 text-sm">{profile.bio}</p>
+          )}
+          {profile.social_links && Object.keys(profile.social_links).length > 0 && (
+            <div className="flex justify-center gap-3 mt-3">
+              {Object.entries(profile.social_links).map(([key, url]) => {
+                const info = SOCIAL_ICONS[key] || { label: key, icon: '🔗' };
+                return (
+                  <a
+                    key={key}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={info.label}
+                    className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-sm hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                  >
+                    {info.icon}
+                  </a>
+                );
+              })}
+            </div>
           )}
           {user && profile.id !== user.id && (
             <button
