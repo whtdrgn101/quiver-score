@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
@@ -30,38 +31,62 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final token = await storage.getAccessToken();
     if (token != null) {
       state = const AuthState.authenticated();
-      // Pull latest round templates on session restore
       syncService.pullRoundTemplates();
     }
   }
 
   Future<void> login({
-    required String email,
+    required String username,
     required String password,
   }) async {
     state = const AuthState.loading();
     try {
       final response = await api.dio.post('/api/v1/auth/login', data: {
-        'email': email,
+        'username': username,
         'password': password,
       });
 
-      final accessToken = response.data['access_token'] as String;
-      final refreshToken = response.data['refresh_token'] as String;
-
-      await storage.saveTokens(
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-      );
-
-      state = const AuthState.authenticated();
-
-      // Sync round templates after login
-      syncService.pullRoundTemplates();
-      syncService.syncPendingItems();
+      await _handleAuthResponse(response.data);
     } catch (e) {
       state = AuthState.error(_extractError(e));
     }
+  }
+
+  Future<void> register({
+    required String email,
+    required String username,
+    required String password,
+    String? displayName,
+  }) async {
+    state = const AuthState.loading();
+    try {
+      final response = await api.dio.post('/api/v1/auth/register', data: {
+        'email': email,
+        'username': username,
+        'password': password,
+        if (displayName != null && displayName.isNotEmpty)
+          'display_name': displayName,
+      });
+
+      await _handleAuthResponse(response.data);
+    } catch (e) {
+      state = AuthState.error(_extractError(e));
+    }
+  }
+
+  Future<void> _handleAuthResponse(dynamic data) async {
+    final accessToken = data['access_token'] as String;
+    final refreshToken = data['refresh_token'] as String;
+
+    await storage.saveTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    );
+
+    state = const AuthState.authenticated();
+
+    syncService.pullRoundTemplates();
+    syncService.syncPendingItems();
   }
 
   Future<void> logout() async {
@@ -70,9 +95,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   String _extractError(dynamic e) {
-    if (e is Exception) {
-      return e.toString().replaceAll('Exception: ', '');
+    if (e is DioException && e.response?.data is Map) {
+      final data = e.response!.data as Map;
+      final serverMsg = data['error'] as String?;
+      if (serverMsg != null && serverMsg.isNotEmpty) return serverMsg;
     }
-    return 'Login failed. Please try again.';
+    if (e is DioException) {
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.connectionTimeout) {
+        return 'No internet connection. Please try again.';
+      }
+    }
+    return 'Something went wrong. Please try again.';
   }
 }

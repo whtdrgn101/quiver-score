@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -11,13 +12,13 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _usernameController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -25,7 +26,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _submit() {
     if (_formKey.currentState?.validate() ?? false) {
       ref.read(authProvider.notifier).login(
-            email: _emailController.text.trim(),
+            username: _usernameController.text.trim(),
             password: _passwordController.text,
           );
     }
@@ -71,16 +72,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 48),
                   TextFormField(
-                    controller: _emailController,
+                    controller: _usernameController,
                     decoration: const InputDecoration(
-                      labelText: 'Email',
+                      labelText: 'Username',
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email_outlined),
+                      prefixIcon: Icon(Icons.person_outlined),
                     ),
-                    keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
+                    autocorrect: false,
                     validator: (v) =>
-                        (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
+                        (v == null || v.trim().isEmpty) ? 'Enter your username' : null,
                   ),
                   const SizedBox(height: 16),
                   TextFormField(
@@ -116,10 +117,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : const Text('Sign In'),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    'Create your account at quiverscore.com',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Don't have an account? ",
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                                builder: (_) => const RegisterScreen()),
+                          );
+                        },
+                        child: Text(
+                          'Sign Up',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
