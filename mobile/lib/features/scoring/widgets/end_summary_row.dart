@@ -5,15 +5,17 @@ import '../../../core/database/database.dart';
 class EndSummaryRow extends StatelessWidget {
   final EndsLocalData end;
   final List<ArrowsLocalData> arrows;
-  final bool hasImage;
+  final int imageCount;
   final VoidCallback? onImageTap;
+  final VoidCallback? onAddPhoto;
 
   const EndSummaryRow({
     super.key,
     required this.end,
     required this.arrows,
-    this.hasImage = false,
+    this.imageCount = 0,
     this.onImageTap,
+    this.onAddPhoto,
   });
 
   @override
@@ -26,7 +28,6 @@ class EndSummaryRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            // End number
             SizedBox(
               width: 32,
               child: Text(
@@ -36,7 +37,6 @@ class EndSummaryRow extends StatelessWidget {
                 ),
               ),
             ),
-            // Arrow values
             Expanded(
               child: Wrap(
                 spacing: 6,
@@ -59,20 +59,36 @@ class EndSummaryRow extends StatelessWidget {
                 }).toList(),
               ),
             ),
-            // Photo indicator
-            if (hasImage)
+            if (imageCount > 0)
               Padding(
-                padding: const EdgeInsets.only(right: 8),
+                padding: const EdgeInsets.only(right: 4),
                 child: GestureDetector(
                   onTap: onImageTap,
-                  child: Icon(
-                    Icons.camera_alt,
-                    size: 18,
-                    color: theme.colorScheme.primary,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.photo, size: 18,
+                          color: theme.colorScheme.primary),
+                      if (imageCount > 1) ...[
+                        const SizedBox(width: 2),
+                        Text('$imageCount',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                            )),
+                      ],
+                    ],
                   ),
                 ),
               ),
-            // End total
+            if (onAddPhoto != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: GestureDetector(
+                  onTap: onAddPhoto,
+                  child: Icon(Icons.add_a_photo_outlined, size: 18,
+                      color: theme.colorScheme.outline),
+                ),
+              ),
             Text(
               '${end.endTotal}',
               style: theme.textTheme.titleMedium?.copyWith(

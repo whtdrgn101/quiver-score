@@ -221,3 +221,78 @@ def test_public_profile_no_auth_required(client, register_user):
     # No auth headers
     resp = client.get(f"/api/v1/users/{user['username']}")
     assert resp.status_code == 200
+
+
+# ── Social Links ─────────────────────────────────────────────────────
+
+
+def test_update_social_links(client, register_user):
+    """PATCH /users/me with social_links sets and returns them."""
+    user = register_user()
+    links = {
+        "instagram": "https://instagram.com/archer",
+        "twitter": "https://x.com/archer",
+        "website": "https://example.com",
+    }
+    resp = client.patch("/api/v1/users/me", json={
+        "social_links": links,
+    }, headers=user["headers"])
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["social_links"] == links
+
+
+def test_update_social_links_partial_profile(client, register_user):
+    """Setting social_links does not affect other profile fields."""
+    user = register_user()
+    # Set display_name first
+    client.patch("/api/v1/users/me", json={
+        "display_name": "Link Archer",
+    }, headers=user["headers"])
+
+    # Set only social_links
+    resp = client.patch("/api/v1/users/me", json={
+        "social_links": {"youtube": "https://youtube.com/@archer"},
+    }, headers=user["headers"])
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["display_name"] == "Link Archer"
+    assert data["social_links"] == {"youtube": "https://youtube.com/@archer"}
+
+
+def test_clear_social_links(client, register_user):
+    """Setting social_links to null clears them."""
+    user = register_user()
+    # Set links
+    client.patch("/api/v1/users/me", json={
+        "social_links": {"instagram": "https://instagram.com/archer"},
+    }, headers=user["headers"])
+
+    # Clear them
+    resp = client.patch("/api/v1/users/me", json={
+        "social_links": None,
+    }, headers=user["headers"])
+    assert resp.status_code == 200
+    assert resp.json()["social_links"] is None
+
+
+def test_social_links_in_public_profile(client, register_user):
+    """Social links appear in public profile."""
+    user = register_user()
+    links = {"instagram": "https://instagram.com/archer"}
+    client.patch("/api/v1/users/me", json={
+        "profile_public": True,
+        "social_links": links,
+    }, headers=user["headers"])
+
+    resp = client.get(f"/api/v1/users/{user['username']}")
+    assert resp.status_code == 200
+    assert resp.json()["social_links"] == links
+
+
+def test_social_links_default_null(client, register_user):
+    """New users have null social_links."""
+    user = register_user()
+    resp = client.get("/api/v1/users/me", headers=user["headers"])
+    assert resp.status_code == 200
+    assert resp.json()["social_links"] is None

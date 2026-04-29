@@ -34,7 +34,7 @@ func (m *mockUserRepo) GetMe(_ context.Context, _ string) (*repository.UserOut, 
 }
 
 func (m *mockUserRepo) UpdateProfile(_ context.Context, _ string,
-	_, _, _, _ *string, _, _, _, _ bool, _ *bool,
+	_, _, _, _ *string, _, _, _, _ bool, _ *bool, _ json.RawMessage, _ bool,
 ) (*repository.UserOut, error) {
 	return m.updateProfileResult, m.updateProfileErr
 }
@@ -228,5 +228,106 @@ func TestGetPublicProfile_NotFound(t *testing.T) {
 
 	if rr.Code != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", rr.Code)
+	}
+}
+
+// ── Social Links ────────────────────────────────────────────────────
+
+func TestUpdateMe_WithSocialLinks(t *testing.T) {
+	links := json.RawMessage(`{"instagram":"https://instagram.com/archer","website":"https://example.com"}`)
+	updated := sampleUser()
+	updated.SocialLinks = links
+	mock := &mockUserRepo{updateProfileResult: updated}
+	h := &UsersHandler{Users: mock}
+
+	body := strings.NewReader(`{"social_links":{"instagram":"https://instagram.com/archer","website":"https://example.com"}}`)
+	req := authedRequest(http.MethodPut, "/users/me", "user-1")
+	req.Body = io.NopCloser(body)
+
+	rr := httptest.NewRecorder()
+	h.UpdateMe(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+
+	var u repository.UserOut
+	if err := json.NewDecoder(rr.Body).Decode(&u); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if u.SocialLinks == nil {
+		t.Fatal("expected social_links to be set")
+	}
+	var parsed map[string]string
+	if err := json.Unmarshal(u.SocialLinks, &parsed); err != nil {
+		t.Fatalf("failed to parse social_links: %v", err)
+	}
+	if parsed["instagram"] != "https://instagram.com/archer" {
+		t.Errorf("expected instagram link, got %s", parsed["instagram"])
+	}
+}
+
+func TestUpdateMe_ClearSocialLinks(t *testing.T) {
+	updated := sampleUser()
+	updated.SocialLinks = nil
+	mock := &mockUserRepo{updateProfileResult: updated}
+	h := &UsersHandler{Users: mock}
+
+	body := strings.NewReader(`{"social_links":null}`)
+	req := authedRequest(http.MethodPut, "/users/me", "user-1")
+	req.Body = io.NopCloser(body)
+
+	rr := httptest.NewRecorder()
+	h.UpdateMe(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.NewDecoder(rr.Body).Decode(&raw); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if string(raw["social_links"]) != "null" {
+		t.Errorf("expected social_links null, got %s", string(raw["social_links"]))
+	}
+}
+
+func TestGetPublicProfile_WithSocialLinks(t *testing.T) {
+	links := json.RawMessage(`{"twitter":"https://x.com/archer"}`)
+	dn := "Social Archer"
+	mock := &mockUserRepo{
+		publicProfileResult: &repository.PublicProfileOut{
+			ID:             "user-3",
+			Username:       "socialuser",
+			DisplayName:    &dn,
+			SocialLinks:    links,
+			CreatedAt:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+			RecentSessions: []repository.PublicSessionSummary{},
+			Clubs:          []repository.ProfileClubOut{},
+		},
+	}
+	h := &UsersHandler{Users: mock}
+
+	rr := httptest.NewRecorder()
+	h.GetPublicProfile(rr, publicProfileRequest(http.MethodGet, "/users/socialuser", "socialuser"))
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+
+	var p repository.PublicProfileOut
+	if err := json.NewDecoder(rr.Body).Decode(&p); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if p.SocialLinks == nil {
+		t.Fatal("expected social_links to be set")
+	}
+	var parsed map[string]string
+	if err := json.Unmarshal(p.SocialLinks, &parsed); err != nil {
+		t.Fatalf("failed to parse social_links: %v", err)
+	}
+	if parsed["twitter"] != "https://x.com/archer" {
+		t.Errorf("expected twitter link, got %s", parsed["twitter"])
 	}
 }

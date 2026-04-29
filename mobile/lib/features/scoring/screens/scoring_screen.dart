@@ -24,16 +24,16 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
   List<String> _allowedValues = [];
   Map<String, int> _valueScoreMap = {};
   String? _currentStageId;
-  Set<String> _endIdsWithImages = {};
+  Map<String, int> _imageCountByEnd = {};
 
   @override
   void initState() {
     super.initState();
     _loadStageInfo();
-    _loadImageFlags();
+    _loadImageCounts();
   }
 
-  Future<void> _loadImageFlags() async {
+  Future<void> _loadImageCounts() async {
     final db = ref.read(databaseProvider);
     final session = ref.read(scoringProvider).activeSession;
     if (session == null) return;
@@ -46,8 +46,13 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
           ..where((t) => t.endId.isIn(endIds)))
         .get();
 
+    final counts = <String, int>{};
+    for (final img in images) {
+      counts[img.endId] = (counts[img.endId] ?? 0) + 1;
+    }
+
     setState(() {
-      _endIdsWithImages = images.map((i) => i.endId).toSet();
+      _imageCountByEnd = counts;
     });
   }
 
@@ -124,16 +129,18 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
     // Check if all ends are now complete BEFORE offering photo
     final isRoundComplete = await _checkAllEndsComplete();
 
+    _loadImageCounts();
+
     if (isRoundComplete) {
-      // Final end: navigate directly to photo capture, then show complete dialog
-      if (mounted) {
-        await _offerPhotoCaptureDirect();
-        if (mounted) _showCompleteDialog();
-      }
+      if (mounted) _showCompleteDialog();
     } else {
-      // Non-final end: snackbar with optional photo, then load next stage
       if (mounted) {
-        _offerPhotoSnackbar(endNumber);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('End $endNumber submitted'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
       }
       _loadStageInfo();
     }
@@ -156,54 +163,31 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
     return endsCompleted >= totalEndsRequired;
   }
 
-  /// Final end: navigate directly to camera so user can capture before complete dialog
-  Future<void> _offerPhotoCaptureDirect() async {
-    final ends = ref.read(scoringProvider).ends;
-    if (ends.isEmpty) return;
-
+  Future<void> _addPhotoToEnd(String endId) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => CaptureScreen(endId: ends.last.id),
+        builder: (_) => CaptureScreen(endId: endId),
       ),
     );
-
-    _loadImageFlags();
-  }
-
-  /// Non-final end: snackbar with optional photo action
-  void _offerPhotoSnackbar(int endNumber) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('End $endNumber submitted'),
-        action: SnackBarAction(
-          label: 'Take Photo',
-          onPressed: () {
-            final ends = ref.read(scoringProvider).ends;
-            if (ends.isNotEmpty) {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => CaptureScreen(endId: ends.last.id),
-                ),
-              ).then((_) => _loadImageFlags());
-            }
-          },
-        ),
-        duration: const Duration(seconds: 4),
-      ),
-    );
+    _loadImageCounts();
   }
 
   Future<void> _viewEndImage(String endId) async {
     final db = ref.read(databaseProvider);
     final images = await (db.select(db.endImages)
           ..where((t) => t.endId.equals(endId))
-          ..orderBy([(t) => OrderingTerm.desc(t.capturedAt)]))
+          ..orderBy([(t) => OrderingTerm.asc(t.capturedAt)]))
         .get();
 
     if (images.isEmpty || !mounted) return;
 
-    final file = File(images.first.filePath);
-    if (!await file.exists()) {
+    final files = <File>[];
+    for (final img in images) {
+      final f = File(img.filePath);
+      if (await f.exists()) files.add(f);
+    }
+
+    if (files.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Image file not found')),
@@ -215,7 +199,7 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
     if (mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => _ImageViewer(file: file),
+          builder: (_) => _ImageGallery(files: files),
         ),
       );
     }
@@ -329,13 +313,15 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
                 // End history
                 ...scoringState.ends.reversed.map((end) {
                   final arrows = scoringState.arrowsByEnd[end.id] ?? [];
+                  final count = _imageCountByEnd[end.id] ?? 0;
                   return EndSummaryRow(
                     end: end,
                     arrows: arrows,
-                    hasImage: _endIdsWithImages.contains(end.id),
-                    onImageTap: _endIdsWithImages.contains(end.id)
+                    imageCount: count,
+                    onImageTap: count > 0
                         ? () => _viewEndImage(end.id)
                         : null,
+                    onAddPhoto: () => _addPhotoToEnd(end.id),
                   );
                 }),
               ],
@@ -431,10 +417,17 @@ class _StatColumn extends StatelessWidget {
   }
 }
 
-class _ImageViewer extends StatelessWidget {
-  final File file;
+class _ImageGallery extends StatefulWidget {
+  final List<File> files;
 
-  const _ImageViewer({required this.file});
+  const _ImageGallery({required this.files});
+
+  @override
+  State<_ImageGallery> createState() => _ImageGalleryState();
+}
+
+class _ImageGalleryState extends State<_ImageGallery> {
+  int _current = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -443,11 +436,17 @@ class _ImageViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: const Text('Target Photo'),
+        title: Text(widget.files.length > 1
+            ? 'Photo ${_current + 1} of ${widget.files.length}'
+            : 'Target Photo'),
       ),
-      body: Center(
-        child: InteractiveViewer(
-          child: Image.file(file),
+      body: PageView.builder(
+        itemCount: widget.files.length,
+        onPageChanged: (i) => setState(() => _current = i),
+        itemBuilder: (_, i) => Center(
+          child: InteractiveViewer(
+            child: Image.file(widget.files[i]),
+          ),
         ),
       ),
     );

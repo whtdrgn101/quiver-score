@@ -24,31 +24,39 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
   bool _saving = false;
 
   Future<void> _takePhoto() async {
-    final picker = ImagePicker();
-    final photo = await picker.pickImage(
-      source: ImageSource.camera,
-      maxWidth: 1920,
-      maxHeight: 1920,
-      imageQuality: 85,
-    );
+    try {
+      final picker = ImagePicker();
+      final photo = await picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
 
-    if (photo == null) return;
+      if (photo == null) return;
 
-    // Copy to app documents for persistence
-    final appDir = await getApplicationDocumentsDirectory();
-    final imagesDir = Directory(p.join(appDir.path, 'end_images'));
-    if (!await imagesDir.exists()) {
-      await imagesDir.create(recursive: true);
+      final appDir = await getApplicationDocumentsDirectory();
+      final imagesDir = Directory(p.join(appDir.path, 'end_images'));
+      if (!await imagesDir.exists()) {
+        await imagesDir.create(recursive: true);
+      }
+
+      final fileName =
+          '${widget.endId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final savedFile = await File(photo.path).copy(
+        p.join(imagesDir.path, fileName),
+      );
+
+      setState(() {
+        _imageFile = savedFile;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not take photo: $e')),
+        );
+      }
     }
-
-    final fileName = '${widget.endId}_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    final savedFile = await File(photo.path).copy(
-      p.join(imagesDir.path, fileName),
-    );
-
-    setState(() {
-      _imageFile = savedFile;
-    });
   }
 
   Future<void> _saveImage() async {

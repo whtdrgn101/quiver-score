@@ -53,6 +53,10 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>NSCameraUsageDescription</key>
+	<string>QuiverScore needs camera access to photograph your targets after each end.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>QuiverScore needs photo library access to select target photos.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -16,7 +16,7 @@ import (
 
 type UserRepository interface {
 	GetMe(ctx context.Context, userID string) (*repository.UserOut, error)
-	UpdateProfile(ctx context.Context, userID string, displayName, bowType, classification, bio *string, displayNameSet, bowTypeSet, classificationSet, bioSet bool, profilePublic *bool) (*repository.UserOut, error)
+	UpdateProfile(ctx context.Context, userID string, displayName, bowType, classification, bio *string, displayNameSet, bowTypeSet, classificationSet, bioSet bool, profilePublic *bool, socialLinks json.RawMessage, socialLinksSet bool) (*repository.UserOut, error)
 	UpdateAvatar(ctx context.Context, userID, dataURI string) (*repository.UserOut, error)
 	DeleteAvatar(ctx context.Context, userID string) (*repository.UserOut, error)
 	GetPublicProfile(ctx context.Context, username string) (*repository.PublicProfileOut, error)
@@ -50,15 +50,15 @@ func (h *UsersHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 // ── Profile Update ───────────────────────────────────────────────────
 
 type profileUpdate struct {
-	DisplayName    *string `json:"display_name"`
-	BowType        *string `json:"bow_type"`
-	Classification *string `json:"classification"`
-	Bio            *string `json:"bio"`
-	ProfilePublic  *bool   `json:"profile_public"`
+	DisplayName    *string         `json:"display_name"`
+	BowType        *string         `json:"bow_type"`
+	Classification *string         `json:"classification"`
+	Bio            *string         `json:"bio"`
+	ProfilePublic  *bool           `json:"profile_public"`
+	SocialLinks    json.RawMessage `json:"social_links"`
 }
 
 func (h *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
-	// Parse raw JSON to detect which fields were explicitly set
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		ValidationError(w, "Invalid request body")
@@ -81,6 +81,7 @@ func (h *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	_, bowTypeSet := raw["bow_type"]
 	_, classificationSet := raw["classification"]
 	_, bioSet := raw["bio"]
+	_, socialLinksSet := raw["social_links"]
 
 	userID := middleware.GetUserID(r.Context())
 
@@ -88,6 +89,7 @@ func (h *UsersHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		req.DisplayName, req.BowType, req.Classification, req.Bio,
 		displayNameSet, bowTypeSet, classificationSet, bioSet,
 		req.ProfilePublic,
+		req.SocialLinks, socialLinksSet,
 	)
 	if err != nil {
 		Error(w, http.StatusInternalServerError, "Internal server error")

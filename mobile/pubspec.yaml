@@ -49,6 +49,15 @@ dev_dependencies:
   riverpod_generator: ^2.6.5
   drift_dev: ^2.27.0
   mockito: ^5.4.6
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon.png"
+  adaptive_icon_background: "#0d9668"
+  adaptive_icon_foreground: "assets/icon.png"
+  remove_alpha_ios: true
 
 flutter:
   uses-material-design: true

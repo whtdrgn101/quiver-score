@@ -36,6 +36,7 @@ export default function ClubDetail() {
   useEffect(() => {
     if (!club) return;
     if (tab === 'members') return;
+    setTabLoading(true);
     const done = () => setTabLoading(false);
     if (tab === 'leaderboard') {
       getLeaderboard(clubId).then((res) => setLeaderboard(res.data)).catch(() => {}).finally(done);
@@ -48,7 +49,7 @@ export default function ClubDetail() {
     } else if (tab === 'rounds') {
       getClubRounds(clubId).then((res) => setSharedRounds(res.data)).catch(() => {}).finally(done);
     } else if (tab === 'tournaments') {
-      listTournaments(clubId).then((res) => setTournaments(res.data)).catch(() => {}).finally(done);
+      listTournaments(clubId).then((res) => setTournaments(res.data)).catch((e) => console.error('Failed to load tournaments:', e)).finally(done);
     }
   }, [club, tab, clubId]);
 

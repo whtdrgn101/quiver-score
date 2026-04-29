@@ -33,7 +33,6 @@ class HistoryNotifier extends AsyncNotifier<List<SessionSummary>> {
   Future<List<SessionSummary>> _loadLocal() async {
     final db = ref.read(databaseProvider);
     final sessions = await (db.select(db.scoringSessionsLocal)
-          ..where((t) => t.status.isIn(['completed', 'abandoned']))
           ..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
         .get();
 
@@ -68,7 +67,6 @@ class HistoryNotifier extends AsyncNotifier<List<SessionSummary>> {
     final list = response.data as List;
     return list
         .map((j) => SessionSummary.fromJson(j as Map<String, dynamic>))
-        .where((s) => s.status == 'completed' || s.status == 'abandoned')
         .toList();
   }
 

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -15,17 +16,18 @@ type UserRepo struct {
 // ── Types ─────────────────────────────────────────────────────────────
 
 type UserOut struct {
-	ID             string    `json:"id"`
-	Email          string    `json:"email"`
-	Username       string    `json:"username"`
-	DisplayName    *string   `json:"display_name"`
-	BowType        *string   `json:"bow_type"`
-	Classification *string   `json:"classification"`
-	Bio            *string   `json:"bio"`
-	Avatar         *string   `json:"avatar"`
-	EmailVerified  bool      `json:"email_verified"`
-	ProfilePublic  bool      `json:"profile_public"`
-	CreatedAt      time.Time `json:"created_at"`
+	ID             string          `json:"id"`
+	Email          string          `json:"email"`
+	Username       string          `json:"username"`
+	DisplayName    *string         `json:"display_name"`
+	BowType        *string         `json:"bow_type"`
+	Classification *string         `json:"classification"`
+	Bio            *string         `json:"bio"`
+	Avatar         *string         `json:"avatar"`
+	SocialLinks    json.RawMessage `json:"social_links"`
+	EmailVerified  bool            `json:"email_verified"`
+	ProfilePublic  bool            `json:"profile_public"`
+	CreatedAt      time.Time       `json:"created_at"`
 }
 
 // ── Methods ───────────────────────────────────────────────────────────
@@ -128,11 +130,11 @@ func (r *UserRepo) GetMe(ctx context.Context, userID string) (*UserOut, error) {
 	var u UserOut
 	err := r.DB.QueryRow(ctx,
 		`SELECT id, email, username, display_name, bow_type, classification,
-		        bio, avatar, email_verified, profile_public, created_at
+		        bio, avatar, social_links, email_verified, profile_public, created_at
 		 FROM users WHERE id = $1`, userID,
 	).Scan(
 		&u.ID, &u.Email, &u.Username, &u.DisplayName, &u.BowType, &u.Classification,
-		&u.Bio, &u.Avatar, &u.EmailVerified, &u.ProfilePublic, &u.CreatedAt,
+		&u.Bio, &u.Avatar, &u.SocialLinks, &u.EmailVerified, &u.ProfilePublic, &u.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -151,6 +153,7 @@ func (r *UserRepo) GetArcherInfo(ctx context.Context, userID string) (username s
 func (r *UserRepo) UpdateProfile(ctx context.Context, userID string,
 	displayName, bowType, classification, bio *string, displayNameSet, bowTypeSet, classificationSet, bioSet bool,
 	profilePublic *bool,
+	socialLinks json.RawMessage, socialLinksSet bool,
 ) (*UserOut, error) {
 	_, err := r.DB.Exec(ctx,
 		`UPDATE users SET
@@ -158,7 +161,8 @@ func (r *UserRepo) UpdateProfile(ctx context.Context, userID string,
 			bow_type        = CASE WHEN $4 THEN $5 ELSE bow_type END,
 			classification  = CASE WHEN $6 THEN $7 ELSE classification END,
 			bio             = CASE WHEN $8 THEN $9 ELSE bio END,
-			profile_public  = COALESCE($10, profile_public)
+			profile_public  = COALESCE($10, profile_public),
+			social_links    = CASE WHEN $11 THEN $12::jsonb ELSE social_links END
 		 WHERE id = $1`,
 		userID,
 		displayNameSet, displayName,
@@ -166,6 +170,7 @@ func (r *UserRepo) UpdateProfile(ctx context.Context, userID string,
 		classificationSet, classification,
 		bioSet, bio,
 		profilePublic,
+		socialLinksSet, socialLinks,
 	)
 	if err != nil {
 		return nil, err
@@ -204,6 +209,7 @@ type PublicProfileOut struct {
 	BowType              *string                 `json:"bow_type"`
 	Bio                  *string                 `json:"bio"`
 	Avatar               *string                 `json:"avatar"`
+	SocialLinks          json.RawMessage         `json:"social_links"`
 	CreatedAt            time.Time               `json:"created_at"`
 	TotalSessions        int                     `json:"total_sessions"`
 	CompletedSessions    int                     `json:"completed_sessions"`
@@ -241,9 +247,9 @@ func (r *UserRepo) GetPublicProfile(ctx context.Context, username string) (*Publ
 	var p PublicProfileOut
 	var profilePublic bool
 	err := r.DB.QueryRow(ctx,
-		`SELECT id, username, display_name, bow_type, bio, avatar, created_at, profile_public
+		`SELECT id, username, display_name, bow_type, bio, avatar, social_links, created_at, profile_public
 		 FROM users WHERE username = $1`, username,
-	).Scan(&p.ID, &p.Username, &p.DisplayName, &p.BowType, &p.Bio, &p.Avatar, &p.CreatedAt, &profilePublic)
+	).Scan(&p.ID, &p.Username, &p.DisplayName, &p.BowType, &p.Bio, &p.Avatar, &p.SocialLinks, &p.CreatedAt, &profilePublic)
 	if err != nil {
 		return nil, err
 	}

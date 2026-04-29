@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../providers/history_provider.dart';
+import '../providers/scoring_provider.dart';
+import 'scoring_screen.dart';
 import 'server_session_detail_screen.dart';
 import 'session_detail_screen.dart';
 
@@ -23,11 +25,10 @@ class HistoryScreen extends ConsumerWidget {
               children: [
                 Icon(Icons.history, size: 64, color: theme.colorScheme.outline),
                 const SizedBox(height: 16),
-                Text('No completed rounds yet',
-                    style: theme.textTheme.titleMedium),
+                Text('No rounds yet', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Text(
-                  'Completed rounds will appear here',
+                  'Your rounds will appear here',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -77,27 +78,51 @@ class HistoryScreen extends ConsumerWidget {
   }
 }
 
-class _HistoryCard extends StatelessWidget {
+class _HistoryCard extends ConsumerWidget {
   final SessionSummary session;
 
   const _HistoryCard({required this.session});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final dateFormat = DateFormat.yMMMd();
+    final isInProgress = session.status == 'in_progress';
 
     final statusColor = switch (session.status) {
       'completed' => Colors.green,
       'abandoned' => Colors.grey,
+      'in_progress' => Colors.orange,
       _ => Colors.orange,
+    };
+
+    final statusLabel = switch (session.status) {
+      'in_progress' => 'In Progress',
+      'abandoned' => 'Abandoned',
+      _ => null,
     };
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
+      shape: isInProgress
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: Colors.orange.shade300, width: 1.5),
+            )
+          : null,
       child: InkWell(
-        onTap: () {
-          if (session.localId != null) {
+        onTap: () async {
+          if (isInProgress && session.localId != null) {
+            await ref
+                .read(scoringProvider.notifier)
+                .loadSession(session.localId!);
+            if (context.mounted) {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ScoringScreen()),
+              );
+              ref.read(historyProvider.notifier).refresh();
+            }
+          } else if (session.localId != null) {
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) =>
@@ -122,11 +147,22 @@ class _HistoryCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      session.templateName ?? 'Unknown Round',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            session.templateName ?? 'Unknown Round',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        if (isInProgress) ...[
+                          const SizedBox(width: 8),
+                          Icon(Icons.play_circle_outline,
+                              size: 18, color: Colors.orange.shade700),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Row(
@@ -140,6 +176,21 @@ class _HistoryCard extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 6),
+                        if (statusLabel != null) ...[
+                          Text(
+                            statusLabel,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: statusColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text('·',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              )),
+                          const SizedBox(width: 6),
+                        ],
                         Text(
                           dateFormat.format(session.startedAt),
                           style: theme.textTheme.bodySmall?.copyWith(

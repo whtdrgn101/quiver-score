@@ -52,6 +52,7 @@ export default function TournamentDetail() {
   const isRegistered = !!myParticipant;
   const canRegister = tournament.status === 'registration' && !isRegistered;
   const canWithdraw = isRegistered && myParticipant.status !== 'completed' && myParticipant.status !== 'withdrawn';
+  const canScore = tournament.status === 'in_progress' && isRegistered && myParticipant.status === 'active';
 
   const handleAction = async (action) => {
     setActionLoading(true);
@@ -92,6 +93,14 @@ export default function TournamentDetail() {
         </div>
 
         <div className="mt-4 flex gap-2 flex-wrap">
+          {canScore && (
+            <button
+              onClick={() => navigate(`/rounds`, { state: { tournamentTemplateId: tournament.template_id, tournamentId: tournament.id, clubId } })}
+              className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
+            >
+              Score This Round
+            </button>
+          )}
           {canRegister && (
             <button
               onClick={() => handleAction(() => registerForTournament(clubId, tournamentId))}

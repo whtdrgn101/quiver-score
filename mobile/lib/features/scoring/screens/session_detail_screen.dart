@@ -22,7 +22,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
   ScoringSessionsLocalData? _session;
   List<EndsLocalData> _ends = [];
   Map<String, List<ArrowsLocalData>> _arrowsByEnd = {};
-  Set<String> _endIdsWithImages = {};
+  Map<String, int> _imageCountByEnd = {};
   bool _loading = true;
 
   @override
@@ -60,11 +60,16 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
               ..where((t) => t.endId.isIn(endIds)))
             .get();
 
+    final counts = <String, int>{};
+    for (final img in images) {
+      counts[img.endId] = (counts[img.endId] ?? 0) + 1;
+    }
+
     setState(() {
       _session = session;
       _ends = ends;
       _arrowsByEnd = arrowsByEnd;
-      _endIdsWithImages = images.map((i) => i.endId).toSet();
+      _imageCountByEnd = counts;
       _loading = false;
     });
   }
@@ -73,13 +78,18 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
     final db = ref.read(databaseProvider);
     final images = await (db.select(db.endImages)
           ..where((t) => t.endId.equals(endId))
-          ..orderBy([(t) => OrderingTerm.desc(t.capturedAt)]))
+          ..orderBy([(t) => OrderingTerm.asc(t.capturedAt)]))
         .get();
 
     if (images.isEmpty || !mounted) return;
 
-    final file = File(images.first.filePath);
-    if (!await file.exists()) {
+    final files = <File>[];
+    for (final img in images) {
+      final f = File(img.filePath);
+      if (await f.exists()) files.add(f);
+    }
+
+    if (files.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Image file not found')),
@@ -91,7 +101,7 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
     if (mounted) {
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => _ImageViewer(file: file),
+          builder: (_) => _ImageGallery(files: files),
         ),
       );
     }
@@ -145,11 +155,12 @@ class _SessionDetailScreenState extends ConsumerState<SessionDetailScreen> {
           // End rows
           ..._ends.map((end) {
             final arrows = _arrowsByEnd[end.id] ?? [];
+            final count = _imageCountByEnd[end.id] ?? 0;
             return EndSummaryRow(
               end: end,
               arrows: arrows,
-              hasImage: _endIdsWithImages.contains(end.id),
-              onImageTap: _endIdsWithImages.contains(end.id)
+              imageCount: count,
+              onImageTap: count > 0
                   ? () => _viewEndImage(end.id)
                   : null,
             );
@@ -180,10 +191,17 @@ class _StatColumn extends StatelessWidget {
   }
 }
 
-class _ImageViewer extends StatelessWidget {
-  final File file;
+class _ImageGallery extends StatefulWidget {
+  final List<File> files;
 
-  const _ImageViewer({required this.file});
+  const _ImageGallery({required this.files});
+
+  @override
+  State<_ImageGallery> createState() => _ImageGalleryState();
+}
+
+class _ImageGalleryState extends State<_ImageGallery> {
+  int _current = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -192,11 +210,17 @@ class _ImageViewer extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
-        title: const Text('Target Photo'),
+        title: Text(widget.files.length > 1
+            ? 'Photo ${_current + 1} of ${widget.files.length}'
+            : 'Target Photo'),
       ),
-      body: Center(
-        child: InteractiveViewer(
-          child: Image.file(file),
+      body: PageView.builder(
+        itemCount: widget.files.length,
+        onPageChanged: (i) => setState(() => _current = i),
+        itemBuilder: (_, i) => Center(
+          child: InteractiveViewer(
+            child: Image.file(widget.files[i]),
+          ),
         ),
       ),
     );

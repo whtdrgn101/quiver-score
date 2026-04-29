@@ -739,6 +739,27 @@ def test_start_tournament(client, register_user, unique, create_round):
     assert resp.json()["status"] == "in_progress"
 
 
+def test_list_tournaments_includes_started(client, register_user, unique, create_round):
+    """Started (in_progress) tournaments must still appear in the listing."""
+    user = register_user()
+    club = client.post("/api/v1/clubs", json={"name": unique("club")}, headers=user["headers"]).json()
+    tourney, _ = _create_tournament(client, user, club["id"], unique, create_round)
+
+    # Start the tournament
+    client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/start",
+        headers=user["headers"],
+    )
+
+    # Verify it still appears in the listing
+    resp = client.get(f"/api/v1/clubs/{club['id']}/tournaments", headers=user["headers"])
+    assert resp.status_code == 200
+    ids = [t["id"] for t in resp.json()]
+    assert tourney["id"] in ids
+    statuses = {t["id"]: t["status"] for t in resp.json()}
+    assert statuses[tourney["id"]] == "in_progress"
+
+
 def test_tournament_leaderboard(client, register_user, unique, create_round):
     user = register_user()
     club = client.post("/api/v1/clubs", json={"name": unique("club")}, headers=user["headers"]).json()
