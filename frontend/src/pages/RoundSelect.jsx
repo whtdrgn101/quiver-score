@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { getRounds, createSession, shareRound, deleteRound } from '../api/scoring';
 import { getMyClubs } from '../api/clubs';
 import { listSetups } from '../api/setups';
@@ -16,6 +16,8 @@ export default function RoundSelect() {
   const [shareMenuId, setShareMenuId] = useState(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const tournamentContext = location.state;
 
   useEffect(() => {
     Promise.all([getRounds(), listSetups(), getMyClubs()])
@@ -23,6 +25,10 @@ export default function RoundSelect() {
         setRounds(roundsRes.data);
         setSetups(setupsRes.data);
         setClubs(clubsRes.data);
+        if (tournamentContext?.tournamentTemplateId) {
+          const match = roundsRes.data.find((r) => r.id === tournamentContext.tournamentTemplateId);
+          if (match) setSelectedTemplate(match);
+        }
       })
       .finally(() => setLoading(false));
   }, []);
@@ -51,7 +57,10 @@ export default function RoundSelect() {
     const data = { template_id: selectedTemplate.id };
     if (selectedSetup) data.setup_profile_id = selectedSetup;
     const res = await createSession(data);
-    navigate(`/score/${res.data.id}`);
+    const navState = tournamentContext?.tournamentId
+      ? { tournamentId: tournamentContext.tournamentId, clubId: tournamentContext.clubId }
+      : undefined;
+    navigate(`/score/${res.data.id}`, { state: navState });
   };
 
   if (loading) return <Spinner text="Loading rounds..." />;
@@ -63,6 +72,11 @@ export default function RoundSelect() {
 
   return (
     <div>
+      {tournamentContext?.tournamentId && (
+        <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3 mb-4 text-sm text-blue-800 dark:text-blue-200">
+          Scoring for tournament. Your score will be submitted automatically when you finish.
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold dark:text-white">Select a Round</h1>
         <Link

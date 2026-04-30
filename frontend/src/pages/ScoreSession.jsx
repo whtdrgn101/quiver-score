@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getSession, submitEnd, completeSession, undoLastEnd, abandonSession, uploadEndImage, listSessionImages, getEndImage } from '../api/scoring';
+import { submitTournamentScore } from '../api/tournaments';
 import { addPendingEnd } from '../utils/pendingEnds';
 import { useOnline } from '../hooks/useOnline';
 import Spinner from '../components/Spinner';
@@ -8,6 +9,8 @@ import Spinner from '../components/Spinner';
 export default function ScoreSession() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const tournamentContext = location.state;
   const { refreshPendingCount } = useOnline();
   const [session, setSession] = useState(null);
   const [currentArrows, setCurrentArrows] = useState([]);
@@ -180,6 +183,9 @@ export default function ScoreSession() {
     if (finalWeather.trim()) data.weather = finalWeather.trim();
     try {
       const res = await completeSession(sessionId, Object.keys(data).length ? data : undefined);
+      if (tournamentContext?.tournamentId) {
+        await submitTournamentScore(tournamentContext.clubId, tournamentContext.tournamentId, sessionId);
+      }
       if (res.data.is_personal_best) {
         setShowPRBanner(true);
         setTimeout(() => navigate(`/sessions/${sessionId}`), 2500);
