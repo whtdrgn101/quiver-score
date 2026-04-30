@@ -51,5 +51,6 @@ app.*.map.json
 # Local properties
 android/local.properties
 android/key.properties
+android/keystore/
 ios/Pods/
 ios/.symlinks/

@@ -111,7 +111,7 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] Complete / abandon session
 - [x] Final end flow: photo capture before complete dialog
 - [x] Undo last end
-- [ ] Multi-stage support (auto-advance between stages with distance change indicator)
+- [x] Multi-stage support (auto-advance between stages with distance change indicator)
 - [x] Haptic feedback on arrow input
 
 ### 3.5 — Offline Sync Engine
@@ -147,7 +147,7 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] Store metadata in local SQLite (EndImages table)
 - [x] Photo indicator on end rows (tappable to view full image)
 - [ ] Gallery picker as alternative to camera
-- [ ] Image compression before upload (configurable quality)
+- [x] Image compression before upload (JPEG quality 70, max 1920px)
 
 ### 4.2 — Photo Sync
 
@@ -186,6 +186,32 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 
 ---
 
+## Phase 5.5: Multi-Round Tournament Brackets ✅
+
+### 5.5.1 — Database Migration ✅
+
+- [x] Alembic migration: `tournament_rounds` table (id, tournament_id, round_number, name, template_id, advancement, status, started_at, completed_at, created_at)
+- [x] Alembic migration: `tournament_round_scores` table (id, round_id, participant_id, session_id, score, x_count, rank_in_round, advanced)
+- [x] Foreign keys with CASCADE deletes, unique constraints, indexes
+
+### 5.5.2 — Go API Endpoints ✅
+
+- [x] `POST /api/v1/clubs/{clubId}/tournaments/{tournamentId}/rounds` — add round
+- [x] `GET /api/v1/clubs/{clubId}/tournaments/{tournamentId}/rounds` — list rounds
+- [x] `POST .../rounds/{roundId}/start` — start round
+- [x] `POST .../rounds/{roundId}/submit-score?session_id=X` — submit round score
+- [x] `GET .../rounds/{roundId}/leaderboard` — round leaderboard
+- [x] `POST .../rounds/{roundId}/complete` — complete round (ranks, advances top N)
+- [x] Advancement logic: top N advance, ties at cutoff boundary advance all tied
+
+### 5.5.3 — Tests ✅
+
+- [x] 11 unit tests for tournament round handlers
+- [x] 8 contract tests for round lifecycle
+- [x] Delete cascade updated for tournament_round_scores and tournament_rounds
+
+---
+
 ## Phase 6: Mobile App — Tournament Play
 
 ### 6.1 — Tournament List
@@ -197,12 +223,12 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 ### 6.2 — Score Submission
 
 - [ ] After completing a tournament round, prompt to submit score
-- [ ] Call `POST /api/v1/clubs/{clubId}/tournaments/{tournamentId}/submit-score?session_id=X`
+- [ ] Call `POST /api/v1/clubs/{clubId}/tournaments/{tournamentId}/rounds/{roundId}/submit-score?session_id=X`
 - [ ] Show submission confirmation with score + ranking
 
 ### 6.3 — Leaderboard
 
-- [ ] View tournament leaderboard from mobile
+- [ ] View tournament leaderboard from mobile (overall + per-round)
 - [ ] Highlight user's own position
 
 ---
@@ -238,3 +264,11 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 
 - [ ] Firebase Cloud Messaging integration
 - [ ] Tournament reminders, challenge notifications, personal record alerts
+
+### 8.3 — Head-to-Head Matchups (Future)
+
+- [ ] Bracket-style head-to-head pairing within tournament rounds
+- [ ] Matchup table: round_id, participant_a, participant_b, winner_id
+- [ ] Auto-generate pairings from round leaderboard (1 vs N, 2 vs N-1, etc.)
+- [ ] Visual bracket display on web and mobile
+- [ ] Support byes for non-power-of-2 participant counts

@@ -57,6 +57,12 @@ type ClubRepository interface {
 	CompleteTournament(ctx context.Context, clubID, tournamentID, userID string) (*repository.TournamentOut, error)
 	WithdrawFromTournament(ctx context.Context, clubID, tournamentID, userID string) error
 	SubmitTournamentScore(ctx context.Context, clubID, tournamentID, userID, sessionID string) (int, int, error)
+	AddTournamentRound(ctx context.Context, id, clubID, tournamentID, userID, name string, templateID *string, advancement *int) (*repository.TournamentRoundOut, error)
+	ListTournamentRounds(ctx context.Context, clubID, tournamentID, userID string) ([]repository.TournamentRoundOut, error)
+	StartTournamentRound(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error)
+	SubmitTournamentRoundScore(ctx context.Context, clubID, tournamentID, roundID, userID, sessionID string) (*repository.TournamentRoundScoreOut, error)
+	GetTournamentRoundLeaderboard(ctx context.Context, clubID, tournamentID, roundID, userID string) ([]repository.TournamentRoundScoreOut, error)
+	CompleteTournamentRound(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error)
 }
 
 type ClubsHandler struct {
@@ -124,6 +130,14 @@ func (h *ClubsHandler) Routes(r chi.Router) {
 		cr.Post("/tournaments/{tournamentID}/complete", h.CompleteTournament)
 		cr.Post("/tournaments/{tournamentID}/withdraw", h.WithdrawFromTournament)
 		cr.Post("/tournaments/{tournamentID}/submit-score", h.SubmitTournamentScore)
+
+		// Tournament Rounds
+		cr.Post("/tournaments/{tournamentID}/rounds", h.AddTournamentRound)
+		cr.Get("/tournaments/{tournamentID}/rounds", h.ListTournamentRounds)
+		cr.Post("/tournaments/{tournamentID}/rounds/{roundID}/start", h.StartTournamentRound)
+		cr.Post("/tournaments/{tournamentID}/rounds/{roundID}/submit-score", h.SubmitTournamentRoundScore)
+		cr.Get("/tournaments/{tournamentID}/rounds/{roundID}/leaderboard", h.GetTournamentRoundLeaderboard)
+		cr.Post("/tournaments/{tournamentID}/rounds/{roundID}/complete", h.CompleteTournamentRound)
 	})
 }
 
@@ -857,6 +871,118 @@ func (h *ClubsHandler) SubmitTournamentScore(w http.ResponseWriter, r *http.Requ
 		"final_score":  score,
 		"final_x_count": xcount,
 	})
+}
+
+// ── Tournament Rounds ────────────────────────────────────────────────
+
+type tournamentRoundCreate struct {
+	Name        string  `json:"name"`
+	TemplateID  *string `json:"template_id"`
+	Advancement *int    `json:"advancement"`
+}
+
+func (h *ClubsHandler) AddTournamentRound(w http.ResponseWriter, r *http.Request) {
+	clubID := chi.URLParam(r, "clubID")
+	tournamentID := chi.URLParam(r, "tournamentID")
+	userID := middleware.GetUserID(r.Context())
+
+	var req tournamentRoundCreate
+	if !Decode(w, r, &req) {
+		return
+	}
+	if req.Name == "" {
+		ValidationError(w, "name is required")
+		return
+	}
+
+	id := uuid.New().String()
+	round, err := h.Clubs.AddTournamentRound(r.Context(), id, clubID, tournamentID, userID, req.Name, req.TemplateID, req.Advancement)
+	if err != nil {
+		Error(w, http.StatusForbidden, "Cannot add round")
+		return
+	}
+
+	JSON(w, http.StatusCreated, round)
+}
+
+func (h *ClubsHandler) ListTournamentRounds(w http.ResponseWriter, r *http.Request) {
+	clubID := chi.URLParam(r, "clubID")
+	tournamentID := chi.URLParam(r, "tournamentID")
+	userID := middleware.GetUserID(r.Context())
+
+	rounds, err := h.Clubs.ListTournamentRounds(r.Context(), clubID, tournamentID, userID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "Tournament not found")
+		return
+	}
+
+	JSON(w, http.StatusOK, rounds)
+}
+
+func (h *ClubsHandler) StartTournamentRound(w http.ResponseWriter, r *http.Request) {
+	clubID := chi.URLParam(r, "clubID")
+	tournamentID := chi.URLParam(r, "tournamentID")
+	roundID := chi.URLParam(r, "roundID")
+	userID := middleware.GetUserID(r.Context())
+
+	round, err := h.Clubs.StartTournamentRound(r.Context(), clubID, tournamentID, roundID, userID)
+	if err != nil {
+		Error(w, http.StatusForbidden, "Cannot start round")
+		return
+	}
+
+	JSON(w, http.StatusOK, round)
+}
+
+func (h *ClubsHandler) SubmitTournamentRoundScore(w http.ResponseWriter, r *http.Request) {
+	clubID := chi.URLParam(r, "clubID")
+	tournamentID := chi.URLParam(r, "tournamentID")
+	roundID := chi.URLParam(r, "roundID")
+	userID := middleware.GetUserID(r.Context())
+
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		ValidationError(w, "session_id query parameter is required")
+		return
+	}
+
+	score, err := h.Clubs.SubmitTournamentRoundScore(r.Context(), clubID, tournamentID, roundID, userID, sessionID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "Cannot submit round score")
+		return
+	}
+
+	JSON(w, http.StatusOK, score)
+}
+
+func (h *ClubsHandler) GetTournamentRoundLeaderboard(w http.ResponseWriter, r *http.Request) {
+	clubID := chi.URLParam(r, "clubID")
+	tournamentID := chi.URLParam(r, "tournamentID")
+	roundID := chi.URLParam(r, "roundID")
+	userID := middleware.GetUserID(r.Context())
+
+	lb, err := h.Clubs.GetTournamentRoundLeaderboard(r.Context(), clubID, tournamentID, roundID, userID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "Round not found")
+		return
+	}
+
+	JSON(w, http.StatusOK, lb)
+}
+
+func (h *ClubsHandler) CompleteTournamentRound(w http.ResponseWriter, r *http.Request) {
+	clubID := chi.URLParam(r, "clubID")
+	tournamentID := chi.URLParam(r, "tournamentID")
+	roundID := chi.URLParam(r, "roundID")
+	userID := middleware.GetUserID(r.Context())
+
+	round, err := h.Clubs.CompleteTournamentRound(r.Context(), clubID, tournamentID, roundID, userID)
+	if err != nil {
+		Error(w, http.StatusForbidden, "Cannot complete round")
+		return
+	}
+
+	JSON(w, http.StatusOK, round)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────

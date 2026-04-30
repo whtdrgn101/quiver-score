@@ -23,11 +23,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
   File? _imageFile;
   bool _saving = false;
 
-  Future<void> _takePhoto() async {
+  Future<void> _pickImage(ImageSource source) async {
     try {
       final picker = ImagePicker();
       final photo = await picker.pickImage(
-        source: ImageSource.camera,
+        source: source,
         maxWidth: 1920,
         maxHeight: 1920,
         imageQuality: 85,
@@ -53,7 +53,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not take photo: $e')),
+          SnackBar(content: Text('Could not get photo: $e')),
         );
       }
     }
@@ -126,13 +126,25 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _saving ? null : _takePhoto,
+                    onPressed: _saving
+                        ? null
+                        : () => _pickImage(ImageSource.camera),
                     icon: const Icon(Icons.camera_alt),
-                    label: Text(_imageFile != null ? 'Retake' : 'Take Photo'),
+                    label: Text(_imageFile != null ? 'Retake' : 'Camera'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _saving
+                        ? null
+                        : () => _pickImage(ImageSource.gallery),
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('Gallery'),
                   ),
                 ),
                 if (_imageFile != null) ...[
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: FilledButton.icon(
                       onPressed: _saving ? null : _saveImage,

@@ -199,6 +199,33 @@ type TournamentLeaderboardEntry struct {
 	Status      string  `json:"status"`
 }
 
+type TournamentRoundOut struct {
+	ID           string     `json:"id"`
+	TournamentID string     `json:"tournament_id"`
+	RoundNumber  int        `json:"round_number"`
+	Name         string     `json:"name"`
+	TemplateID   *string    `json:"template_id"`
+	TemplateName *string    `json:"template_name"`
+	Advancement  *int       `json:"advancement"`
+	Status       string     `json:"status"`
+	StartedAt    *time.Time `json:"started_at"`
+	CompletedAt  *time.Time `json:"completed_at"`
+	CreatedAt    time.Time  `json:"created_at"`
+}
+
+type TournamentRoundScoreOut struct {
+	ID            string  `json:"id"`
+	RoundID       string  `json:"round_id"`
+	ParticipantID string  `json:"participant_id"`
+	UserID        string  `json:"user_id"`
+	Username      *string `json:"username"`
+	SessionID     *string `json:"session_id"`
+	Score         *int    `json:"score"`
+	XCount        *int    `json:"x_count"`
+	RankInRound   *int    `json:"rank_in_round"`
+	Advanced      bool    `json:"advanced"`
+}
+
 // ── Club CRUD ─────────────────────────────────────────────────────────
 
 func (r *ClubRepo) Create(ctx context.Context, id, name string, description *string, ownerID string) (*ClubOut, error) {
@@ -352,6 +379,8 @@ func (r *ClubRepo) Delete(ctx context.Context, clubID, userID string) error {
 
 	// Delete cascade
 	for _, q := range []string{
+		"DELETE FROM tournament_round_scores WHERE round_id IN (SELECT id FROM tournament_rounds WHERE tournament_id IN (SELECT id FROM tournaments WHERE club_id = $1))",
+		"DELETE FROM tournament_rounds WHERE tournament_id IN (SELECT id FROM tournaments WHERE club_id = $1)",
 		"DELETE FROM tournament_participants WHERE tournament_id IN (SELECT id FROM tournaments WHERE club_id = $1)",
 		"DELETE FROM tournaments WHERE club_id = $1",
 		"DELETE FROM club_event_participants WHERE event_id IN (SELECT id FROM club_events WHERE club_id = $1)",
@@ -1621,6 +1650,297 @@ func (r *ClubRepo) SubmitTournamentScore(ctx context.Context, clubID, tournament
 		score, xcount, tournamentID, userID,
 	)
 	return score, xcount, err
+}
+
+// ── Tournament Rounds ────────────────────────────────────────────────
+
+func (r *ClubRepo) AddTournamentRound(ctx context.Context, id, clubID, tournamentID, userID, name string, templateID *string, advancement *int) (*TournamentRoundOut, error) {
+	var organizerID, status string
+	err := r.DB.QueryRow(ctx,
+		"SELECT organizer_id, status FROM tournaments WHERE id = $1 AND club_id = $2",
+		tournamentID, clubID,
+	).Scan(&organizerID, &status)
+	if err != nil {
+		return nil, pgx.ErrNoRows
+	}
+	if organizerID != userID {
+		return nil, pgx.ErrNoRows
+	}
+	if status != "registration" && status != "in_progress" {
+		return nil, pgx.ErrNoRows
+	}
+
+	var nextRound int
+	r.DB.QueryRow(ctx,
+		"SELECT COALESCE(MAX(round_number), 0) + 1 FROM tournament_rounds WHERE tournament_id = $1",
+		tournamentID,
+	).Scan(&nextRound)
+
+	now := time.Now().UTC()
+	_, err = r.DB.Exec(ctx,
+		`INSERT INTO tournament_rounds (id, tournament_id, round_number, name, template_id, advancement, status, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)`,
+		id, tournamentID, nextRound, name, templateID, advancement, now,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.getTournamentRoundOut(ctx, id)
+}
+
+func (r *ClubRepo) ListTournamentRounds(ctx context.Context, clubID, tournamentID, userID string) ([]TournamentRoundOut, error) {
+	_, err := r.getMemberRole(ctx, clubID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.DB.Query(ctx,
+		"SELECT id FROM tournament_rounds WHERE tournament_id = $1 ORDER BY round_number",
+		tournamentID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var rounds []TournamentRoundOut
+	for rows.Next() {
+		var rid string
+		if err := rows.Scan(&rid); err != nil {
+			return nil, err
+		}
+		ro, err := r.getTournamentRoundOut(ctx, rid)
+		if err != nil {
+			return nil, err
+		}
+		rounds = append(rounds, *ro)
+	}
+	if rounds == nil {
+		rounds = []TournamentRoundOut{}
+	}
+	return rounds, rows.Err()
+}
+
+func (r *ClubRepo) StartTournamentRound(ctx context.Context, clubID, tournamentID, roundID, userID string) (*TournamentRoundOut, error) {
+	var organizerID string
+	err := r.DB.QueryRow(ctx,
+		"SELECT organizer_id FROM tournaments WHERE id = $1 AND club_id = $2",
+		tournamentID, clubID,
+	).Scan(&organizerID)
+	if err != nil || organizerID != userID {
+		return nil, pgx.ErrNoRows
+	}
+
+	var roundStatus string
+	err = r.DB.QueryRow(ctx,
+		"SELECT status FROM tournament_rounds WHERE id = $1 AND tournament_id = $2",
+		roundID, tournamentID,
+	).Scan(&roundStatus)
+	if err != nil || roundStatus != "pending" {
+		return nil, pgx.ErrNoRows
+	}
+
+	now := time.Now().UTC()
+	_, err = r.DB.Exec(ctx,
+		"UPDATE tournament_rounds SET status = 'in_progress', started_at = $1 WHERE id = $2",
+		now, roundID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.getTournamentRoundOut(ctx, roundID)
+}
+
+func (r *ClubRepo) SubmitTournamentRoundScore(ctx context.Context, clubID, tournamentID, roundID, userID, sessionID string) (*TournamentRoundScoreOut, error) {
+	_, err := r.getMemberRole(ctx, clubID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	var roundStatus string
+	err = r.DB.QueryRow(ctx,
+		"SELECT status FROM tournament_rounds WHERE id = $1 AND tournament_id = $2",
+		roundID, tournamentID,
+	).Scan(&roundStatus)
+	if err != nil || roundStatus != "in_progress" {
+		return nil, pgx.ErrNoRows
+	}
+
+	// Find participant
+	var participantID string
+	err = r.DB.QueryRow(ctx,
+		"SELECT id FROM tournament_participants WHERE tournament_id = $1 AND user_id = $2 AND status IN ('registered', 'active')",
+		tournamentID, userID,
+	).Scan(&participantID)
+	if err != nil {
+		return nil, pgx.ErrNoRows
+	}
+
+	// Get session score
+	var score, xcount int
+	err = r.DB.QueryRow(ctx,
+		"SELECT total_score, total_x_count FROM scoring_sessions WHERE id = $1 AND user_id = $2 AND status = 'completed'",
+		sessionID, userID,
+	).Scan(&score, &xcount)
+	if err != nil {
+		return nil, pgx.ErrNoRows
+	}
+
+	// Upsert round score
+	scoreID := generateID()
+	_, err = r.DB.Exec(ctx,
+		`INSERT INTO tournament_round_scores (id, round_id, participant_id, session_id, score, x_count)
+		 VALUES ($1, $2, $3, $4, $5, $6)
+		 ON CONFLICT ON CONSTRAINT uq_round_participant
+		 DO UPDATE SET session_id = $4, score = $5, x_count = $6`,
+		scoreID, roundID, participantID, sessionID, score, xcount,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.getTournamentRoundScoreOut(ctx, roundID, participantID)
+}
+
+func (r *ClubRepo) GetTournamentRoundLeaderboard(ctx context.Context, clubID, tournamentID, roundID, userID string) ([]TournamentRoundScoreOut, error) {
+	_, err := r.getMemberRole(ctx, clubID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.DB.Query(ctx,
+		`SELECT trs.id, trs.round_id, trs.participant_id, tp.user_id, u.username,
+		        trs.session_id, trs.score, trs.x_count, trs.rank_in_round, trs.advanced
+		 FROM tournament_round_scores trs
+		 JOIN tournament_participants tp ON tp.id = trs.participant_id
+		 LEFT JOIN users u ON u.id = tp.user_id
+		 WHERE trs.round_id = $1
+		 ORDER BY trs.score DESC NULLS LAST, trs.x_count DESC NULLS LAST`,
+		roundID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var scores []TournamentRoundScoreOut
+	for rows.Next() {
+		var s TournamentRoundScoreOut
+		if err := rows.Scan(&s.ID, &s.RoundID, &s.ParticipantID, &s.UserID, &s.Username,
+			&s.SessionID, &s.Score, &s.XCount, &s.RankInRound, &s.Advanced); err != nil {
+			return nil, err
+		}
+		scores = append(scores, s)
+	}
+	if scores == nil {
+		scores = []TournamentRoundScoreOut{}
+	}
+	return scores, rows.Err()
+}
+
+func (r *ClubRepo) CompleteTournamentRound(ctx context.Context, clubID, tournamentID, roundID, userID string) (*TournamentRoundOut, error) {
+	var organizerID string
+	err := r.DB.QueryRow(ctx,
+		"SELECT organizer_id FROM tournaments WHERE id = $1 AND club_id = $2",
+		tournamentID, clubID,
+	).Scan(&organizerID)
+	if err != nil || organizerID != userID {
+		return nil, pgx.ErrNoRows
+	}
+
+	var roundStatus string
+	var advancement *int
+	err = r.DB.QueryRow(ctx,
+		"SELECT status, advancement FROM tournament_rounds WHERE id = $1 AND tournament_id = $2",
+		roundID, tournamentID,
+	).Scan(&roundStatus, &advancement)
+	if err != nil || roundStatus != "in_progress" {
+		return nil, pgx.ErrNoRows
+	}
+
+	// Rank all scores
+	scores, err := r.GetTournamentRoundLeaderboard(ctx, clubID, tournamentID, roundID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, s := range scores {
+		rank := i + 1
+		advanced := false
+		if advancement != nil && s.Score != nil {
+			if rank <= *advancement {
+				advanced = true
+			} else if rank > *advancement {
+				// Check for tie at the cutoff boundary
+				cutoffScore := scores[*advancement-1].Score
+				cutoffX := scores[*advancement-1].XCount
+				if s.Score != nil && cutoffScore != nil && *s.Score == *cutoffScore {
+					sX := 0
+					cX := 0
+					if s.XCount != nil {
+						sX = *s.XCount
+					}
+					if cutoffX != nil {
+						cX = *cutoffX
+					}
+					if sX >= cX {
+						advanced = true
+					}
+				}
+			}
+		}
+
+		r.DB.Exec(ctx,
+			"UPDATE tournament_round_scores SET rank_in_round = $1, advanced = $2 WHERE id = $3",
+			rank, advanced, s.ID,
+		)
+	}
+
+	now := time.Now().UTC()
+	_, err = r.DB.Exec(ctx,
+		"UPDATE tournament_rounds SET status = 'completed', completed_at = $1 WHERE id = $2",
+		now, roundID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return r.getTournamentRoundOut(ctx, roundID)
+}
+
+func (r *ClubRepo) getTournamentRoundOut(ctx context.Context, roundID string) (*TournamentRoundOut, error) {
+	var ro TournamentRoundOut
+	err := r.DB.QueryRow(ctx,
+		`SELECT tr.id, tr.tournament_id, tr.round_number, tr.name, tr.template_id,
+		        rt.name, tr.advancement, tr.status, tr.started_at, tr.completed_at, tr.created_at
+		 FROM tournament_rounds tr
+		 LEFT JOIN round_templates rt ON rt.id = tr.template_id
+		 WHERE tr.id = $1`, roundID,
+	).Scan(&ro.ID, &ro.TournamentID, &ro.RoundNumber, &ro.Name, &ro.TemplateID,
+		&ro.TemplateName, &ro.Advancement, &ro.Status, &ro.StartedAt, &ro.CompletedAt, &ro.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &ro, nil
+}
+
+func (r *ClubRepo) getTournamentRoundScoreOut(ctx context.Context, roundID, participantID string) (*TournamentRoundScoreOut, error) {
+	var s TournamentRoundScoreOut
+	err := r.DB.QueryRow(ctx,
+		`SELECT trs.id, trs.round_id, trs.participant_id, tp.user_id, u.username,
+		        trs.session_id, trs.score, trs.x_count, trs.rank_in_round, trs.advanced
+		 FROM tournament_round_scores trs
+		 JOIN tournament_participants tp ON tp.id = trs.participant_id
+		 LEFT JOIN users u ON u.id = tp.user_id
+		 WHERE trs.round_id = $1 AND trs.participant_id = $2`, roundID, participantID,
+	).Scan(&s.ID, &s.RoundID, &s.ParticipantID, &s.UserID, &s.Username,
+		&s.SessionID, &s.Score, &s.XCount, &s.RankInRound, &s.Advanced)
+	if err != nil {
+		return nil, err
+	}
+	return &s, nil
 }
 
 func (r *ClubRepo) getTournamentOut(ctx context.Context, tournamentID string) (*TournamentOut, error) {

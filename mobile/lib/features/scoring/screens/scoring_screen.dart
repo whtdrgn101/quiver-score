@@ -24,6 +24,13 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
   List<String> _allowedValues = [];
   Map<String, int> _valueScoreMap = {};
   String? _currentStageId;
+  String? _currentStageName;
+  String? _currentStageDistance;
+  int _currentStageEndCount = 0;
+  int _currentStageStartEnd = 0;
+  int _totalStages = 0;
+  int _currentStageIndex = 0;
+  bool _allEndsComplete = false;
   Map<String, int> _imageCountByEnd = {};
   Map<String, bool> _imageSyncedByEnd = {};
 
@@ -65,7 +72,6 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
     final session = ref.read(scoringProvider).activeSession;
     if (session == null) return;
 
-    // Get stages for this template
     final stages = await (db.select(db.stages)
           ..where((t) => t.templateId.equals(session.templateId))
           ..orderBy([(t) => OrderingTerm.asc(t.stageOrder)]))
@@ -73,29 +79,74 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
 
     if (stages.isEmpty) return;
 
-    // Determine current stage based on ends completed
     final ends = ref.read(scoringProvider).ends;
-    var endsCompleted = ends.length;
+    final endsCompleted = ends.length;
+    final previousStageId = _currentStageId;
 
     var endsSoFar = 0;
-    for (final stage in stages) {
+    for (var i = 0; i < stages.length; i++) {
+      final stage = stages[i];
       if (endsCompleted < endsSoFar + stage.numEnds) {
         setState(() {
           _currentStageId = stage.id;
+          _currentStageName = stage.name;
+          _currentStageDistance = stage.distance;
+          _currentStageEndCount = stage.numEnds;
+          _currentStageStartEnd = endsSoFar;
+          _totalStages = stages.length;
+          _currentStageIndex = i;
           _arrowsPerEnd = stage.arrowsPerEnd;
+          _allEndsComplete = false;
           _allowedValues =
               (jsonDecode(stage.allowedValues) as List).cast<String>();
           _valueScoreMap =
               (jsonDecode(stage.valueScoreMap) as Map<String, dynamic>)
                   .map((k, v) => MapEntry(k, v as int));
         });
+
+        if (previousStageId != null &&
+            previousStageId != stage.id &&
+            mounted) {
+          _showStageTransition(stage.name, stage.distance);
+        }
         return;
       }
       endsSoFar += stage.numEnds;
     }
 
-    // All ends complete — no more arrow input needed
-    // (completion dialog is handled by _submitEnd after photo capture)
+    setState(() => _allEndsComplete = true);
+  }
+
+  void _showStageTransition(String stageName, String? distance) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.swap_vert, size: 40),
+        title: const Text('Stage Complete'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Moving to: $stageName'),
+            if (distance != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                distance,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _addArrow(String value) {
@@ -383,6 +434,34 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Stage indicator (for multi-stage rounds)
+                if (_totalStages > 1 && !_allEndsComplete) ...[
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.straighten, size: 14,
+                          color: theme.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      Text(
+                        _currentStageDistance ?? _currentStageName ?? '',
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Stage ${_currentStageIndex + 1}/$_totalStages'
+                        ' · End ${scoringState.ends.length - _currentStageStartEnd + 1}'
+                        '/$_currentStageEndCount',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 // Current arrows display
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -423,15 +502,22 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
                   ],
                 ),
                 const SizedBox(height: 12),
-                // Arrow input pad
-                ArrowInputPad(
-                  allowedValues: _allowedValues,
-                  onValueTap: _addArrow,
-                  onBackspace: _removeLastArrow,
-                  onSubmit: _currentArrows.length == _arrowsPerEnd
-                      ? _submitEnd
-                      : null,
-                ),
+                // Arrow input pad or completion prompt
+                if (_allEndsComplete)
+                  FilledButton.icon(
+                    onPressed: _showCompleteDialog,
+                    icon: const Icon(Icons.check_circle),
+                    label: const Text('Complete Round'),
+                  )
+                else
+                  ArrowInputPad(
+                    allowedValues: _allowedValues,
+                    onValueTap: _addArrow,
+                    onBackspace: _removeLastArrow,
+                    onSubmit: _currentArrows.length == _arrowsPerEnd
+                        ? _submitEnd
+                        : null,
+                  ),
               ],
             ),
           ),

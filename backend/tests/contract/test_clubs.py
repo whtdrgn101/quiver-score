@@ -806,3 +806,181 @@ def test_withdraw_from_tournament(client, register_user, unique, create_round):
         headers=member["headers"],
     )
     assert resp.status_code == 200
+
+
+# ── Tournament Rounds ────────────────────────────────────────────────
+
+
+def _create_started_tournament(client, user, club_id, unique, create_round):
+    """Helper: create and start a tournament."""
+    tourney, rnd = _create_tournament(client, user, club_id, unique, create_round)
+    client.post(
+        f"/api/v1/clubs/{club_id}/tournaments/{tourney['id']}/start",
+        headers=user["headers"],
+    )
+    return tourney, rnd
+
+
+def test_add_tournament_round(client, register_user, unique, create_round):
+    user = register_user()
+    club = client.post("/api/v1/clubs", json={"name": unique("club")}, headers=user["headers"]).json()
+    tourney, rnd = _create_tournament(client, user, club["id"], unique, create_round)
+
+    resp = client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        json={"name": "Qualifying Round", "template_id": rnd["id"], "advancement": 8},
+        headers=user["headers"],
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "Qualifying Round"
+    assert data["round_number"] == 1
+    assert data["status"] == "pending"
+    assert data["advancement"] == 8
+
+
+def test_add_tournament_round_not_organizer(client, register_user, unique, create_round):
+    owner = register_user()
+    member = register_user()
+    club = _create_club_with_member(client, owner, member, unique)
+    tourney, _ = _create_tournament(client, owner, club["id"], unique, create_round)
+
+    resp = client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        json={"name": "Round 1"},
+        headers=member["headers"],
+    )
+    assert resp.status_code in (403, 404)
+
+
+def test_list_tournament_rounds(client, register_user, unique, create_round):
+    user = register_user()
+    club = client.post("/api/v1/clubs", json={"name": unique("club")}, headers=user["headers"]).json()
+    tourney, rnd = _create_tournament(client, user, club["id"], unique, create_round)
+
+    client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        json={"name": "Round 1", "template_id": rnd["id"]},
+        headers=user["headers"],
+    )
+    client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        json={"name": "Round 2", "template_id": rnd["id"]},
+        headers=user["headers"],
+    )
+
+    resp = client.get(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        headers=user["headers"],
+    )
+    assert resp.status_code == 200
+    rounds = resp.json()
+    assert len(rounds) == 2
+    assert rounds[0]["round_number"] == 1
+    assert rounds[1]["round_number"] == 2
+
+
+def test_list_tournament_rounds_empty(client, register_user, unique, create_round):
+    user = register_user()
+    club = client.post("/api/v1/clubs", json={"name": unique("club")}, headers=user["headers"]).json()
+    tourney, _ = _create_tournament(client, user, club["id"], unique, create_round)
+
+    resp = client.get(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        headers=user["headers"],
+    )
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_start_tournament_round(client, register_user, unique, create_round):
+    user = register_user()
+    club = client.post("/api/v1/clubs", json={"name": unique("club")}, headers=user["headers"]).json()
+    tourney, rnd = _create_started_tournament(client, user, club["id"], unique, create_round)
+
+    r1 = client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        json={"name": "Round 1", "template_id": rnd["id"]},
+        headers=user["headers"],
+    ).json()
+
+    resp = client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds/{r1['id']}/start",
+        headers=user["headers"],
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "in_progress"
+    assert resp.json()["started_at"] is not None
+
+
+def test_round_leaderboard_empty(client, register_user, unique, create_round):
+    user = register_user()
+    club = client.post("/api/v1/clubs", json={"name": unique("club")}, headers=user["headers"]).json()
+    tourney, rnd = _create_started_tournament(client, user, club["id"], unique, create_round)
+
+    r1 = client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        json={"name": "Round 1", "template_id": rnd["id"]},
+        headers=user["headers"],
+    ).json()
+
+    client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds/{r1['id']}/start",
+        headers=user["headers"],
+    )
+
+    resp = client.get(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds/{r1['id']}/leaderboard",
+        headers=user["headers"],
+    )
+    assert resp.status_code == 200
+    assert resp.json() == []
+
+
+def test_complete_tournament_round(client, register_user, unique, create_round):
+    user = register_user()
+    club = client.post("/api/v1/clubs", json={"name": unique("club")}, headers=user["headers"]).json()
+    tourney, rnd = _create_started_tournament(client, user, club["id"], unique, create_round)
+
+    r1 = client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        json={"name": "Round 1", "template_id": rnd["id"]},
+        headers=user["headers"],
+    ).json()
+
+    client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds/{r1['id']}/start",
+        headers=user["headers"],
+    )
+
+    resp = client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds/{r1['id']}/complete",
+        headers=user["headers"],
+    )
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "completed"
+    assert resp.json()["completed_at"] is not None
+
+
+def test_complete_round_not_organizer(client, register_user, unique, create_round):
+    owner = register_user()
+    member = register_user()
+    club = _create_club_with_member(client, owner, member, unique)
+    tourney, rnd = _create_started_tournament(client, owner, club["id"], unique, create_round)
+
+    r1 = client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        json={"name": "Round 1", "template_id": rnd["id"]},
+        headers=owner["headers"],
+    ).json()
+
+    client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds/{r1['id']}/start",
+        headers=owner["headers"],
+    )
+
+    resp = client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds/{r1['id']}/complete",
+        headers=member["headers"],
+    )
+    assert resp.status_code in (403, 404)

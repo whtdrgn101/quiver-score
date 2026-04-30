@@ -5,6 +5,7 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
@@ -266,7 +267,7 @@ class SyncService {
     final file = File(filePath);
     if (!await file.exists()) {
       dev.log('Sync: image file not found: $filePath', name: 'SyncService');
-      return; // Skip — file was deleted
+      return;
     }
 
     dev.log(
@@ -274,9 +275,31 @@ class SyncService {
       name: 'SyncService',
     );
 
+    // Compress before upload
+    final originalSize = await file.length();
+    final compressed = await FlutterImageCompress.compressWithFile(
+      filePath,
+      minWidth: 1920,
+      minHeight: 1920,
+      quality: 70,
+      format: CompressFormat.jpeg,
+    );
+
+    String uploadPath = filePath;
+    if (compressed != null && compressed.length < originalSize) {
+      final compressedFile = File('$filePath.compressed.jpg');
+      await compressedFile.writeAsBytes(compressed);
+      uploadPath = compressedFile.path;
+      dev.log(
+        'Sync: compressed image ${originalSize ~/ 1024}KB → '
+        '${compressed.length ~/ 1024}KB',
+        name: 'SyncService',
+      );
+    }
+
     final formData = FormData.fromMap({
       'image': await MultipartFile.fromFile(
-        filePath,
+        uploadPath,
         contentType: DioMediaType.parse('image/jpeg'),
       ),
     });
@@ -285,6 +308,13 @@ class SyncService {
       '/api/v1/scoring/$syncSessionId/ends/$syncEndId/images',
       data: formData,
     );
+
+    // Clean up compressed temp file
+    if (uploadPath != filePath) {
+      try {
+        await File(uploadPath).delete();
+      } catch (_) {}
+    }
 
     // Mark local image as synced
     await (db.update(db.endImages)

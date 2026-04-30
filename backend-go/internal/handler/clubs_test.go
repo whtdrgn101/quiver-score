@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/quiverscore/backend-go/internal/config"
 	"github.com/quiverscore/backend-go/internal/middleware"
@@ -59,7 +60,13 @@ type mockClubRepo struct {
 	tournamentLeaderboardFn  func(ctx context.Context, clubID, tournamentID, userID string) ([]repository.TournamentLeaderboardEntry, error)
 	completeTournamentFn     func(ctx context.Context, clubID, tournamentID, userID string) (*repository.TournamentOut, error)
 	withdrawFromTournamentFn func(ctx context.Context, clubID, tournamentID, userID string) error
-	submitTournamentScoreFn  func(ctx context.Context, clubID, tournamentID, userID, sessionID string) (int, int, error)
+	submitTournamentScoreFn          func(ctx context.Context, clubID, tournamentID, userID, sessionID string) (int, int, error)
+	addTournamentRoundFn             func(ctx context.Context, id, clubID, tournamentID, userID, name string, templateID *string, advancement *int) (*repository.TournamentRoundOut, error)
+	listTournamentRoundsFn           func(ctx context.Context, clubID, tournamentID, userID string) ([]repository.TournamentRoundOut, error)
+	startTournamentRoundFn           func(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error)
+	submitTournamentRoundScoreFn     func(ctx context.Context, clubID, tournamentID, roundID, userID, sessionID string) (*repository.TournamentRoundScoreOut, error)
+	getTournamentRoundLeaderboardFn  func(ctx context.Context, clubID, tournamentID, roundID, userID string) ([]repository.TournamentRoundScoreOut, error)
+	completeTournamentRoundFn        func(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error)
 }
 
 func (m *mockClubRepo) Create(ctx context.Context, id, name string, description *string, ownerID string) (*repository.ClubOut, error) {
@@ -178,6 +185,24 @@ func (m *mockClubRepo) WithdrawFromTournament(ctx context.Context, clubID, tourn
 }
 func (m *mockClubRepo) SubmitTournamentScore(ctx context.Context, clubID, tournamentID, userID, sessionID string) (int, int, error) {
 	return m.submitTournamentScoreFn(ctx, clubID, tournamentID, userID, sessionID)
+}
+func (m *mockClubRepo) AddTournamentRound(ctx context.Context, id, clubID, tournamentID, userID, name string, templateID *string, advancement *int) (*repository.TournamentRoundOut, error) {
+	return m.addTournamentRoundFn(ctx, id, clubID, tournamentID, userID, name, templateID, advancement)
+}
+func (m *mockClubRepo) ListTournamentRounds(ctx context.Context, clubID, tournamentID, userID string) ([]repository.TournamentRoundOut, error) {
+	return m.listTournamentRoundsFn(ctx, clubID, tournamentID, userID)
+}
+func (m *mockClubRepo) StartTournamentRound(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error) {
+	return m.startTournamentRoundFn(ctx, clubID, tournamentID, roundID, userID)
+}
+func (m *mockClubRepo) SubmitTournamentRoundScore(ctx context.Context, clubID, tournamentID, roundID, userID, sessionID string) (*repository.TournamentRoundScoreOut, error) {
+	return m.submitTournamentRoundScoreFn(ctx, clubID, tournamentID, roundID, userID, sessionID)
+}
+func (m *mockClubRepo) GetTournamentRoundLeaderboard(ctx context.Context, clubID, tournamentID, roundID, userID string) ([]repository.TournamentRoundScoreOut, error) {
+	return m.getTournamentRoundLeaderboardFn(ctx, clubID, tournamentID, roundID, userID)
+}
+func (m *mockClubRepo) CompleteTournamentRound(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error) {
+	return m.completeTournamentRoundFn(ctx, clubID, tournamentID, roundID, userID)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -743,5 +768,297 @@ func TestCreateTournament_Success(t *testing.T) {
 	}
 	if result.Status != "registration" {
 		t.Errorf("expected status 'registration', got '%s'", result.Status)
+	}
+}
+
+// ── Tournament Rounds ────────────────────────────────────────────────
+
+func TestAddTournamentRound_Success(t *testing.T) {
+	const userID = "user-1"
+	const clubID = "club-1"
+	const tournamentID = "tourney-1"
+
+	h := clubsHandler(&mockClubRepo{
+		addTournamentRoundFn: func(_ context.Context, id, cID, tID, uID, name string, templateID *string, advancement *int) (*repository.TournamentRoundOut, error) {
+			return &repository.TournamentRoundOut{
+				ID: id, TournamentID: tID, RoundNumber: 1, Name: name,
+				TemplateID: templateID, Advancement: advancement, Status: "pending",
+			}, nil
+		},
+	})
+
+	adv := 8
+	req := clubsAuthedBody(http.MethodPost, "/rounds", userID, map[string]any{
+		"name": "Qualifying Round", "advancement": adv,
+	})
+	req = clubsChiParams(req, map[string]string{"clubID": clubID, "tournamentID": tournamentID})
+	rr := httptest.NewRecorder()
+
+	h.AddTournamentRound(rr, req)
+
+	if rr.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var result repository.TournamentRoundOut
+	json.NewDecoder(rr.Body).Decode(&result)
+	if result.Name != "Qualifying Round" {
+		t.Errorf("expected 'Qualifying Round', got '%s'", result.Name)
+	}
+	if result.Status != "pending" {
+		t.Errorf("expected status 'pending', got '%s'", result.Status)
+	}
+}
+
+func TestAddTournamentRound_MissingName(t *testing.T) {
+	const userID = "user-1"
+	const clubID = "club-1"
+	const tournamentID = "tourney-1"
+
+	h := clubsHandler(&mockClubRepo{})
+
+	req := clubsAuthedBody(http.MethodPost, "/rounds", userID, map[string]any{})
+	req = clubsChiParams(req, map[string]string{"clubID": clubID, "tournamentID": tournamentID})
+	rr := httptest.NewRecorder()
+
+	h.AddTournamentRound(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestAddTournamentRound_Forbidden(t *testing.T) {
+	const userID = "user-1"
+	const clubID = "club-1"
+	const tournamentID = "tourney-1"
+
+	h := clubsHandler(&mockClubRepo{
+		addTournamentRoundFn: func(_ context.Context, _, _, _, _, _ string, _ *string, _ *int) (*repository.TournamentRoundOut, error) {
+			return nil, pgx.ErrNoRows
+		},
+	})
+
+	req := clubsAuthedBody(http.MethodPost, "/rounds", userID, map[string]any{"name": "Round 1"})
+	req = clubsChiParams(req, map[string]string{"clubID": clubID, "tournamentID": tournamentID})
+	rr := httptest.NewRecorder()
+
+	h.AddTournamentRound(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestListTournamentRounds_Success(t *testing.T) {
+	const userID = "user-1"
+	const clubID = "club-1"
+	const tournamentID = "tourney-1"
+
+	h := clubsHandler(&mockClubRepo{
+		listTournamentRoundsFn: func(_ context.Context, _, _, _ string) ([]repository.TournamentRoundOut, error) {
+			return []repository.TournamentRoundOut{
+				{ID: "r1", RoundNumber: 1, Name: "Qualifying", Status: "completed"},
+				{ID: "r2", RoundNumber: 2, Name: "Final", Status: "pending"},
+			}, nil
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/rounds", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+	req = clubsChiParams(req, map[string]string{"clubID": clubID, "tournamentID": tournamentID})
+	rr := httptest.NewRecorder()
+
+	h.ListTournamentRounds(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var result []repository.TournamentRoundOut
+	json.NewDecoder(rr.Body).Decode(&result)
+	if len(result) != 2 {
+		t.Fatalf("expected 2 rounds, got %d", len(result))
+	}
+}
+
+func TestStartTournamentRound_Success(t *testing.T) {
+	const userID = "user-1"
+	const clubID = "club-1"
+	const tournamentID = "tourney-1"
+	const roundID = "round-1"
+
+	h := clubsHandler(&mockClubRepo{
+		startTournamentRoundFn: func(_ context.Context, _, _, _, _ string) (*repository.TournamentRoundOut, error) {
+			return &repository.TournamentRoundOut{
+				ID: roundID, RoundNumber: 1, Name: "Qualifying", Status: "in_progress",
+			}, nil
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/rounds/"+roundID+"/start", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+	req = clubsChiParams(req, map[string]string{"clubID": clubID, "tournamentID": tournamentID, "roundID": roundID})
+	rr := httptest.NewRecorder()
+
+	h.StartTournamentRound(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var result repository.TournamentRoundOut
+	json.NewDecoder(rr.Body).Decode(&result)
+	if result.Status != "in_progress" {
+		t.Errorf("expected 'in_progress', got '%s'", result.Status)
+	}
+}
+
+func TestStartTournamentRound_Forbidden(t *testing.T) {
+	const userID = "user-1"
+
+	h := clubsHandler(&mockClubRepo{
+		startTournamentRoundFn: func(_ context.Context, _, _, _, _ string) (*repository.TournamentRoundOut, error) {
+			return nil, pgx.ErrNoRows
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/rounds/r1/start", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+	req = clubsChiParams(req, map[string]string{"clubID": "c1", "tournamentID": "t1", "roundID": "r1"})
+	rr := httptest.NewRecorder()
+
+	h.StartTournamentRound(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rr.Code)
+	}
+}
+
+func TestSubmitTournamentRoundScore_Success(t *testing.T) {
+	const userID = "user-1"
+	score := 280
+	xcount := 5
+
+	h := clubsHandler(&mockClubRepo{
+		submitTournamentRoundScoreFn: func(_ context.Context, _, _, _, _, _ string) (*repository.TournamentRoundScoreOut, error) {
+			return &repository.TournamentRoundScoreOut{
+				ID: "score-1", RoundID: "r1", ParticipantID: "p1", UserID: userID,
+				Score: &score, XCount: &xcount,
+			}, nil
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/rounds/r1/submit-score?session_id=sess-1", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+	req = clubsChiParams(req, map[string]string{"clubID": "c1", "tournamentID": "t1", "roundID": "r1"})
+	rr := httptest.NewRecorder()
+
+	h.SubmitTournamentRoundScore(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestSubmitTournamentRoundScore_MissingSessionID(t *testing.T) {
+	const userID = "user-1"
+
+	h := clubsHandler(&mockClubRepo{})
+
+	req := httptest.NewRequest(http.MethodPost, "/rounds/r1/submit-score", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+	req = clubsChiParams(req, map[string]string{"clubID": "c1", "tournamentID": "t1", "roundID": "r1"})
+	rr := httptest.NewRecorder()
+
+	h.SubmitTournamentRoundScore(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d", rr.Code)
+	}
+}
+
+func TestGetTournamentRoundLeaderboard_Success(t *testing.T) {
+	const userID = "user-1"
+	score1 := 290
+	score2 := 270
+
+	h := clubsHandler(&mockClubRepo{
+		getTournamentRoundLeaderboardFn: func(_ context.Context, _, _, _, _ string) ([]repository.TournamentRoundScoreOut, error) {
+			return []repository.TournamentRoundScoreOut{
+				{ID: "s1", Score: &score1, Advanced: true},
+				{ID: "s2", Score: &score2, Advanced: false},
+			}, nil
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/rounds/r1/leaderboard", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+	req = clubsChiParams(req, map[string]string{"clubID": "c1", "tournamentID": "t1", "roundID": "r1"})
+	rr := httptest.NewRecorder()
+
+	h.GetTournamentRoundLeaderboard(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var result []repository.TournamentRoundScoreOut
+	json.NewDecoder(rr.Body).Decode(&result)
+	if len(result) != 2 {
+		t.Fatalf("expected 2 scores, got %d", len(result))
+	}
+}
+
+func TestCompleteTournamentRound_Success(t *testing.T) {
+	const userID = "user-1"
+
+	h := clubsHandler(&mockClubRepo{
+		completeTournamentRoundFn: func(_ context.Context, _, _, _, _ string) (*repository.TournamentRoundOut, error) {
+			return &repository.TournamentRoundOut{
+				ID: "r1", RoundNumber: 1, Name: "Qualifying", Status: "completed",
+			}, nil
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/rounds/r1/complete", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+	req = clubsChiParams(req, map[string]string{"clubID": "c1", "tournamentID": "t1", "roundID": "r1"})
+	rr := httptest.NewRecorder()
+
+	h.CompleteTournamentRound(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var result repository.TournamentRoundOut
+	json.NewDecoder(rr.Body).Decode(&result)
+	if result.Status != "completed" {
+		t.Errorf("expected 'completed', got '%s'", result.Status)
+	}
+}
+
+func TestCompleteTournamentRound_Forbidden(t *testing.T) {
+	const userID = "user-1"
+
+	h := clubsHandler(&mockClubRepo{
+		completeTournamentRoundFn: func(_ context.Context, _, _, _, _ string) (*repository.TournamentRoundOut, error) {
+			return nil, pgx.ErrNoRows
+		},
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/rounds/r1/complete", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+	req = clubsChiParams(req, map[string]string{"clubID": "c1", "tournamentID": "t1", "roundID": "r1"})
+	rr := httptest.NewRecorder()
+
+	h.CompleteTournamentRound(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d", rr.Code)
 	}
 }
