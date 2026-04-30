@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -433,5 +434,107 @@ func TestCoaching_ListAnnotations_Forbidden(t *testing.T) {
 
 	if rr.Code != http.StatusForbidden {
 		t.Errorf("expected 403, got %d", rr.Code)
+	}
+}
+
+// ── Respond error paths ─────────────────────────────────────────────────
+
+func TestCoaching_Respond_AlreadyResponded(t *testing.T) {
+	mock := &mockCoachingRepo{respondErr: repository.ErrValidation}
+	h := &CoachingHandler{Coaching: mock}
+
+	rr := httptest.NewRecorder()
+	h.Respond(rr, coachingPostRequest(http.MethodPost, "/respond", "athlete-1", `{"link_id":"link-1","accept":true}`))
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+func TestCoaching_Respond_InternalError(t *testing.T) {
+	mock := &mockCoachingRepo{respondErr: errors.New("db error")}
+	h := &CoachingHandler{Coaching: mock}
+
+	rr := httptest.NewRecorder()
+	h.Respond(rr, coachingPostRequest(http.MethodPost, "/respond", "athlete-1", `{"link_id":"link-1","accept":true}`))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── ListAthletes error path ─────────────────────────────────────────────
+
+func TestCoaching_ListAthletes_Error(t *testing.T) {
+	mock := &mockCoachingRepo{listAthletesErr: errors.New("db error")}
+	h := &CoachingHandler{Coaching: mock}
+
+	rr := httptest.NewRecorder()
+	h.ListAthletes(rr, authedRequest(http.MethodGet, "/athletes", "coach-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── ListCoaches error path ──────────────────────────────────────────────
+
+func TestCoaching_ListCoaches_Error(t *testing.T) {
+	mock := &mockCoachingRepo{listCoachesErr: errors.New("db error")}
+	h := &CoachingHandler{Coaching: mock}
+
+	rr := httptest.NewRecorder()
+	h.ListCoaches(rr, authedRequest(http.MethodGet, "/coaches", "athlete-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── AddAnnotation repo error path ───────────────────────────────────────
+
+func TestCoaching_AddAnnotation_RepoError(t *testing.T) {
+	mock := &mockCoachingRepo{
+		checkAccessOwner: "athlete-1",
+		addAnnotationErr: errors.New("db error"),
+	}
+	h := &CoachingHandler{Coaching: mock}
+
+	rr := httptest.NewRecorder()
+	h.AddAnnotation(rr, coachingSessionPostRequest(http.MethodPost, "/sessions/session-1/annotations", "coach-1", "session-1", `{"text":"Great shot!"}`))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── ListAnnotations repo error path ─────────────────────────────────────
+
+func TestCoaching_ListAnnotations_RepoError(t *testing.T) {
+	mock := &mockCoachingRepo{
+		checkAccessOwner:   "athlete-1",
+		listAnnotationsErr: errors.New("db error"),
+	}
+	h := &CoachingHandler{Coaching: mock}
+
+	rr := httptest.NewRecorder()
+	h.ListAnnotations(rr, coachingSessionRequest(http.MethodGet, "/sessions/session-1/annotations", "coach-1", "session-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── ViewAthleteSessions error path ──────────────────────────────────────
+
+func TestCoaching_ViewAthleteSessions_InternalError(t *testing.T) {
+	mock := &mockCoachingRepo{athleteSessionsErr: errors.New("db error")}
+	h := &CoachingHandler{Coaching: mock}
+
+	rr := httptest.NewRecorder()
+	h.ViewAthleteSessions(rr, coachingAthleteRequest(http.MethodGet, "/athletes/athlete-1/sessions", "coach-1", "athlete-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
 	}
 }

@@ -589,3 +589,191 @@ func TestRounds_Unshare_NotFound(t *testing.T) {
 		t.Errorf("expected 404, got %d", rr.Code)
 	}
 }
+
+// ── List error path ──────────────────────────────────────────────────
+
+func TestRounds_List_Error(t *testing.T) {
+	mock := &mockRoundRepo{listErr: errors.New("db error")}
+	h := &RoundsHandler{Rounds: mock}
+
+	rr := httptest.NewRecorder()
+	h.List(rr, authedRequest(http.MethodGet, "/", "user-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── Create error path ────────────────────────────────────────────────
+
+func TestRounds_Create_RepoError(t *testing.T) {
+	mock := &mockRoundRepo{createErr: errors.New("db error")}
+	h := &RoundsHandler{Rounds: mock}
+
+	body := map[string]any{
+		"name":         "Test Round",
+		"organization": "Test Org",
+		"stages":       sampleStages(),
+	}
+	req := roundRequest(http.MethodPost, "/", "user-1", body)
+
+	rr := httptest.NewRecorder()
+	h.Create(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── Delete error paths ───────────────────────────────────────────────
+
+func TestRounds_Delete_InvalidUUID(t *testing.T) {
+	h := &RoundsHandler{Rounds: &mockRoundRepo{}}
+
+	req := authedRequest(http.MethodDelete, "/bad-uuid", "user-1")
+	req = withChiURLParam(req, "id", "bad-uuid")
+
+	rr := httptest.NewRecorder()
+	h.Delete(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestRounds_Delete_RepoError(t *testing.T) {
+	userID := "user-1"
+	mock := &mockRoundRepo{
+		permIsOfficial: false,
+		permCreatedBy:  strPtr(userID),
+		deleteErr:      errors.New("db error"),
+	}
+	h := &RoundsHandler{Rounds: mock}
+
+	validID := uuid.New().String()
+	req := authedRequest(http.MethodDelete, "/"+validID, userID)
+	req = withChiURLParam(req, "id", validID)
+
+	rr := httptest.NewRecorder()
+	h.Delete(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── Update error paths ───────────────────────────────────────────────
+
+func TestRounds_Update_InvalidUUID(t *testing.T) {
+	h := &RoundsHandler{Rounds: &mockRoundRepo{}}
+
+	body := map[string]any{
+		"name":         "Test",
+		"organization": "Test",
+		"stages":       sampleStages(),
+	}
+	req := roundRequest(http.MethodPut, "/bad-uuid", "user-1", body)
+	req = withChiURLParam(req, "id", "bad-uuid")
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestRounds_Update_MissingName(t *testing.T) {
+	h := &RoundsHandler{Rounds: &mockRoundRepo{}}
+
+	body := map[string]any{
+		"organization": "Test",
+		"stages":       sampleStages(),
+	}
+	validID := uuid.New().String()
+	req := roundRequest(http.MethodPut, "/"+validID, "user-1", body)
+	req = withChiURLParam(req, "id", validID)
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+// ── Share error paths ────────────────────────────────────────────────
+
+func TestRounds_Share_NotMember(t *testing.T) {
+	userID := "user-1"
+	clubID := uuid.New().String()
+	mock := &mockRoundRepo{
+		permIsOfficial: false,
+		permCreatedBy:  strPtr(userID),
+		isMember:       false,
+	}
+	h := &RoundsHandler{Rounds: mock}
+
+	validID := uuid.New().String()
+	body := map[string]any{"club_id": clubID}
+	req := roundRequest(http.MethodPost, "/"+validID+"/share", userID, body)
+	req = withChiURLParam(req, "id", validID)
+
+	rr := httptest.NewRecorder()
+	h.Share(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestRounds_Share_InvalidUUID(t *testing.T) {
+	h := &RoundsHandler{Rounds: &mockRoundRepo{}}
+
+	body := map[string]any{"club_id": uuid.New().String()}
+	req := roundRequest(http.MethodPost, "/bad-uuid/share", "user-1", body)
+	req = withChiURLParam(req, "id", "bad-uuid")
+
+	rr := httptest.NewRecorder()
+	h.Share(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+// ── Unshare error paths ──────────────────────────────────────────────
+
+func TestRounds_Unshare_InvalidUUID(t *testing.T) {
+	h := &RoundsHandler{Rounds: &mockRoundRepo{}}
+
+	req := authedRequest(http.MethodDelete, "/bad-uuid/share/club-1", "user-1")
+	req = withChiURLParams(req, map[string]string{"id": "bad-uuid", "club_id": "club-1"})
+
+	rr := httptest.NewRecorder()
+	h.Unshare(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestRounds_Unshare_NotOwner(t *testing.T) {
+	mock := &mockRoundRepo{
+		permIsOfficial: false,
+		permCreatedBy:  strPtr("other-user"),
+	}
+	h := &RoundsHandler{Rounds: mock}
+
+	validID := uuid.New().String()
+	clubID := uuid.New().String()
+	req := authedRequest(http.MethodDelete, "/"+validID+"/share/"+clubID, "user-1")
+	req = withChiURLParams(req, map[string]string{"id": validID, "club_id": clubID})
+
+	rr := httptest.NewRecorder()
+	h.Unshare(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", rr.Code)
+	}
+}

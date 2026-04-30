@@ -282,3 +282,60 @@ func TestEquipment_Update_InvalidCategory(t *testing.T) {
 		t.Errorf("expected 422, got %d", rr.Code)
 	}
 }
+
+func TestEquipment_Update_NotFound(t *testing.T) {
+	id := uuid.New().String()
+	mock := &mockEquipmentRepo{updateErr: errors.New("not found")}
+	h := &EquipmentHandler{Equipment: mock}
+
+	body := strings.NewReader(`{"name":"Updated Bow"}`)
+	req := httptest.NewRequest(http.MethodPut, "/"+id, body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", id)
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestEquipment_Update_InvalidUUID(t *testing.T) {
+	h := &EquipmentHandler{Equipment: &mockEquipmentRepo{}}
+
+	body := strings.NewReader(`{"name":"Test"}`)
+	req := httptest.NewRequest(http.MethodPut, "/bad-uuid", body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "bad-uuid")
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestEquipment_Create_RepoError(t *testing.T) {
+	mock := &mockEquipmentRepo{createErr: errors.New("db error")}
+	h := &EquipmentHandler{Equipment: mock}
+
+	body := strings.NewReader(`{"name":"Test Riser","category":"riser"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Create(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}

@@ -669,6 +669,712 @@ func TestExportCSV_Success(t *testing.T) {
 	}
 }
 
+func TestExportCSV_NotFound(t *testing.T) {
+	mock := &mockScoringRepo{
+		loadSessionOutErr: errNotFound,
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := authedRequest(http.MethodGet, "/"+sessionID+"/export?format=csv", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.ExportSingle(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestExportCSV_InvalidUUID(t *testing.T) {
+	h := scoringHandler(&mockScoringRepo{})
+
+	req := authedRequest(http.MethodGet, "/bad-uuid/export?format=csv", "user-1")
+	req = withURLParam(req, "id", "bad-uuid")
+
+	rr := httptest.NewRecorder()
+	h.ExportSingle(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+// ── ListSessions error paths ────────────────────────────────────────
+
+func TestListSessions_Error(t *testing.T) {
+	mock := &mockScoringRepo{
+		listSessionsErr: errors.New("db error"),
+	}
+	h := scoringHandler(mock)
+
+	rr := httptest.NewRecorder()
+	h.List(rr, authedRequest(http.MethodGet, "/", "user-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestListSessions_WithFilters(t *testing.T) {
+	mock := &mockScoringRepo{
+		listSessionsResult: []repository.SessionSummary{},
+	}
+	h := scoringHandler(mock)
+
+	rr := httptest.NewRecorder()
+	h.List(rr, authedRequest(http.MethodGet, "/?template_id=tpl1&date_from=2025-01-01&date_to=2025-12-31&search=test", "user-1"))
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+}
+
+// ── CreateSession error paths ────────────────────────────────────────
+
+func TestCreateSession_SetupProfileNotFound(t *testing.T) {
+	mock := &mockScoringRepo{
+		setupProfileExists: false,
+	}
+	h := scoringHandler(mock)
+
+	setupID := uuid.New().String()
+	body := `{"template_id":"` + uuid.New().String() + `","setup_profile_id":"` + setupID + `"}`
+	req := scoringAuthedReq(http.MethodPost, "/", body, "user-1")
+
+	rr := httptest.NewRecorder()
+	h.Create(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestCreateSession_RepoError(t *testing.T) {
+	mock := &mockScoringRepo{
+		createSessionErr: errors.New("db error"),
+	}
+	h := scoringHandler(mock)
+
+	body := `{"template_id":"` + uuid.New().String() + `"}`
+	req := scoringAuthedReq(http.MethodPost, "/", body, "user-1")
+
+	rr := httptest.NewRecorder()
+	h.Create(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── Abandon error paths ──────────────────────────────────────────────
+
+func TestAbandonSession_NotFound(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusErr: errNotFound,
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := authedRequest(http.MethodPost, "/"+sessionID+"/abandon", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.Abandon(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestAbandonSession_NotInProgress(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusResult: "completed",
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := authedRequest(http.MethodPost, "/"+sessionID+"/abandon", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.Abandon(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+func TestAbandonSession_InvalidUUID(t *testing.T) {
+	h := scoringHandler(&mockScoringRepo{})
+
+	req := authedRequest(http.MethodPost, "/bad-uuid/abandon", "user-1")
+	req = withURLParam(req, "id", "bad-uuid")
+
+	rr := httptest.NewRecorder()
+	h.Abandon(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+// ── Delete error paths ───────────────────────────────────────────────
+
+func TestDeleteSession_NotAbandoned(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusResult: "in_progress",
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := authedRequest(http.MethodDelete, "/"+sessionID, "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.Delete(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+func TestDeleteSession_InvalidUUID(t *testing.T) {
+	h := scoringHandler(&mockScoringRepo{})
+
+	req := authedRequest(http.MethodDelete, "/bad-uuid", "user-1")
+	req = withURLParam(req, "id", "bad-uuid")
+
+	rr := httptest.NewRecorder()
+	h.Delete(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+// ── Stats error path ─────────────────────────────────────────────────
+
+func TestGetStats_Error(t *testing.T) {
+	mock := &mockScoringRepo{
+		statsErr: errors.New("db error"),
+	}
+	h := scoringHandler(mock)
+
+	rr := httptest.NewRecorder()
+	h.Stats(rr, authedRequest(http.MethodGet, "/stats", "user-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── PersonalRecords error path ───────────────────────────────────────
+
+func TestGetPersonalRecords_Error(t *testing.T) {
+	mock := &mockScoringRepo{
+		personalRecordsErr: errors.New("db error"),
+	}
+	h := scoringHandler(mock)
+
+	rr := httptest.NewRecorder()
+	h.PersonalRecords(rr, authedRequest(http.MethodGet, "/personal-records", "user-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── Trends error path ────────────────────────────────────────────────
+
+func TestGetTrends_Error(t *testing.T) {
+	mock := &mockScoringRepo{
+		trendsErr: errors.New("db error"),
+	}
+	h := scoringHandler(mock)
+
+	rr := httptest.NewRecorder()
+	h.Trends(rr, authedRequest(http.MethodGet, "/trends", "user-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── UndoLastEnd error paths ──────────────────────────────────────────
+
+func TestUndoEnd_NotFound(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusErr: errNotFound,
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := authedRequest(http.MethodDelete, "/"+sessionID+"/ends/last", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.UndoLastEnd(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestUndoEnd_NotInProgress(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusResult: "completed",
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := authedRequest(http.MethodDelete, "/"+sessionID+"/ends/last", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.UndoLastEnd(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+func TestUndoEnd_InvalidUUID(t *testing.T) {
+	h := scoringHandler(&mockScoringRepo{})
+
+	req := authedRequest(http.MethodDelete, "/bad-uuid/ends/last", "user-1")
+	req = withURLParam(req, "id", "bad-uuid")
+
+	rr := httptest.NewRecorder()
+	h.UndoLastEnd(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+// ── ExportBulk error path ────────────────────────────────────────────
+
+func TestExportBulkCSV_Error(t *testing.T) {
+	mock := &mockScoringRepo{
+		exportBulkDataErr: errors.New("db error"),
+	}
+	h := scoringHandler(mock)
+
+	rr := httptest.NewRecorder()
+	h.ExportBulk(rr, authedRequest(http.MethodGet, "/export", "user-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── SubmitEnd error paths ────────────────────────────────────────────
+
+func TestSubmitEnd_InvalidUUID(t *testing.T) {
+	h := scoringHandler(&mockScoringRepo{})
+
+	req := scoringAuthedReq(http.MethodPost, "/bad-uuid/ends", `{"stage_id":"x","arrows":[]}`, "user-1")
+	req = withURLParam(req, "id", "bad-uuid")
+
+	rr := httptest.NewRecorder()
+	h.SubmitEnd(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSubmitEnd_SessionNotFound(t *testing.T) {
+	mock := &mockScoringRepo{getSessionStatusErr: errNotFound}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	stageID := uuid.New().String()
+	body := `{"stage_id":"` + stageID + `","arrows":[{"score_value":"10"}]}`
+	req := scoringAuthedReq(http.MethodPost, "/"+sessionID+"/ends", body, "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.SubmitEnd(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSubmitEnd_NotInProgress(t *testing.T) {
+	mock := &mockScoringRepo{getSessionStatusResult: "completed"}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	stageID := uuid.New().String()
+	body := `{"stage_id":"` + stageID + `","arrows":[{"score_value":"10"}]}`
+	req := scoringAuthedReq(http.MethodPost, "/"+sessionID+"/ends", body, "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.SubmitEnd(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+func TestSubmitEnd_StageNotFound(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusResult: "in_progress",
+		getStageInfoErr:        errNotFound,
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	stageID := uuid.New().String()
+	body := `{"stage_id":"` + stageID + `","arrows":[{"score_value":"10"}]}`
+	req := scoringAuthedReq(http.MethodPost, "/"+sessionID+"/ends", body, "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.SubmitEnd(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSubmitEnd_WrongArrowCount(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusResult: "in_progress",
+		getStageInfoResult: &repository.StageInfo{
+			ArrowsPerEnd:  3,
+			AllowedValues: []string{"10", "9", "8"},
+			ValueScoreMap: map[string]int{"10": 10, "9": 9, "8": 8},
+		},
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	stageID := uuid.New().String()
+	body := `{"stage_id":"` + stageID + `","arrows":[{"score_value":"10"}]}`
+	req := scoringAuthedReq(http.MethodPost, "/"+sessionID+"/ends", body, "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.SubmitEnd(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+func TestSubmitEnd_InvalidArrowValue(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusResult: "in_progress",
+		getStageInfoResult: &repository.StageInfo{
+			ArrowsPerEnd:  1,
+			AllowedValues: []string{"10", "9"},
+			ValueScoreMap: map[string]int{"10": 10, "9": 9},
+		},
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	stageID := uuid.New().String()
+	body := `{"stage_id":"` + stageID + `","arrows":[{"score_value":"INVALID"}]}`
+	req := scoringAuthedReq(http.MethodPost, "/"+sessionID+"/ends", body, "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.SubmitEnd(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+func TestSubmitEnd_RepoError(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusResult: "in_progress",
+		getStageInfoResult: &repository.StageInfo{
+			ArrowsPerEnd:  1,
+			AllowedValues: []string{"10"},
+			ValueScoreMap: map[string]int{"10": 10},
+		},
+		getEndCountResult: 0,
+		submitEndErr:      errors.New("db error"),
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	stageID := uuid.New().String()
+	body := `{"stage_id":"` + stageID + `","arrows":[{"score_value":"10"}]}`
+	req := scoringAuthedReq(http.MethodPost, "/"+sessionID+"/ends", body, "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.SubmitEnd(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── Complete error paths ────────────────────────────────────────────
+
+func TestCompleteSession_NotFound(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionForCompleteErr: errNotFound,
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := scoringAuthedReq(http.MethodPost, "/"+sessionID+"/complete", "", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.Complete(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestCompleteSession_InvalidUUID(t *testing.T) {
+	h := scoringHandler(&mockScoringRepo{})
+
+	req := scoringAuthedReq(http.MethodPost, "/bad-uuid/complete", "", "user-1")
+	req = withURLParam(req, "id", "bad-uuid")
+
+	rr := httptest.NewRecorder()
+	h.Complete(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestCompleteSession_RepoError(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionForCompleteTemplateID: uuid.New().String(),
+		getSessionForCompleteStatus:     "in_progress",
+		getSessionForCompleteTotalScore: 250,
+		completeSessionErr:              errors.New("db error"),
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := scoringAuthedReq(http.MethodPost, "/"+sessionID+"/complete", "", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.Complete(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestCompleteSession_PersonalBest(t *testing.T) {
+	out := sessionOut()
+	out.Status = "completed"
+	mock := &mockScoringRepo{
+		getSessionForCompleteTemplateID: uuid.New().String(),
+		getSessionForCompleteStatus:     "in_progress",
+		getSessionForCompleteTotalScore: 600,
+		upsertPersonalRecordResult:      true,
+		getTemplateNameResult:           "WA 720 (70m)",
+		loadSessionOutResult:            out,
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := scoringAuthedReq(http.MethodPost, "/"+sessionID+"/complete", `{"notes":"Great session"}`, "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.Complete(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var result repository.SessionOut
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+	if !result.IsPersonalBest {
+		t.Error("expected IsPersonalBest to be true")
+	}
+}
+
+func TestCompleteSession_LoadError(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionForCompleteTemplateID: uuid.New().String(),
+		getSessionForCompleteStatus:     "in_progress",
+		getSessionForCompleteTotalScore: 250,
+		getTemplateNameResult:           "Practice Round",
+		loadSessionOutErr:               errors.New("load error"),
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := scoringAuthedReq(http.MethodPost, "/"+sessionID+"/complete", "", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.Complete(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── ExportSingle PDF format ─────────────────────────────────────────
+
+func TestExportSingle_PDF(t *testing.T) {
+	out := sessionOut()
+	out.Status = "completed"
+	out.Template = &repository.RoundTemplateOut{
+		ID:           out.TemplateID,
+		Name:         "WA 720 (70m)",
+		Organization: "World Archery",
+		IsOfficial:   true,
+	}
+	out.Ends = []repository.EndOut{}
+	mock := &mockScoringRepo{
+		loadSessionOutResult: out,
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := authedRequest(http.MethodGet, "/"+sessionID+"/export?format=pdf", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.ExportSingle(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if ct := rr.Header().Get("Content-Type"); ct != "application/pdf" {
+		t.Errorf("expected Content-Type application/pdf, got %s", ct)
+	}
+}
+
+// ── UndoEnd additional error paths ──────────────────────────────────
+
+func TestUndoEnd_UndoFails(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusResult: "in_progress",
+		undoLastEndErr:         errors.New("no ends"),
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := authedRequest(http.MethodDelete, "/"+sessionID+"/ends/last", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.UndoLastEnd(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+func TestUndoEnd_LoadError(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusResult: "in_progress",
+		loadSessionOutErr:      errors.New("load error"),
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := authedRequest(http.MethodDelete, "/"+sessionID+"/ends/last", "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.UndoLastEnd(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── GetSession additional paths ─────────────────────────────────────
+
+func TestGetSession_InvalidUUID(t *testing.T) {
+	h := scoringHandler(&mockScoringRepo{})
+
+	req := authedRequest(http.MethodGet, "/bad-uuid", "user-1")
+	req = withURLParam(req, "id", "bad-uuid")
+
+	rr := httptest.NewRecorder()
+	h.Get(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+// ── Delete additional paths ─────────────────────────────────────────
+
+func TestDeleteSession_RepoError(t *testing.T) {
+	mock := &mockScoringRepo{
+		getSessionStatusResult: "abandoned",
+		deleteSessionErr:       errors.New("db error"),
+	}
+	h := scoringHandler(mock)
+
+	sessionID := uuid.New().String()
+	req := authedRequest(http.MethodDelete, "/"+sessionID, "user-1")
+	req = withURLParam(req, "id", sessionID)
+
+	rr := httptest.NewRecorder()
+	h.Delete(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── Classification ──────────────────────────────────────────────────
+
+func TestCalculateClassification_KnownTemplate(t *testing.T) {
+	system, classification := calculateClassification(600, "WA 720 (70m)")
+	if system != "ArcheryGB" {
+		t.Errorf("expected ArcheryGB, got %s", system)
+	}
+	if classification != "Master Bowman" {
+		t.Errorf("expected Master Bowman, got %s", classification)
+	}
+}
+
+func TestCalculateClassification_UnknownTemplate(t *testing.T) {
+	system, classification := calculateClassification(600, "Unknown Round")
+	if system != "" || classification != "" {
+		t.Errorf("expected empty strings, got %q %q", system, classification)
+	}
+}
+
+func TestCalculateClassification_BelowAllThresholds(t *testing.T) {
+	system, classification := calculateClassification(10, "WA 720 (70m)")
+	if system != "" || classification != "" {
+		t.Errorf("expected empty strings for score below all thresholds, got %q %q", system, classification)
+	}
+}
+
+func TestCalculateClassification_NFAA(t *testing.T) {
+	system, classification := calculateClassification(295, "NFAA 300 Indoor")
+	if system != "NFAA" {
+		t.Errorf("expected NFAA, got %s", system)
+	}
+	if classification != "Expert" {
+		t.Errorf("expected Expert, got %s", classification)
+	}
+}
+
 // ── ExportBulkCSV ────────────────────────────────────────────────────
 
 func TestExportBulkCSV_Success(t *testing.T) {

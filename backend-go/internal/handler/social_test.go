@@ -202,3 +202,51 @@ func TestSocial_GetFeed_WithQueryParams(t *testing.T) {
 		t.Errorf("expected 200, got %d", rr.Code)
 	}
 }
+
+func TestSocial_Follow_InternalError(t *testing.T) {
+	mock := &mockSocialRepo{followErr: errors.New("db error")}
+	h := &SocialHandler{Social: mock}
+
+	rr := httptest.NewRecorder()
+	h.Follow(rr, socialRequest(http.MethodPost, "/follow/user-2", "user-1", "user-2"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestSocial_Unfollow_InternalError(t *testing.T) {
+	mock := &mockSocialRepo{unfollowErr: errors.New("db error")}
+	h := &SocialHandler{Social: mock}
+
+	rr := httptest.NewRecorder()
+	h.Unfollow(rr, socialRequest(http.MethodDelete, "/follow/user-2", "user-1", "user-2"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestSocial_ListFollowers_Error(t *testing.T) {
+	mock := &mockSocialRepo{followersErr: errors.New("db error")}
+	h := &SocialHandler{Social: mock}
+
+	rr := httptest.NewRecorder()
+	h.ListFollowers(rr, authedRequest(http.MethodGet, "/followers", "user-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestSocial_ListFollowing_Error(t *testing.T) {
+	mock := &mockSocialRepo{followingErr: errors.New("db error")}
+	h := &SocialHandler{Social: mock}
+
+	rr := httptest.NewRecorder()
+	h.ListFollowing(rr, authedRequest(http.MethodGet, "/following", "user-1"))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}

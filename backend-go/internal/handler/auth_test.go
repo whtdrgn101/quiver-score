@@ -496,3 +496,207 @@ func TestDeleteAccount_WrongConfirmation(t *testing.T) {
 		t.Errorf("expected 401, got %d", rr.Code)
 	}
 }
+
+func TestDeleteAccount_RepoError(t *testing.T) {
+	mock := &mockAuthUserRepo{deleteUserDataErr: errors.New("db error")}
+	h := &AuthHandler{Users: mock, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	body := strings.NewReader(`{"confirmation":"Yes, delete ALL of my data"}`)
+	req := httptest.NewRequest(http.MethodPost, "/delete-account", body)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "user-1"))
+	rr := httptest.NewRecorder()
+	h.DeleteAccount(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── ResendVerification Tests ─────────────────────────────────────────
+
+func TestResendVerification_Success(t *testing.T) {
+	mock := &mockAuthUserRepo{
+		getEmailInfoEmail:    "user@example.com",
+		getEmailInfoVerified: false,
+	}
+	h := &AuthHandler{Users: mock, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	req := httptest.NewRequest(http.MethodPost, "/resend-verification", nil)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "user-1"))
+	rr := httptest.NewRecorder()
+	h.ResendVerification(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	detail := parseDetail(t, rr)
+	if detail != "Verification email sent." {
+		t.Errorf("expected 'Verification email sent.', got '%s'", detail)
+	}
+}
+
+func TestResendVerification_AlreadyVerified(t *testing.T) {
+	mock := &mockAuthUserRepo{
+		getEmailInfoEmail:    "user@example.com",
+		getEmailInfoVerified: true,
+	}
+	h := &AuthHandler{Users: mock, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	req := httptest.NewRequest(http.MethodPost, "/resend-verification", nil)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "user-1"))
+	rr := httptest.NewRecorder()
+	h.ResendVerification(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+
+	detail := parseDetail(t, rr)
+	if detail != "Email is already verified." {
+		t.Errorf("expected 'Email is already verified.', got '%s'", detail)
+	}
+}
+
+func TestResendVerification_NotAuthenticated(t *testing.T) {
+	mock := &mockAuthUserRepo{
+		getEmailInfoErr: errors.New("not found"),
+	}
+	h := &AuthHandler{Users: mock, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	req := httptest.NewRequest(http.MethodPost, "/resend-verification", nil)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "user-1"))
+	rr := httptest.NewRecorder()
+	h.ResendVerification(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}
+
+// ── Register error paths ────────────────────────────────────────────
+
+func TestRegister_RepoCreateError(t *testing.T) {
+	mock := &mockAuthUserRepo{
+		existsByEmailOrUsernameResult: false,
+		createErr:                     errors.New("db error"),
+	}
+	h := &AuthHandler{Users: mock, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	body := strings.NewReader(`{"email":"user@example.com","username":"testuser","password":"password123"}`)
+	req := httptest.NewRequest(http.MethodPost, "/register", body)
+	rr := httptest.NewRecorder()
+	h.Register(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestRegister_MissingFields(t *testing.T) {
+	h := &AuthHandler{Users: &mockAuthUserRepo{}, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	body := strings.NewReader(`{"email":"","username":"","password":""}`)
+	req := httptest.NewRequest(http.MethodPost, "/register", body)
+	rr := httptest.NewRecorder()
+	h.Register(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+// ── ForgotPassword with existing email ───────────────────────────────
+
+func TestForgotPassword_ExistingEmail(t *testing.T) {
+	mock := &mockAuthUserRepo{
+		existsByEmailResult: true,
+	}
+	h := &AuthHandler{Users: mock, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	body := strings.NewReader(`{"email":"user@example.com"}`)
+	req := httptest.NewRequest(http.MethodPost, "/forgot-password", body)
+	rr := httptest.NewRecorder()
+	h.ForgotPassword(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+}
+
+// ── ChangePassword wrong current password ────────────────────────────
+
+func TestChangePassword_WrongCurrentPassword(t *testing.T) {
+	hashedPw, _ := auth.HashPassword("correctpassword")
+	mock := &mockAuthUserRepo{
+		getHashedPasswordResult: hashedPw,
+	}
+	h := &AuthHandler{Users: mock, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	body := strings.NewReader(`{"current_password":"wrongpassword","new_password":"newpassword123"}`)
+	req := httptest.NewRequest(http.MethodPost, "/change-password", body)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "user-1"))
+	rr := httptest.NewRecorder()
+	h.ChangePassword(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}
+
+// ── ResetPassword user not found ─────────────────────────────────────
+
+func TestResetPassword_UserNotFound(t *testing.T) {
+	token, _ := auth.CreateResetToken("user@example.com", testCfg.PasswordResetTokenExpireMinutes, testCfg.SecretKey)
+	mock := &mockAuthUserRepo{
+		resetPasswordByEmailResult: false,
+	}
+	h := &AuthHandler{Users: mock, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	body := strings.NewReader(`{"token":"` + token + `","new_password":"newpassword123"}`)
+	req := httptest.NewRequest(http.MethodPost, "/reset-password", body)
+	rr := httptest.NewRecorder()
+	h.ResetPassword(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}
+
+// ── Refresh with nonexistent user ────────────────────────────────────
+
+func TestRefresh_UserNotFound(t *testing.T) {
+	refreshToken, _ := auth.CreateRefreshToken("user-1", testCfg.RefreshTokenExpireDays, testCfg.SecretKey)
+	mock := &mockAuthUserRepo{
+		existsResult: false,
+	}
+	h := &AuthHandler{Users: mock, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	body := strings.NewReader(`{"refresh_token":"` + refreshToken + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/refresh", body)
+	rr := httptest.NewRecorder()
+	h.Refresh(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}
+
+// ── VerifyEmail returns false (already verified / not found) ─────────
+
+func TestVerifyEmail_NotFound(t *testing.T) {
+	token, _ := auth.CreateEmailVerificationToken("user@example.com", testCfg.EmailVerificationTokenExpireHours, testCfg.SecretKey)
+	mock := &mockAuthUserRepo{
+		verifyEmailResult: false,
+	}
+	h := &AuthHandler{Users: mock, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	body := strings.NewReader(`{"token":"` + token + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/verify-email", body)
+	rr := httptest.NewRecorder()
+	h.VerifyEmail(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}

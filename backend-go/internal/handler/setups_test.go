@@ -416,3 +416,261 @@ func TestSetups_RemoveEquipment_NotLinked(t *testing.T) {
 		t.Errorf("expected 404, got %d", rr.Code)
 	}
 }
+
+// ── Create error paths ──────────────────────────────────────────────
+
+func TestSetups_Create_RepoError(t *testing.T) {
+	mock := &mockSetupRepo{createErr: errors.New("db error")}
+	h := &SetupsHandler{Setups: mock}
+
+	body := strings.NewReader(`{"name":"My Setup"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Create(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestSetups_Create_LoadError(t *testing.T) {
+	mock := &mockSetupRepo{
+		createID: uuid.New().String(),
+		loadErr:  errors.New("load error"),
+	}
+	h := &SetupsHandler{Setups: mock}
+
+	body := strings.NewReader(`{"name":"My Setup"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Create(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── Update error paths ──────────────────────────────────────────────
+
+func TestSetups_Update_InvalidUUID(t *testing.T) {
+	h := &SetupsHandler{Setups: &mockSetupRepo{}}
+
+	body := strings.NewReader(`{"name":"Updated"}`)
+	req := httptest.NewRequest(http.MethodPut, "/bad-uuid", body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "bad-uuid")
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSetups_Update_RepoError(t *testing.T) {
+	id := uuid.New().String()
+	mock := &mockSetupRepo{
+		existsResult: true,
+		updateResult: false,
+		updateErr:    errors.New("db error"),
+	}
+	h := &SetupsHandler{Setups: mock}
+
+	body := strings.NewReader(`{"name":"Updated"}`)
+	req := httptest.NewRequest(http.MethodPut, "/"+id, body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", id)
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestSetups_Update_LoadError(t *testing.T) {
+	id := uuid.New().String()
+	mock := &mockSetupRepo{
+		existsResult: true,
+		updateResult: true,
+		loadErr:      errors.New("load error"),
+	}
+	h := &SetupsHandler{Setups: mock}
+
+	body := strings.NewReader(`{"name":"Updated"}`)
+	req := httptest.NewRequest(http.MethodPut, "/"+id, body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", id)
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── Delete error paths ──────────────────────────────────────────────
+
+func TestSetups_Delete_InvalidUUID(t *testing.T) {
+	h := &SetupsHandler{Setups: &mockSetupRepo{}}
+
+	rr := httptest.NewRecorder()
+	h.Delete(rr, setupRequest(http.MethodDelete, "/bad-uuid", "user-1", "bad-uuid"))
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+// ── AddEquipment error paths ────────────────────────────────────────
+
+func TestSetups_AddEquipment_InvalidSetupUUID(t *testing.T) {
+	h := &SetupsHandler{Setups: &mockSetupRepo{}}
+
+	rr := httptest.NewRecorder()
+	equipID := uuid.New().String()
+	h.AddEquipment(rr, setupEquipRequest(http.MethodPost, "/bad/equipment/"+equipID, "user-1", "bad", equipID))
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSetups_AddEquipment_InvalidEquipUUID(t *testing.T) {
+	setupID := uuid.New().String()
+	h := &SetupsHandler{Setups: &mockSetupRepo{}}
+
+	rr := httptest.NewRecorder()
+	h.AddEquipment(rr, setupEquipRequest(http.MethodPost, "/"+setupID+"/equipment/bad", "user-1", setupID, "bad"))
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSetups_AddEquipment_SetupNotFound(t *testing.T) {
+	setupID := uuid.New().String()
+	equipID := uuid.New().String()
+	mock := &mockSetupRepo{existsResult: false}
+	h := &SetupsHandler{Setups: mock}
+
+	rr := httptest.NewRecorder()
+	h.AddEquipment(rr, setupEquipRequest(http.MethodPost, "/"+setupID+"/equipment/"+equipID, "user-1", setupID, equipID))
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSetups_AddEquipment_EquipNotFound(t *testing.T) {
+	setupID := uuid.New().String()
+	equipID := uuid.New().String()
+	mock := &mockSetupRepo{
+		existsResult:      true,
+		equipExistsResult: false,
+	}
+	h := &SetupsHandler{Setups: mock}
+
+	rr := httptest.NewRecorder()
+	h.AddEquipment(rr, setupEquipRequest(http.MethodPost, "/"+setupID+"/equipment/"+equipID, "user-1", setupID, equipID))
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSetups_AddEquipment_RepoError(t *testing.T) {
+	setupID := uuid.New().String()
+	equipID := uuid.New().String()
+	mock := &mockSetupRepo{
+		existsResult:      true,
+		equipExistsResult: true,
+		equipLinkedResult: false,
+		addEquipErr:       errors.New("db error"),
+	}
+	h := &SetupsHandler{Setups: mock}
+
+	rr := httptest.NewRecorder()
+	h.AddEquipment(rr, setupEquipRequest(http.MethodPost, "/"+setupID+"/equipment/"+equipID, "user-1", setupID, equipID))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestSetups_AddEquipment_LoadError(t *testing.T) {
+	setupID := uuid.New().String()
+	equipID := uuid.New().String()
+	mock := &mockSetupRepo{
+		existsResult:      true,
+		equipExistsResult: true,
+		equipLinkedResult: false,
+		loadErr:           errors.New("load error"),
+	}
+	h := &SetupsHandler{Setups: mock}
+
+	rr := httptest.NewRecorder()
+	h.AddEquipment(rr, setupEquipRequest(http.MethodPost, "/"+setupID+"/equipment/"+equipID, "user-1", setupID, equipID))
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── RemoveEquipment error paths ─────────────────────────────────────
+
+func TestSetups_RemoveEquipment_InvalidSetupUUID(t *testing.T) {
+	equipID := uuid.New().String()
+	h := &SetupsHandler{Setups: &mockSetupRepo{}}
+
+	rr := httptest.NewRecorder()
+	h.RemoveEquipment(rr, setupEquipRequest(http.MethodDelete, "/bad/equipment/"+equipID, "user-1", "bad", equipID))
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSetups_RemoveEquipment_InvalidEquipUUID(t *testing.T) {
+	setupID := uuid.New().String()
+	h := &SetupsHandler{Setups: &mockSetupRepo{}}
+
+	rr := httptest.NewRecorder()
+	h.RemoveEquipment(rr, setupEquipRequest(http.MethodDelete, "/"+setupID+"/equipment/bad", "user-1", setupID, "bad"))
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSetups_RemoveEquipment_SetupNotFound(t *testing.T) {
+	setupID := uuid.New().String()
+	equipID := uuid.New().String()
+	mock := &mockSetupRepo{existsResult: false}
+	h := &SetupsHandler{Setups: mock}
+
+	rr := httptest.NewRecorder()
+	h.RemoveEquipment(rr, setupEquipRequest(http.MethodDelete, "/"+setupID+"/equipment/"+equipID, "user-1", setupID, equipID))
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}

@@ -247,3 +247,111 @@ func TestSightMarks_Update_NotFound(t *testing.T) {
 		t.Errorf("expected 404, got %d", rr.Code)
 	}
 }
+
+func TestSightMarks_Update_InvalidUUID(t *testing.T) {
+	h := &SightMarksHandler{SightMarks: &mockSightMarkRepo{}}
+
+	body := strings.NewReader(`{"distance":"30yd"}`)
+	req := httptest.NewRequest(http.MethodPut, "/bad-uuid", body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "bad-uuid")
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", rr.Code)
+	}
+}
+
+func TestSightMarks_Update_InvalidDate(t *testing.T) {
+	id := uuid.New().String()
+	mock := &mockSightMarkRepo{existsResult: true}
+	h := &SightMarksHandler{SightMarks: mock}
+
+	body := strings.NewReader(`{"date_recorded":"not-a-date"}`)
+	req := httptest.NewRequest(http.MethodPut, "/"+id, body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", id)
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Errorf("expected 422, got %d", rr.Code)
+	}
+}
+
+func TestSightMarks_Update_RepoError(t *testing.T) {
+	id := uuid.New().String()
+	mock := &mockSightMarkRepo{
+		existsResult: true,
+		updateErr:    errors.New("db error"),
+	}
+	h := &SightMarksHandler{SightMarks: mock}
+
+	body := strings.NewReader(`{"distance":"30yd"}`)
+	req := httptest.NewRequest(http.MethodPut, "/"+id, body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", id)
+	ctx = context.WithValue(ctx, chi.RouteCtxKey, rctx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Update(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestSightMarks_Create_RepoError(t *testing.T) {
+	mock := &mockSightMarkRepo{createErr: errors.New("db error")}
+	h := &SightMarksHandler{SightMarks: mock}
+
+	body := strings.NewReader(`{"distance":"20yd","setting":"4.5","date_recorded":"2026-01-15T00:00:00Z"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, "user-1")
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	h.Create(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestSightMarks_List_InvalidSetupUUID(t *testing.T) {
+	h := &SightMarksHandler{SightMarks: &mockSightMarkRepo{}}
+
+	rr := httptest.NewRecorder()
+	h.List(rr, authedRequest(http.MethodGet, "/?setup_id=not-valid", "user-1"))
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 with empty list, got %d", rr.Code)
+	}
+}
+
+func TestSightMarks_List_WithValidFilters(t *testing.T) {
+	eqID := uuid.New().String()
+	setupID := uuid.New().String()
+	mock := &mockSightMarkRepo{
+		listResult: []repository.SightMarkOut{},
+	}
+	h := &SightMarksHandler{SightMarks: mock}
+
+	rr := httptest.NewRecorder()
+	h.List(rr, authedRequest(http.MethodGet, "/?equipment_id="+eqID+"&setup_id="+setupID, "user-1"))
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
+	}
+}

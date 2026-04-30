@@ -420,3 +420,71 @@ func TestGetMyActiveTournaments_Error(t *testing.T) {
 		t.Fatalf("expected 500, got %d", rr.Code)
 	}
 }
+
+// ── GetMyClubs ──────────────────────────────────────────────────────
+
+func TestGetMyClubs_Success(t *testing.T) {
+	mock := &mockUserRepo{
+		myClubsResult: []repository.ProfileClubOut{
+			{
+				ClubID:   "c-1",
+				ClubName: "Archery Club",
+				Role:     "member",
+				Teams:    []repository.ProfileClubTeamOut{{TeamID: "t-1", TeamName: "Alpha"}},
+			},
+		},
+	}
+	h := &UsersHandler{Users: mock}
+
+	req := authedRequest(http.MethodGet, "/users/me/clubs", "user-1")
+	rr := httptest.NewRecorder()
+	h.GetMyClubs(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+
+	var result []repository.ProfileClubOut
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatalf("failed to decode: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 club, got %d", len(result))
+	}
+	if result[0].ClubName != "Archery Club" {
+		t.Errorf("expected 'Archery Club', got %q", result[0].ClubName)
+	}
+}
+
+func TestGetMyClubs_Error(t *testing.T) {
+	mock := &mockUserRepo{
+		myClubsErr: errors.New("db error"),
+	}
+	h := &UsersHandler{Users: mock}
+
+	req := authedRequest(http.MethodGet, "/users/me/clubs", "user-1")
+	rr := httptest.NewRecorder()
+	h.GetMyClubs(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rr.Code)
+	}
+}
+
+// ── UpdateMe repo error path ─────────────────────────────────────────
+
+func TestUpdateMe_RepoError(t *testing.T) {
+	mock := &mockUserRepo{updateProfileErr: errors.New("db error")}
+	h := &UsersHandler{Users: mock}
+
+	body := strings.NewReader(`{"display_name":"Test"}`)
+	req := authedRequest(http.MethodPut, "/users/me", "user-1")
+	req.Body = io.NopCloser(body)
+
+	rr := httptest.NewRecorder()
+	h.UpdateMe(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500, got %d", rr.Code)
+	}
+}
