@@ -146,7 +146,7 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] Save photo to app documents directory
 - [x] Store metadata in local SQLite (EndImages table)
 - [x] Photo indicator on end rows (tappable to view full image)
-- [ ] Gallery picker as alternative to camera
+- [x] Gallery picker as alternative to camera
 - [x] Image compression before upload (JPEG quality 70, max 1920px)
 
 ### 4.2 — Photo Sync

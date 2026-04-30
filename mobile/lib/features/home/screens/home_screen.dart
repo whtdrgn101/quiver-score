@@ -44,7 +44,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           await ref.read(syncServiceProvider).syncPendingItems();
       if (mounted) {
         final msg = result.failed > 0
-            ? 'Synced ${result.synced}, ${result.failed} failed'
+            ? 'Synced ${result.synced}, ${result.failed} failed: ${result.lastError}'
             : result.synced > 0
                 ? 'Synced ${result.synced} item${result.synced == 1 ? '' : 's'}'
                 : 'Everything is up to date';

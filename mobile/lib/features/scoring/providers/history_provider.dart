@@ -6,6 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_client.dart';
 import '../../../core/database/database.dart';
 
+/// Watches the local sessions table for changes (insert / update / delete).
+/// Emitting a new value causes [historyProvider] to rebuild automatically.
+final _localSessionsChangeProvider = StreamProvider<List<ScoringSessionsLocalData>>((ref) {
+  final db = ref.watch(databaseProvider);
+  return (db.select(db.scoringSessionsLocal)
+        ..orderBy([(t) => OrderingTerm.desc(t.startedAt)]))
+      .watch();
+});
+
 /// Merges local completed/abandoned sessions with server-side data
 final historyProvider =
     AsyncNotifierProvider<HistoryNotifier, List<SessionSummary>>(
@@ -13,7 +22,11 @@ final historyProvider =
 
 class HistoryNotifier extends AsyncNotifier<List<SessionSummary>> {
   @override
-  Future<List<SessionSummary>> build() => _fetch();
+  Future<List<SessionSummary>> build() {
+    // Watch the local sessions stream so we auto-rebuild when local data changes
+    ref.watch(_localSessionsChangeProvider);
+    return _fetch();
+  }
 
   Future<List<SessionSummary>> _fetch() async {
     // Always load local sessions first (offline-first)
@@ -70,35 +83,41 @@ class HistoryNotifier extends AsyncNotifier<List<SessionSummary>> {
         .toList();
   }
 
-  /// Merge local and server sessions, preferring local data for duplicates
+  /// Merge local and server sessions, preferring local data for duplicates.
+  /// Matches by server ID first, then by startedAt timestamp to catch sessions
+  /// whose serverId hasn't been set locally yet.
   List<SessionSummary> _merge(
     List<SessionSummary> local,
     List<SessionSummary> server,
   ) {
-    // Index local sessions by their server ID (if synced) and local ID
     final seen = <String>{};
     final merged = <SessionSummary>[];
+    final localStartTimes = <int>{};
 
     for (final s in local) {
       seen.add(s.id);
       if (s.localId != null) seen.add(s.localId!);
+      localStartTimes.add(s.startedAt.millisecondsSinceEpoch ~/ 1000);
       merged.add(s);
     }
 
-    // Add server sessions that don't exist locally
     for (final s in server) {
-      if (!seen.contains(s.id)) {
-        merged.add(s);
-      }
+      if (seen.contains(s.id)) continue;
+      final serverStartSec = s.startedAt.millisecondsSinceEpoch ~/ 1000;
+      if (localStartTimes.contains(serverStartSec)) continue;
+      merged.add(s);
     }
 
-    // Sort by date descending
     merged.sort((a, b) => b.startedAt.compareTo(a.startedAt));
     return merged;
   }
 
   Future<void> refresh() async {
-    state = const AsyncLoading();
+    final previous = state.valueOrNull;
+    state = previous != null
+        ? AsyncLoading<List<SessionSummary>>().copyWithPrevious(
+            AsyncData(previous))
+        : const AsyncLoading();
     state = await AsyncValue.guard(_fetch);
   }
 }

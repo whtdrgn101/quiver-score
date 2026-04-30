@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/database/database.dart';
 import '../providers/scoring_provider.dart';
@@ -19,6 +20,7 @@ class ScoringScreen extends ConsumerStatefulWidget {
 }
 
 class _ScoringScreenState extends ConsumerState<ScoringScreen> {
+  static const _uuid = Uuid();
   List<ArrowInput> _currentArrows = [];
   int _arrowsPerEnd = 0;
   List<String> _allowedValues = [];
@@ -34,6 +36,11 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
   Map<String, int> _imageCountByEnd = {};
   Map<String, bool> _imageSyncedByEnd = {};
 
+  /// Pre-generated end ID for the current (not yet submitted) end,
+  /// so photos can be attached before the end is submitted.
+  String _currentEndId = const Uuid().v4();
+  bool _currentEndHasImage = false;
+
   @override
   void initState() {
     super.initState();
@@ -48,7 +55,9 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
 
     final ends = ref.read(scoringProvider).ends;
     final endIds = ends.map((e) => e.id).toSet();
-    if (endIds.isEmpty) return;
+
+    // Also check the pre-generated current end ID for images
+    endIds.add(_currentEndId);
 
     final images = await (db.select(db.endImages)
           ..where((t) => t.endId.isIn(endIds)))
@@ -64,6 +73,7 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
     setState(() {
       _imageCountByEnd = counts;
       _imageSyncedByEnd = synced;
+      _currentEndHasImage = (counts[_currentEndId] ?? 0) > 0;
     });
   }
 
@@ -175,10 +185,14 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
           endNumber: endNumber,
           arrows: _currentArrows,
           valueScoreMap: _valueScoreMap,
+          endId: _currentEndId,
         );
 
     setState(() {
       _currentArrows = [];
+      // Generate a new pre-generated ID for the next end
+      _currentEndId = _uuid.v4();
+      _currentEndHasImage = false;
     });
 
     // Check if all ends are now complete BEFORE offering photo
@@ -189,14 +203,6 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
     if (isRoundComplete) {
       if (mounted) _showCompleteDialog();
     } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('End $endNumber submitted'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
       _loadStageInfo();
     }
   }
@@ -216,6 +222,15 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
     final endsCompleted = ref.read(scoringProvider).ends.length;
 
     return endsCompleted >= totalEndsRequired;
+  }
+
+  Future<void> _captureCurrentEndPhoto() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CaptureScreen(endId: _currentEndId),
+      ),
+    );
+    _loadImageCounts();
   }
 
   Future<void> _addPhotoToEnd(String endId) async {
@@ -466,6 +481,23 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Camera button for current end
+                    if (!_allEndsComplete)
+                      IconButton(
+                        onPressed: _captureCurrentEndPhoto,
+                        icon: Icon(
+                          _currentEndHasImage
+                              ? Icons.camera_alt
+                              : Icons.camera_alt_outlined,
+                          color: _currentEndHasImage
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                        tooltip: _currentEndHasImage
+                            ? 'Photo taken'
+                            : 'Take target photo',
+                        visualDensity: VisualDensity.compact,
+                      ),
                     for (var i = 0; i < _arrowsPerEnd; i++)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),

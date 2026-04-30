@@ -5,12 +5,16 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_client.dart';
 import '../database/database.dart';
 import '../network/connectivity_service.dart';
+
+/// Whether a sync operation is currently in progress.
+final syncInProgressProvider = StateProvider<bool>((ref) => false);
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   return SyncService(
@@ -83,6 +87,7 @@ class SyncService {
   Future<SyncResult> syncPendingItems() async {
     if (_syncing) return const SyncResult();
     _syncing = true;
+    ref.read(syncInProgressProvider.notifier).state = true;
 
     int syncedCount = 0;
     int failedCount = 0;
@@ -93,6 +98,25 @@ class SyncService {
             ..where((t) => t.syncedAt.isNull())
             ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
           .get();
+
+      // Sort by dependency order:
+      //   session/create → end/submit → image/upload → session/complete|abandon
+      // Images depend on ends (for server IDs), ends depend on sessions,
+      // and completion must come after all ends/images are synced.
+      int syncPriority(SyncQueueData item) {
+        if (item.entityType == 'session' && item.action == 'create') return 0;
+        if (item.entityType == 'end') return 1;
+        if (item.entityType == 'image') return 2;
+        if (item.entityType == 'session') return 3; // complete, abandon
+        return 9;
+      }
+
+      pending.sort((a, b) {
+        final pa = syncPriority(a);
+        final pb = syncPriority(b);
+        if (pa != pb) return pa.compareTo(pb);
+        return a.createdAt.compareTo(b.createdAt);
+      });
 
       dev.log('Sync: ${pending.length} pending items', name: 'SyncService');
 
@@ -118,13 +142,37 @@ class SyncService {
           syncedCount++;
           dev.log('Sync: success ${item.entityType}/${item.action}',
               name: 'SyncService');
-        } catch (e) {
+        } catch (e, stack) {
+          final newRetry = item.retryCount + 1;
+          final isPermanent = e is DioException &&
+              e.response != null &&
+              e.response!.statusCode != null &&
+              e.response!.statusCode! >= 400 &&
+              e.response!.statusCode! < 500 &&
+              e.response!.statusCode != 429;
+
+          if (isPermanent) {
+            debugPrint('Sync PERMANENT FAIL: ${item.entityType}/${item.action} '
+                'entity=${item.entityId}: ${e.response?.statusCode} — '
+                'marking as resolved');
+            await (db.update(db.syncQueue)
+                  ..where((t) => t.id.equals(item.id)))
+                .write(SyncQueueCompanion(
+              syncedAt: Value(DateTime.now()),
+              lastError: Value('permanent: $e'),
+            ));
+            failedCount++;
+            lastError = e.toString();
+            continue;
+          }
+
           failedCount++;
           lastError = e.toString();
-          final newRetry = item.retryCount + 1;
+          debugPrint('Sync FAILED: ${item.entityType}/${item.action} '
+              'entity=${item.entityId} (retry $newRetry/$_maxRetries): $e');
           dev.log(
             'Sync: FAILED ${item.entityType}/${item.action} '
-            '(retry $newRetry/$_maxRetries): $e',
+            '(retry $newRetry/$_maxRetries): $e\n$stack',
             name: 'SyncService',
           );
 
@@ -147,6 +195,7 @@ class SyncService {
       }
     } finally {
       _syncing = false;
+      ref.read(syncInProgressProvider.notifier).state = false;
     }
 
     dev.log('Sync: done (synced: $syncedCount, failed: $failedCount)',
@@ -270,6 +319,8 @@ class SyncService {
       return;
     }
 
+    debugPrint('Sync: uploading image session=$syncSessionId '
+        'end=$syncEndId (localEnd=${end.id}, endServerId=${end.serverId})');
     dev.log(
       'Sync: uploading image for session=$syncSessionId end=$syncEndId',
       name: 'SyncService',

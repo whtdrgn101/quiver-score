@@ -117,17 +117,20 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     );
   }
 
-  /// Submit an end with arrow scores
+  /// Submit an end with arrow scores.
+  /// If [endId] is provided, it is used as the end's ID (e.g. when a photo
+  /// was already attached to a pre-generated ID before submission).
   Future<void> submitEnd({
     required String stageId,
     required int endNumber,
     required List<ArrowInput> arrows,
     required Map<String, int> valueScoreMap,
+    String? endId,
   }) async {
     final session = state.activeSession;
     if (session == null) return;
 
-    final endId = _uuid.v4();
+    endId ??= _uuid.v4();
     int endTotal = 0;
 
     // Calculate end total
