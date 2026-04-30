@@ -55,8 +55,8 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 ### 1.6 — Deploy & Verify
 
 - [x] Run migration locally (alembic upgrade e9f0a1b2c3d4 -> f0a1b2c3d4e5)
-- [ ] Push to main → CI/CD deploys migration + Go API to production
-- [ ] Smoke test image upload/download in production
+- [x] Push to main → CI/CD deploys migration + Go API to production
+- [x] Smoke test image upload/download in production
 
 ---
 
@@ -126,6 +126,10 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 - [x] Debug logging throughout sync pipeline
 - [x] Sync status indicator in UI (pending count badge on sync button)
 - [x] Error handling: retry with exponential backoff
+- [x] Dependency-aware sync ordering: session/create → ends → images → session/complete
+- [x] Permanent failure handling: 4xx errors (except 429) marked as resolved instead of retrying
+- [x] Download-and-resume: server-only in-progress sessions downloaded to local DB for resuming on any device
+- [x] Reactive history: Drift `.watch()` stream triggers immediate UI updates on local DB changes
 
 ### 3.6 — Dashboard & History
 
@@ -142,7 +146,7 @@ Build a Flutter mobile app for offline-first round scoring and tournament play, 
 
 ### 4.1 — Camera Capture
 
-- [x] Camera screen after end submission (snackbar for non-final ends, direct navigation for final end)
+- [x] Camera icon on scoring screen for pre-end photo capture (photo taken before recording scores)
 - [x] Save photo to app documents directory
 - [x] Store metadata in local SQLite (EndImages table)
 - [x] Photo indicator on end rows (tappable to view full image)
