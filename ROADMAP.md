@@ -26,7 +26,7 @@ QuiverScore is a modern, privacy-focused platform for target archery — trackin
 **Mobile:** Flutter (Riverpod, Dio, Drift/SQLite, offline-first sync engine)
 **Migrations:** Python/Alembic (deploy-only, no runtime server)
 **CI/CD:** GitHub Actions → Go tests + frontend build → deploy API to Cloud Run + frontend to Firebase
-**Email:** SendGrid (verification + password reset)
+**Email:** Resend (verification + password reset)
 
 ---
 
@@ -37,7 +37,7 @@ QuiverScore is a modern, privacy-focused platform for target archery — trackin
 Full migration from Python/FastAPI to Go. 253 contract tests covering all endpoints. Python stripped to Alembic migrations only.
 
 - **Phase 0** — Foundation: contract test infrastructure, Go scaffold, shared auth middleware
-- **Phase 1** — Auth: register, login, refresh, verify email, password reset, delete account, rate limiting, SendGrid
+- **Phase 1** — Auth: register, login, refresh, verify email, password reset, delete account, rate limiting, Resend
 - **Phase 2** — Rounds: round template CRUD, sharing, ownership checks
 - **Phase 3** — Equipment & Setups: CRUD with partial updates, equipment linking
 - **Phase 4** — Sight Marks & Classifications: CRUD with filters, classification records

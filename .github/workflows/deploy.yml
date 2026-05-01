@@ -84,8 +84,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
-          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-          SENDGRID_FROM_EMAIL: ${{ secrets.SENDGRID_FROM_EMAIL }}
+          EMAIL_API_KEY: ${{ secrets.EMAIL_API_KEY }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           FRONTEND_URL: ${{ secrets.FRONTEND_URL }}
         run: |
           gcloud run deploy quiverscore-api \
@@ -96,7 +96,7 @@ jobs:
             --min-instances 1 \
             --max-instances 2 \
             --port 8080 \
-            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@SENDGRID_API_KEY=${SENDGRID_API_KEY}@@SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL}@@FRONTEND_URL=${FRONTEND_URL}" \
+            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@EMAIL_API_KEY=${EMAIL_API_KEY}@@EMAIL_FROM=${EMAIL_FROM}@@FRONTEND_URL=${FRONTEND_URL}" \
             --format "value(status.url)" > /tmp/api_url.txt
           echo "api_url=$(cat /tmp/api_url.txt)" >> "$GITHUB_OUTPUT"
 

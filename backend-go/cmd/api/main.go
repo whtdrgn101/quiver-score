@@ -97,8 +97,8 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 
 	// Email sender
 	emailSender := &email.Sender{
-		APIKey:    cfg.SendGridAPIKey,
-		FromEmail: cfg.SendGridFromEmail,
+		APIKey:    cfg.EmailAPIKey,
+		FromEmail: cfg.EmailFrom,
 	}
 
 	// Rate limiters

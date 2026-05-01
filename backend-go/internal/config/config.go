@@ -15,8 +15,8 @@ type Config struct {
 	AccessTokenExpireMinutes         int
 	RefreshTokenExpireDays           int
 	Algorithm                        string
-	SendGridAPIKey                   string
-	SendGridFromEmail                string
+	EmailAPIKey                      string
+	EmailFrom                        string
 	FrontendURL                      string
 	PasswordResetTokenExpireMinutes  int
 	EmailVerificationTokenExpireHours int
@@ -32,8 +32,8 @@ func Load() *Config {
 		AccessTokenExpireMinutes:         envOrDefaultInt("ACCESS_TOKEN_EXPIRE_MINUTES", 15),
 		RefreshTokenExpireDays:           envOrDefaultInt("REFRESH_TOKEN_EXPIRE_DAYS", 30),
 		Algorithm:                        envOrDefault("ALGORITHM", "HS256"),
-		SendGridAPIKey:                   envOrDefault("SENDGRID_API_KEY", ""),
-		SendGridFromEmail:                envOrDefault("SENDGRID_FROM_EMAIL", "noreply@quiverscore.com"),
+		EmailAPIKey:                      envOrDefault("EMAIL_API_KEY", ""),
+		EmailFrom:                        envOrDefault("EMAIL_FROM", "noreply@quiverscore.com"),
 		FrontendURL:                      envOrDefault("FRONTEND_URL", "http://localhost:5173"),
 		PasswordResetTokenExpireMinutes:  envOrDefaultInt("PASSWORD_RESET_TOKEN_EXPIRE_MINUTES", 60),
 		EmailVerificationTokenExpireHours: envOrDefaultInt("EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS", 24),

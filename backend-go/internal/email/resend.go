@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 )
@@ -51,32 +52,19 @@ func (s *Sender) SendPasswordResetEmail(toEmail, token, frontendURL string, expi
 	return s.send(toEmail, "Reset your QuiverScore password", html)
 }
 
-type sendGridPayload struct {
-	Personalizations []personalization `json:"personalizations"`
-	From             emailAddr         `json:"from"`
-	Subject          string            `json:"subject"`
-	Content          []content         `json:"content"`
-}
-
-type personalization struct {
-	To []emailAddr `json:"to"`
-}
-
-type emailAddr struct {
-	Email string `json:"email"`
-}
-
-type content struct {
-	Type  string `json:"type"`
-	Value string `json:"value"`
+type resendPayload struct {
+	From    string   `json:"from"`
+	To      []string `json:"to"`
+	Subject string   `json:"subject"`
+	HTML    string   `json:"html"`
 }
 
 func (s *Sender) send(toEmail, subject, html string) error {
-	payload := sendGridPayload{
-		Personalizations: []personalization{{To: []emailAddr{{Email: toEmail}}}},
-		From:             emailAddr{Email: s.FromEmail},
-		Subject:          subject,
-		Content:          []content{{Type: "text/html", Value: html}},
+	payload := resendPayload{
+		From:    s.FromEmail,
+		To:      []string{toEmail},
+		Subject: subject,
+		HTML:    html,
 	}
 
 	body, err := json.Marshal(payload)
@@ -84,7 +72,7 @@ func (s *Sender) send(toEmail, subject, html string) error {
 		return err
 	}
 
-	req, err := http.NewRequest("POST", "https://api.sendgrid.com/v3/mail/send", bytes.NewReader(body))
+	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -98,8 +86,9 @@ func (s *Sender) send(toEmail, subject, html string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 300 {
-		slog.Error("SendGrid API error", "status", resp.StatusCode, "to", toEmail)
-		return fmt.Errorf("sendgrid: status %d", resp.StatusCode)
+		respBody, _ := io.ReadAll(resp.Body)
+		slog.Error("Resend API error", "status", resp.StatusCode, "to", toEmail, "body", string(respBody))
+		return fmt.Errorf("resend: status %d", resp.StatusCode)
 	}
 
 	slog.Info("email sent", "to", toEmail, "subject", subject)
