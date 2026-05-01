@@ -31,7 +31,7 @@ export default function RoundSelect() {
         }
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [tournamentContext?.tournamentTemplateId]);
 
   const handleShare = async (roundId, clubId) => {
     try {
