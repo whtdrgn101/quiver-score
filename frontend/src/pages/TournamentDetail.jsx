@@ -63,7 +63,17 @@ export default function TournamentDetail() {
       ]);
       setTournament(tRes.data);
       setLeaderboard(lbRes.data);
-      setRounds(roundsRes.data || []);
+      const roundsList = roundsRes.data || [];
+      setRounds(roundsList);
+
+      const lbEntries = await Promise.all(
+        roundsList.map((r) =>
+          getRoundLeaderboard(clubId, tournamentId, r.id)
+            .then((res) => [r.id, res.data])
+            .catch(() => [r.id, []])
+        )
+      );
+      setRoundLeaderboards(Object.fromEntries(lbEntries));
     } finally {
       setLoading(false);
     }
@@ -73,23 +83,13 @@ export default function TournamentDetail() {
     loadData();
   }, [loadData]);
 
-  const loadRoundLeaderboard = async (roundId) => {
-    if (roundLeaderboards[roundId]) return;
-    try {
-      const res = await getRoundLeaderboard(clubId, tournamentId, roundId);
-      setRoundLeaderboards((prev) => ({ ...prev, [roundId]: res.data }));
-    } catch {
-      setRoundLeaderboards((prev) => ({ ...prev, [roundId]: [] }));
-    }
+  const toggleRound = (roundId) => {
+    setExpandedRound(expandedRound === roundId ? null : roundId);
   };
 
-  const toggleRound = (roundId) => {
-    if (expandedRound === roundId) {
-      setExpandedRound(null);
-    } else {
-      setExpandedRound(roundId);
-      loadRoundLeaderboard(roundId);
-    }
+  const userScoredRound = (roundId) => {
+    const lb = roundLeaderboards[roundId];
+    return lb?.some((e) => e.user_id === user?.id);
   };
 
   if (loading) return <Spinner />;
@@ -104,6 +104,7 @@ export default function TournamentDetail() {
   // Find the active round (in_progress) or latest pending round for scoring
   const activeRound = rounds.find((r) => r.status === 'in_progress');
   const canScore = tournament.status === 'in_progress' && isRegistered && myParticipant.status === 'active' && activeRound;
+  const hasScored = activeRound && userScoredRound(activeRound.id);
 
   const handleAction = async (action) => {
     setActionLoading(true);
@@ -143,14 +144,11 @@ export default function TournamentDetail() {
 
   const handleStartRound = async (roundId) => {
     await handleAction(() => startRound(clubId, tournamentId, roundId));
-    setRoundLeaderboards((prev) => ({ ...prev, [roundId]: undefined }));
   };
 
   const handleCompleteRound = async (roundId) => {
     if (!confirm('Complete this round? This will rank participants and advance the top scorers.')) return;
     await handleAction(() => completeRound(clubId, tournamentId, roundId));
-    setRoundLeaderboards((prev) => ({ ...prev, [roundId]: undefined }));
-    if (expandedRound === roundId) loadRoundLeaderboard(roundId);
   };
 
   const openAddRoundForm = async () => {
@@ -215,10 +213,13 @@ export default function TournamentDetail() {
         <div className="mt-4 flex gap-2 flex-wrap">
           {canScore && (
             <button
-              onClick={scoreRound}
-              className="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700"
+              onClick={() => {
+                if (hasScored && !confirm('You already submitted a score for this round. Score again? Your previous score will be replaced.')) return;
+                scoreRound();
+              }}
+              className={`${hasScored ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white px-4 py-2 rounded-lg text-sm font-medium`}
             >
-              Score Round {activeRound.round_number}: {activeRound.name}
+              {hasScored ? 'Re-score' : 'Score'} Round {activeRound.round_number}: {activeRound.name}
             </button>
           )}
           {canRegister && (
@@ -381,6 +382,11 @@ export default function TournamentDetail() {
                         Complete
                       </button>
                     )}
+                    {userScoredRound(round.id) && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                        Scored
+                      </span>
+                    )}
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[round.status] || statusColors.pending}`}>
                       {round.status.replace('_', ' ')}
                     </span>
@@ -402,7 +408,7 @@ export default function TournamentDetail() {
                     ) : (
                       <div className="bg-white dark:bg-gray-800 rounded-lg border dark:border-gray-700 divide-y dark:divide-gray-700">
                         {roundLeaderboards[round.id].map((entry, i) => (
-                          <div key={entry.id} className="px-4 py-2 flex items-center justify-between">
+                          <div key={entry.id} className={`px-4 py-2 flex items-center justify-between ${entry.user_id === user?.id ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}>
                             <div className="flex items-center gap-3">
                               <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
                                 rankColors[i] || 'bg-gray-50 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
@@ -446,7 +452,7 @@ export default function TournamentDetail() {
         ) : (
           <div className="divide-y dark:divide-gray-700">
             {leaderboard.map((entry, i) => (
-              <div key={i} className="px-4 py-3 flex items-center justify-between">
+              <div key={i} className={`px-4 py-3 flex items-center justify-between ${entry.user_id === user?.id ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''}`}>
                 <div className="flex items-center gap-3">
                   <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                     rankColors[entry.rank - 1] || 'bg-gray-50 text-gray-500 dark:bg-gray-700 dark:text-gray-400'

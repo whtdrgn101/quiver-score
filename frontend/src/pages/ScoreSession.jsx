@@ -21,6 +21,7 @@ export default function ScoreSession() {
   const [finalWeather, setFinalWeather] = useState('');
   const [undoing, setUndoing] = useState(false);
   const [showPRBanner, setShowPRBanner] = useState(false);
+  const [showTournamentConfirmation, setShowTournamentConfirmation] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [actionError, setActionError] = useState('');
   const [photoPromptEnd, setPhotoPromptEnd] = useState(null);
@@ -190,9 +191,15 @@ export default function ScoreSession() {
           await submitTournamentScore(tournamentContext.clubId, tournamentContext.tournamentId, sessionId);
         }
       }
+      const tournamentUrl = tournamentContext?.tournamentId
+        ? `/clubs/${tournamentContext.clubId}/tournaments/${tournamentContext.tournamentId}`
+        : null;
       if (res.data.is_personal_best) {
         setShowPRBanner(true);
-        setTimeout(() => navigate(`/sessions/${sessionId}`), 2500);
+        setTimeout(() => navigate(tournamentUrl || `/sessions/${sessionId}`), 2500);
+      } else if (tournamentUrl) {
+        setShowTournamentConfirmation(true);
+        setTimeout(() => navigate(tournamentUrl), 1500);
       } else {
         navigate(`/sessions/${sessionId}`);
       }
@@ -246,6 +253,17 @@ export default function ScoreSession() {
         <h1 className="text-3xl font-bold text-amber-500 mb-2">New Personal Best!</h1>
         <p className="text-xl dark:text-white">{session.total_score} points</p>
         <p className="text-gray-500 dark:text-gray-400 mt-2">{template?.name}</p>
+      </div>
+    );
+  }
+
+  if (showTournamentConfirmation) {
+    return (
+      <div className="max-w-lg mx-auto text-center py-16">
+        <div className="text-5xl mb-4">&#9989;</div>
+        <h1 className="text-2xl font-bold text-emerald-600 mb-2">Score Submitted!</h1>
+        <p className="text-xl dark:text-white">{session.total_score} points</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-2">Returning to tournament...</p>
       </div>
     );
   }
