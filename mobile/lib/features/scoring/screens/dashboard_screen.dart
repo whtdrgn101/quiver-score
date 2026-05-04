@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/api_client.dart';
+import '../../clubs/screens/tournament_detail_screen.dart';
 import 'new_session_screen.dart';
 
 final _statsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
@@ -108,14 +109,22 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                             FilledButton(
                               onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const NewSessionScreen(),
-                                  ),
-                                );
+                                final clubId = t['club_id'] as String?;
+                                final tournamentId =
+                                    t['tournament_id'] as String?;
+                                if (clubId != null && tournamentId != null) {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          TournamentDetailScreen(
+                                        clubId: clubId,
+                                        tournamentId: tournamentId,
+                                      ),
+                                    ),
+                                  );
+                                }
                               },
-                              child: const Text('Score'),
+                              child: const Text('View'),
                             ),
                           ],
                         ),

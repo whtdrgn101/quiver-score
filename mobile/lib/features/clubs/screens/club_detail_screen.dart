@@ -9,6 +9,7 @@ import 'club_leaderboard_screen.dart';
 import 'club_activity_screen.dart';
 import 'club_events_screen.dart';
 import 'club_teams_screen.dart';
+import 'club_tournaments_screen.dart';
 
 class ClubDetailScreen extends ConsumerStatefulWidget {
   final String clubId;
@@ -26,7 +27,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
   }
 
   @override
@@ -69,6 +70,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
           isScrollable: true,
           tabs: const [
             Tab(text: 'Overview'),
+            Tab(text: 'Tournaments'),
             Tab(text: 'Leaderboard'),
             Tab(text: 'Activity'),
             Tab(text: 'Events'),
@@ -81,6 +83,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
           controller: _tabController,
           children: [
             _OverviewTab(detail: detail),
+            ClubTournamentsTab(clubId: widget.clubId),
             ClubLeaderboardTab(clubId: widget.clubId),
             ClubActivityTab(clubId: widget.clubId),
             ClubEventsTab(clubId: widget.clubId),

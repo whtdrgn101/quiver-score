@@ -7,13 +7,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/database.dart';
+import '../../../core/api/api_client.dart';
+import '../../../core/sync/sync_service.dart';
+import '../../clubs/models/tournament.dart';
 import '../providers/scoring_provider.dart';
 import '../widgets/arrow_input_pad.dart';
 import '../widgets/end_summary_row.dart';
 import '../../images/screens/capture_screen.dart';
 
 class ScoringScreen extends ConsumerStatefulWidget {
-  const ScoringScreen({super.key});
+  final TournamentContext? tournamentContext;
+
+  const ScoringScreen({super.key, this.tournamentContext});
 
   @override
   ConsumerState<ScoringScreen> createState() => _ScoringScreenState();
@@ -33,6 +38,7 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
   int _totalStages = 0;
   int _currentStageIndex = 0;
   bool _allEndsComplete = false;
+  bool _submittingTournament = false;
   Map<String, int> _imageCountByEnd = {};
   Map<String, bool> _imageSyncedByEnd = {};
 
@@ -276,11 +282,14 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
   }
 
   void _showCompleteDialog() {
+    final tc = widget.tournamentContext;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Round Complete'),
-        content: const Text('All ends have been scored. Complete this round?'),
+        content: Text(tc != null
+            ? 'Submit your score to ${tc.tournamentName}?'
+            : 'All ends have been scored. Complete this round?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -289,14 +298,66 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
           FilledButton(
             onPressed: () async {
               Navigator.of(ctx).pop();
-              await ref.read(scoringProvider.notifier).completeSession();
-              if (mounted) Navigator.of(context).pop();
+              await _completeAndSubmit();
             },
-            child: const Text('Complete'),
+            child: Text(tc != null ? 'Submit Score' : 'Complete'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _completeAndSubmit() async {
+    final session = ref.read(scoringProvider).activeSession;
+    await ref.read(scoringProvider.notifier).completeSession();
+
+    final tc = widget.tournamentContext;
+    if (tc == null || session == null) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
+    setState(() => _submittingTournament = true);
+    try {
+      final syncService = ref.read(syncServiceProvider);
+      await syncService.syncPendingItems();
+
+      final db = ref.read(databaseProvider);
+      final localSession = await (db.select(db.scoringSessionsLocal)
+            ..where((t) => t.id.equals(session.id)))
+          .getSingle();
+      final serverId = localSession.serverId ?? session.id;
+
+      final api = ref.read(apiClientProvider);
+      await api.dio.post(
+        '/api/v1/clubs/${tc.clubId}/tournaments/${tc.tournamentId}'
+        '/rounds/${tc.roundId}/submit-score?session_id=$serverId',
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Score submitted: ${session.totalScore} points'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Score saved locally but tournament submission failed. '
+              'Please check your connection and try again from the tournament.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   @override
@@ -381,8 +442,7 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
                   if (mounted) Navigator.of(context).pop();
                 }
               } else if (value == 'complete') {
-                await ref.read(scoringProvider.notifier).completeSession();
-                if (mounted) Navigator.of(context).pop();
+                await _completeAndSubmit();
               }
             },
             itemBuilder: (_) => [
@@ -392,8 +452,24 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Stack(
         children: [
+          Column(
+        children: [
+          if (widget.tournamentContext != null)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: theme.colorScheme.primaryContainer,
+              child: Text(
+                'Tournament: ${widget.tournamentContext!.roundName}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
           // Running score and end history
           Expanded(
             child: ListView(
@@ -553,6 +629,27 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
               ],
             ),
           ),
+        ],
+      ),
+          if (_submittingTournament)
+            Container(
+              color: Colors.black54,
+              child: const Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Submitting tournament score...'),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

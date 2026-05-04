@@ -70,63 +70,39 @@ Full migration from Python/FastAPI to Go. 253 contract tests covering all endpoi
 
 - **Phase 16.5** — Mobile equipment & clubs: Drift schema v3 with cache tables, equipment & setups full CRUD with online-first caching, clubs view/join/leave/leaderboard/activity/events with RSVP/teams, 4-tab bottom nav (Dashboard, History, Clubs, More), 29 model serialization tests
 
+### Multi-Round Tournament Management — Web (Phase 17) ✅
+
+- **Phase 17** — Web tournament rounds UI: API wrappers for 6 round endpoints, organizer controls (add/start/complete rounds with advancement), participant round scoring flow threaded through RoundSelect → ScoreSession, per-round leaderboards with Advanced/Eliminated badges, scored indicators on round rows, re-score warning, user highlighting in leaderboards, post-submission confirmation with auto-navigate back to tournament
+
 ---
 
 ## Up Next
 
-### Phase 17: Multi-Round Tournament Management — Web ✅
-
-Wire the existing tournament rounds API into the web frontend. The backend endpoints are built and tested — this phase is purely frontend.
-
-#### 17.1 — API Wrappers & Rounds Section
-
-- [x] Add tournament round API functions to `frontend/src/api/tournaments.js` (addRound, listRounds, startRound, completeRound, submitRoundScore, getRoundLeaderboard)
-- [x] Add rounds section to `TournamentDetail.jsx` — list rounds with status, round number, and template name
-- [x] Organizer controls: "Add Round" button with round name, template selection, and advancement count
-
-#### 17.2 — Organizer Round Lifecycle
-
-- [x] Start round button (only when tournament is in_progress and round is pending)
-- [x] Complete round button (ranks participants, advances top N, handles ties at cutoff)
-- [x] Visual round status indicators (pending, in_progress, completed)
-- [x] Show which participants advanced vs eliminated per round
-
-#### 17.3 — Participant Round Scoring
-
-- [x] "Score This Round" navigates with round context (roundId + tournamentId + clubId)
-- [x] Update `RoundSelect.jsx` and `ScoreSession.jsx` to pass roundId through the scoring flow
-- [x] On session complete, submit to round-level endpoint (`/rounds/{roundId}/submit-score`) instead of tournament-level
-- [x] Banner in scoring flow indicating which tournament round is being scored
-
-#### 17.4 — Per-Round Leaderboards & Bracket View
-
-- [x] Per-round leaderboard tab/accordion in `TournamentDetail.jsx`
-- [x] Advancement indicators (advanced, eliminated) on leaderboard entries
-- [x] Overall tournament leaderboard remains as summary view
-- [ ] Visual bracket progression showing round-over-round results
-
----
-
-### Phase 18: Tournament Play — Mobile
+### Phase 18: Tournament Play — Mobile ✅
 
 Bring tournament participation to the Flutter app, building on the web tournament flow.
 
 #### 18.1 — Tournament List & Detail
 
-- [ ] Pull active tournaments user is registered for (via clubs API)
-- [ ] Tournament detail screen (name, template, dates, status, participants)
-- [ ] "Score This Round" button → starts session with tournament's template
+- [x] Pull active tournaments user is registered for (via clubs API)
+- [x] Tournament detail screen (name, template, dates, status, participants)
+- [x] "Score This Round" button → starts session with tournament's template
+- [x] Tournaments tab added to club detail screen (6 tabs)
+- [x] Dashboard active tournaments navigate to tournament detail
 
 #### 18.2 — Score Submission
 
-- [ ] After completing a tournament round, prompt to submit score
-- [ ] Call `POST /api/v1/clubs/{clubId}/tournaments/{tournamentId}/rounds/{roundId}/submit-score?session_id=X`
-- [ ] Show submission confirmation with score + ranking
+- [x] After completing a tournament round, prompt to submit score
+- [x] Call `POST /api/v1/clubs/{clubId}/tournaments/{tournamentId}/rounds/{roundId}/submit-score?session_id=X`
+- [x] Show submission confirmation with score + ranking
+- [x] Force sync session before tournament score submission
+- [x] Graceful error handling when offline
 
 #### 18.3 — Leaderboard
 
-- [ ] View tournament leaderboard from mobile (overall + per-round)
-- [ ] Highlight user's own position
+- [x] View tournament leaderboard from mobile (overall + per-round)
+- [x] Highlight user's own position
+- [x] Per-round leaderboards with advancement badges (Advanced/Eliminated)
 
 ---
 
@@ -162,3 +138,9 @@ Bring tournament participation to the Flutter app, building on the web tournamen
 - [ ] Auto-generate pairings from round leaderboard (1 vs N, 2 vs N-1, etc.)
 - [ ] Visual bracket display on web and mobile
 - [ ] Support byes for non-power-of-2 participant counts
+
+### Phase 23: Tournament Bracket Visualization
+
+- [ ] Visual bracket progression showing round-over-round results (web)
+- [ ] Bracket view on mobile
+- [ ] Show advancement flow across rounds with scores
