@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/providers/auth_provider.dart';
+import '../../equipment/screens/equipment_screen.dart';
 import '../providers/user_provider.dart';
 import 'profile_edit_screen.dart';
 
@@ -116,6 +117,19 @@ class MoreScreen extends ConsumerWidget {
 
         const SizedBox(height: 24),
 
+        // In-app features
+        _MenuTile(
+          icon: Icons.sports_outlined,
+          title: 'Equipment & Setups',
+          subtitle: 'Manage your gear and bow setups',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const EquipmentScreen()),
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
         // Web links section
         Text('QuiverScore Web',
             style: theme.textTheme.titleSmall?.copyWith(
@@ -134,18 +148,6 @@ class MoreScreen extends ConsumerWidget {
           title: 'Social',
           subtitle: 'Friends, followers, and activity feed',
           onTap: () => _openUrl('https://quiverscore.com/social'),
-        ),
-        _MenuTile(
-          icon: Icons.emoji_events_outlined,
-          title: 'Clubs & Tournaments',
-          subtitle: 'Manage clubs and tournament play',
-          onTap: () => _openUrl('https://quiverscore.com/clubs'),
-        ),
-        _MenuTile(
-          icon: Icons.settings_outlined,
-          title: 'Settings & Equipment',
-          subtitle: 'Equipment, setups, and sight marks',
-          onTap: () => _openUrl('https://quiverscore.com/equipment'),
         ),
 
         const SizedBox(height: 24),

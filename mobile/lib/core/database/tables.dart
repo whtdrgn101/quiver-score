@@ -105,3 +105,62 @@ class SyncQueue extends Table {
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
 }
+
+/// Cached equipment items from the API
+class EquipmentCache extends Table {
+  TextColumn get id => text()();
+  TextColumn get category => text()();
+  TextColumn get name => text()();
+  TextColumn get brand => text().nullable()();
+  TextColumn get model => text().nullable()();
+  TextColumn get specs => text().nullable()();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get cachedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Cached setup profiles from the API
+class SetupCache extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  RealColumn get braceHeight => real().nullable()();
+  RealColumn get tiller => real().nullable()();
+  RealColumn get drawWeight => real().nullable()();
+  RealColumn get drawLength => real().nullable()();
+  RealColumn get arrowFoc => real().nullable()();
+  IntColumn get equipmentCount => integer().withDefault(const Constant(0))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get cachedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Join table: which equipment items belong to which setup (cached)
+class SetupEquipmentCache extends Table {
+  TextColumn get setupId => text()();
+  TextColumn get equipmentId => text()();
+
+  @override
+  Set<Column> get primaryKey => {setupId, equipmentId};
+}
+
+/// Cached clubs the user belongs to
+class ClubCache extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get avatar => text().nullable()();
+  TextColumn get ownerId => text()();
+  IntColumn get memberCount => integer().withDefault(const Constant(0))();
+  TextColumn get myRole => text().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get cachedAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}

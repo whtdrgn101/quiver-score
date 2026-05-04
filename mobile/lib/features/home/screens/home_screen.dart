@@ -5,6 +5,7 @@ import '../../../core/database/database.dart';
 import '../../../core/sync/sync_service.dart';
 import '../../scoring/screens/dashboard_screen.dart';
 import '../../scoring/screens/history_screen.dart';
+import '../../clubs/screens/clubs_screen.dart';
 import '../../more/screens/more_screen.dart';
 
 final pendingSyncCountProvider = StreamProvider<int>((ref) {
@@ -28,12 +29,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   static const _screens = [
     DashboardScreen(),
     HistoryScreen(),
+    ClubsScreen(),
     MoreScreen(),
   ];
 
   static const _titles = [
     'QuiverScore',
     'History',
+    'Clubs',
     'More',
   ];
 
@@ -107,6 +110,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             icon: Icon(Icons.history_outlined),
             selectedIcon: Icon(Icons.history),
             label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outlined),
+            selectedIcon: Icon(Icons.people),
+            label: 'Clubs',
           ),
           NavigationDestination(
             icon: Icon(Icons.more_horiz),

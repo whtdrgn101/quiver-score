@@ -6,7 +6,7 @@ This project serves three purposes. The first is I have a love and passion for t
 
 - **Quality first.** Every new feature ships with tests. Untested code is unfinished code.
 - **Smooth, low-friction UX.** Users should never fight the interface — whether on web or mobile. Flows should feel intuitive, errors should be clear and actionable, and offline scenarios should be handled gracefully.
-- **Long-term maintainability.** This is a product, not a prototype. Favor clear architecture, consistent patterns, and well-documented decisions over clever shortcuts. Code should be easy for a new developer (or buyer) to pick up.
+- **Long-term maintainability.** This is a product, not a prototype. Favor clear architecture, consistent patterns, and well-documented decisions over clever shortcuts. Code should be easy for a new developer (or buyer) to pick up and follow S.O.L.I.D. and D.R.Y. principles as much as possible.
 - **Saleable product.** Feature recommendations and technology choices should consider what makes this a viable, transferable product — clean codebase, reliable test suites, standard tooling, and no undocumented tribal knowledge.
 
 ## Architecture
