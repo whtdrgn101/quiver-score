@@ -66,39 +66,43 @@ Full migration from Python/FastAPI to Go. 253 contract tests covering all endpoi
 
 - **Phase 16** — Tournament rounds API: `tournament_rounds` and `tournament_round_scores` tables, 6 endpoints (add/list/start/complete rounds, submit round score, round leaderboard), advancement logic with tie handling, 11 unit tests + 8 contract tests
 
+### Mobile Feature Parity — Equipment & Clubs (Phase 16.5) ✅
+
+- **Phase 16.5** — Mobile equipment & clubs: Drift schema v3 with cache tables, equipment & setups full CRUD with online-first caching, clubs view/join/leave/leaderboard/activity/events with RSVP/teams, 4-tab bottom nav (Dashboard, History, Clubs, More), 29 model serialization tests
+
 ---
 
 ## Up Next
 
-### Phase 17: Multi-Round Tournament Management — Web
+### Phase 17: Multi-Round Tournament Management — Web ✅
 
 Wire the existing tournament rounds API into the web frontend. The backend endpoints are built and tested — this phase is purely frontend.
 
 #### 17.1 — API Wrappers & Rounds Section
 
-- [ ] Add tournament round API functions to `frontend/src/api/tournaments.js` (addRound, listRounds, startRound, completeRound, submitRoundScore, getRoundLeaderboard)
-- [ ] Add rounds section to `TournamentDetail.jsx` — list rounds with status, round number, and template name
-- [ ] Organizer controls: "Add Round" button with round name, template selection, and advancement count
+- [x] Add tournament round API functions to `frontend/src/api/tournaments.js` (addRound, listRounds, startRound, completeRound, submitRoundScore, getRoundLeaderboard)
+- [x] Add rounds section to `TournamentDetail.jsx` — list rounds with status, round number, and template name
+- [x] Organizer controls: "Add Round" button with round name, template selection, and advancement count
 
 #### 17.2 — Organizer Round Lifecycle
 
-- [ ] Start round button (only when tournament is in_progress and round is pending)
-- [ ] Complete round button (ranks participants, advances top N, handles ties at cutoff)
-- [ ] Visual round status indicators (pending, in_progress, completed)
-- [ ] Show which participants advanced vs eliminated per round
+- [x] Start round button (only when tournament is in_progress and round is pending)
+- [x] Complete round button (ranks participants, advances top N, handles ties at cutoff)
+- [x] Visual round status indicators (pending, in_progress, completed)
+- [x] Show which participants advanced vs eliminated per round
 
 #### 17.3 — Participant Round Scoring
 
-- [ ] "Score This Round" navigates with round context (roundId + tournamentId + clubId)
-- [ ] Update `RoundSelect.jsx` and `ScoreSession.jsx` to pass roundId through the scoring flow
-- [ ] On session complete, submit to round-level endpoint (`/rounds/{roundId}/submit-score`) instead of tournament-level
-- [ ] Banner in scoring flow indicating which tournament round is being scored
+- [x] "Score This Round" navigates with round context (roundId + tournamentId + clubId)
+- [x] Update `RoundSelect.jsx` and `ScoreSession.jsx` to pass roundId through the scoring flow
+- [x] On session complete, submit to round-level endpoint (`/rounds/{roundId}/submit-score`) instead of tournament-level
+- [x] Banner in scoring flow indicating which tournament round is being scored
 
 #### 17.4 — Per-Round Leaderboards & Bracket View
 
-- [ ] Per-round leaderboard tab/accordion in `TournamentDetail.jsx`
-- [ ] Advancement indicators (advanced, eliminated) on leaderboard entries
-- [ ] Overall tournament leaderboard remains as summary view
+- [x] Per-round leaderboard tab/accordion in `TournamentDetail.jsx`
+- [x] Advancement indicators (advanced, eliminated) on leaderboard entries
+- [x] Overall tournament leaderboard remains as summary view
 - [ ] Visual bracket progression showing round-over-round results
 
 ---

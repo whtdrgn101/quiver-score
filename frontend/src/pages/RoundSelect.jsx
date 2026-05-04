@@ -58,7 +58,7 @@ export default function RoundSelect() {
     if (selectedSetup) data.setup_profile_id = selectedSetup;
     const res = await createSession(data);
     const navState = tournamentContext?.tournamentId
-      ? { tournamentId: tournamentContext.tournamentId, clubId: tournamentContext.clubId }
+      ? { tournamentId: tournamentContext.tournamentId, clubId: tournamentContext.clubId, roundId: tournamentContext.roundId }
       : undefined;
     navigate(`/score/${res.data.id}`, { state: navState });
   };
@@ -74,7 +74,7 @@ export default function RoundSelect() {
     <div>
       {tournamentContext?.tournamentId && (
         <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg px-4 py-3 mb-4 text-sm text-blue-800 dark:text-blue-200">
-          Scoring for tournament. Your score will be submitted automatically when you finish.
+          Scoring for tournament{tournamentContext.roundId ? ' round' : ''}. Your score will be submitted automatically when you finish.
         </div>
       )}
       <div className="flex items-center justify-between mb-6">

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { getSession, submitEnd, completeSession, undoLastEnd, abandonSession, uploadEndImage, listSessionImages, getEndImage } from '../api/scoring';
-import { submitTournamentScore } from '../api/tournaments';
+import { submitTournamentScore, submitRoundScore } from '../api/tournaments';
 import { addPendingEnd } from '../utils/pendingEnds';
 import { useOnline } from '../hooks/useOnline';
 import Spinner from '../components/Spinner';
@@ -184,7 +184,11 @@ export default function ScoreSession() {
     try {
       const res = await completeSession(sessionId, Object.keys(data).length ? data : undefined);
       if (tournamentContext?.tournamentId) {
-        await submitTournamentScore(tournamentContext.clubId, tournamentContext.tournamentId, sessionId);
+        if (tournamentContext.roundId) {
+          await submitRoundScore(tournamentContext.clubId, tournamentContext.tournamentId, tournamentContext.roundId, sessionId);
+        } else {
+          await submitTournamentScore(tournamentContext.clubId, tournamentContext.tournamentId, sessionId);
+        }
       }
       if (res.data.is_personal_best) {
         setShowPRBanner(true);
@@ -258,6 +262,11 @@ export default function ScoreSession() {
         {isMultiStage && stage && (
           <div className="text-emerald-600 text-sm font-medium mt-1">
             {stage.name}: {stage.distance} — End {stageEndCount + 1} of {stage.num_ends}
+          </div>
+        )}
+        {tournamentContext?.tournamentId && (
+          <div className="mt-2 text-xs text-blue-600 dark:text-blue-400 font-medium">
+            Tournament{tournamentContext.roundId ? ' Round' : ''} — score auto-submits on finish
           </div>
         )}
       </div>
