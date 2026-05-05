@@ -9,13 +9,21 @@ This project serves three purposes. The first is I have a love and passion for t
 - **Long-term maintainability.** This is a product, not a prototype. Favor clear architecture, consistent patterns, and well-documented decisions over clever shortcuts. Code should be easy for a new developer (or buyer) to pick up and follow S.O.L.I.D. and D.R.Y. principles as much as possible.
 - **Saleable product.** Feature recommendations and technology choices should consider what makes this a viable, transferable product — clean codebase, reliable test suites, standard tooling, and no undocumented tribal knowledge.
 
+## Infrastructure & Hosting
+
+- **Domain**: quiverscore.com, registered and DNS managed via Squarespace
+- **Go API**: deployed to Google Cloud Run
+- **Web App**: Firebase Hosting (global CDN)
+- **Database**: Neon (serverless PostgreSQL)
+- **Email**: Resend.com for transactional sending; ImprovMX for inbound forwarding (support@, info@ → Gmail)
+
 ## Architecture
 
 - **Go API** (chi router) is the sole runtime service — handles all routes including PDF export
 - **React web app** (Vite + React 19) hosted on Firebase as a PWA
 - **Flutter mobile app** (iOS + Android) with offline-first architecture and sync engine
 - **Python** kept only for Alembic database migrations (runs on deploy then exits, no runtime server)
-- **PostgreSQL** (Cloud SQL) is the single source of truth
+- **PostgreSQL** (Neon) is the single source of truth
 - PDF generation uses go-pdf/fpdf (pure Go)
 
 ## Go API (backend-go/)

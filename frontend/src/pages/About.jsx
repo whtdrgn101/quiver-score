@@ -51,6 +51,9 @@ export default function About() {
         <p className="text-sm text-gray-500 dark:text-gray-500">
           Questions or feedback? Reach out at <a href="mailto:support@quiverscore.com" className="text-emerald-600 dark:text-emerald-400 hover:underline">support@quiverscore.com</a>.
         </p>
+        <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+          For general inquiries: <a href="mailto:info@quiverscore.com" className="text-emerald-600 dark:text-emerald-400 hover:underline">info@quiverscore.com</a>.
+        </p>
       </main>
     </div>
   );

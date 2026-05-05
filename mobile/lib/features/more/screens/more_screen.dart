@@ -152,6 +152,22 @@ class MoreScreen extends ConsumerWidget {
 
         const SizedBox(height: 24),
 
+        // Support
+        Text('Support',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            )),
+        const SizedBox(height: 8),
+
+        _MenuTile(
+          icon: Icons.mail_outlined,
+          title: 'Contact Support',
+          subtitle: 'support@quiverscore.com',
+          onTap: () => _openUrl('mailto:support@quiverscore.com'),
+        ),
+
+        const SizedBox(height: 24),
+
         // Account section
         Text('Account',
             style: theme.textTheme.titleSmall?.copyWith(

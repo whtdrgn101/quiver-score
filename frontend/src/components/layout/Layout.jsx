@@ -88,6 +88,7 @@ export default function Layout({ children }) {
               <Link to="/history" className="hover:text-emerald-200">History</Link>
               <Link to="/coaching" className="hover:text-emerald-200">Coaching</Link>
               <Link to="/feed" className="hover:text-emerald-200">Feed</Link>
+              <a href="mailto:support@quiverscore.com" className="hover:text-emerald-200">Support</a>
               <Link to="/profile" className="text-emerald-200 text-sm hover:text-white">{user.display_name || user.username}</Link>
               <NotificationBell />
               <ThemeToggle />
@@ -130,6 +131,7 @@ export default function Layout({ children }) {
             <Link to="/history" className="block py-2 hover:text-emerald-200">History</Link>
             <Link to="/coaching" className="block py-2 hover:text-emerald-200">Coaching</Link>
             <Link to="/feed" className="block py-2 hover:text-emerald-200">Feed</Link>
+            <a href="mailto:support@quiverscore.com" className="block py-2 hover:text-emerald-200">Support</a>
             <Link to="/profile" className="block py-2 text-emerald-200 hover:text-white">{user.display_name || user.username}</Link>
             <button onClick={handleLogout} className="block w-full text-left py-2 text-sm bg-emerald-900 px-3 rounded hover:bg-emerald-950">
               Logout
