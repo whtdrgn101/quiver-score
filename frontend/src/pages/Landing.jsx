@@ -142,6 +142,32 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* About */}
+      <section className="max-w-3xl mx-auto px-6 pb-16 text-white" aria-label="About QuiverScore">
+        <h2 className="text-2xl sm:text-3xl font-bold mb-4 text-center">
+          Built for Archers Who Want to Improve Every Round
+        </h2>
+        <p className="text-emerald-100 dark:text-gray-300 mb-4 leading-relaxed">
+          QuiverScore is a complete score tracker for target archery — built to help recreational
+          and competitive archers alike capture every arrow, every end, and every round in one
+          place. Whether you're shooting a 720 round at a club shoot, working through field
+          rounds in the woods, or grinding indoor practice over the winter, QuiverScore gives you
+          a single home for your scores, your equipment, and your progress.
+        </p>
+        <p className="text-emerald-100 dark:text-gray-300 mb-4 leading-relaxed">
+          Master your form by reviewing the data behind it. Every session is broken down
+          end-by-end so you can see where points are going, spot patterns in your grouping, and
+          watch your averages improve over time. Sight marks live alongside your bow setup, so
+          when you change a string or adjust draw weight you have a clear record of how those
+          changes affected your scores.
+        </p>
+        <p className="text-emerald-100 dark:text-gray-300 leading-relaxed">
+          QuiverScore works in any modern web browser, and the companion mobile app brings the
+          same score tracker to iOS and Android with full offline support — so you can record
+          every round at the range and sync it back to your account when you're done.
+        </p>
+      </section>
+
       {/* Archery Organizations */}
       <section className="max-w-3xl mx-auto px-6 pb-16 text-center">
         <h2 className="text-white font-semibold text-lg mb-3">Archery Organizations</h2>
