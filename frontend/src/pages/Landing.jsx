@@ -159,6 +159,7 @@ export default function Landing() {
           <Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
           <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
           <Link to="/about" className="hover:text-white transition-colors">About</Link>
+          <Link to="/mobile" className="hover:text-white transition-colors">Mobile App</Link>
         </div>
         &copy; {new Date().getFullYear()} QuiverScore
       </footer>

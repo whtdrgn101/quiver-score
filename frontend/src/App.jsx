@@ -36,6 +36,7 @@ import Feed from './pages/Feed';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import About from './pages/About';
+import MobileApp from './pages/MobileApp';
 import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children }) {
@@ -78,6 +79,7 @@ export default function App() {
               <Route path="/terms" element={<Terms />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/about" element={<About />} />
+              <Route path="/mobile" element={<MobileApp />} />
               <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
                 <Route path="rounds" element={<RoundSelect />} />
                 <Route path="rounds/create" element={<CreateRound />} />

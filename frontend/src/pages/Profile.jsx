@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { updateProfile, uploadAvatar, uploadAvatarUrl, deleteAvatar, changePassword, getMyClubsWithTeams, deleteAccount } from '../api/auth';
 import { getRounds } from '../api/scoring';
 import Spinner from '../components/Spinner';
+import MobileAppLinks from '../components/MobileAppLinks';
 
 const TABS = ['archer', 'clubs', 'rounds'];
 const TAB_LABELS = { archer: 'Archer Info', clubs: 'Clubs & Teams', rounds: 'Custom Rounds' };
@@ -222,6 +223,11 @@ export default function Profile() {
       {tab === 'rounds' && (
         <CustomRoundsTab rounds={myCustomRounds} loading={roundsLoading} />
       )}
+
+      {/* Mobile app — always visible below tabs */}
+      <div className="mt-10">
+        <MobileAppLinks compact />
+      </div>
 
       {/* Danger Zone — always visible below tabs */}
       <div className="mt-12 border-t dark:border-gray-700 pt-6">
