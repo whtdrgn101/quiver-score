@@ -58,6 +58,9 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Build frontend
+        env:
+          VITE_ANDROID_APP_URL: ${{ secrets.VITE_ANDROID_APP_URL }}
+          VITE_IOS_APP_URL: ${{ secrets.VITE_IOS_APP_URL }}
         run: |
           cd frontend
           npm ci
