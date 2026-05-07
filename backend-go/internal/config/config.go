@@ -30,7 +30,7 @@ func Load() *Config {
 		CORSOrigins:                      strings.Split(envOrDefault("CORS_ORIGINS", "http://localhost:5173"), ","),
 		RateLimitEnabled:                 envOrDefaultBool("RATE_LIMIT_ENABLED", true),
 		AccessTokenExpireMinutes:         envOrDefaultInt("ACCESS_TOKEN_EXPIRE_MINUTES", 15),
-		RefreshTokenExpireDays:           envOrDefaultInt("REFRESH_TOKEN_EXPIRE_DAYS", 30),
+		RefreshTokenExpireDays:           envOrDefaultInt("REFRESH_TOKEN_EXPIRE_DAYS", 90),
 		Algorithm:                        envOrDefault("ALGORITHM", "HS256"),
 		EmailAPIKey:                      envOrDefault("EMAIL_API_KEY", ""),
 		EmailFrom:                        envOrDefault("EMAIL_FROM", "noreply@quiverscore.com"),

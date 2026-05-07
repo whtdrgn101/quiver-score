@@ -36,8 +36,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> _tryRestoreSession() async {
-    final token = await storage.getAccessToken();
-    if (token != null) {
+    final accessToken = await storage.getAccessToken();
+    final refreshToken = await storage.getRefreshToken();
+    if (accessToken != null || refreshToken != null) {
       state = const AuthState.authenticated();
       syncService.pullRoundTemplates();
     }
