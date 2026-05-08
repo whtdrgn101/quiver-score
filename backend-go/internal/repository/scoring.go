@@ -27,12 +27,13 @@ type ArrowOut struct {
 }
 
 type EndOut struct {
-	ID        string     `json:"id"`
-	EndNumber int        `json:"end_number"`
-	EndTotal  int        `json:"end_total"`
-	StageID   *string    `json:"stage_id"`
-	Arrows    []ArrowOut `json:"arrows"`
-	CreatedAt time.Time  `json:"created_at"`
+	ID            string     `json:"id"`
+	EndNumber     int        `json:"end_number"`
+	EndTotal      int        `json:"end_total"`
+	StageID       *string    `json:"stage_id"`
+	Arrows        []ArrowOut `json:"arrows"`
+	AttachmentIDs []string   `json:"attachment_ids"`
+	CreatedAt     time.Time  `json:"created_at"`
 }
 
 type SessionOut struct {
@@ -171,8 +172,45 @@ func (r *ScoringRepo) LoadSessionOut(ctx context.Context, sessionID, userID stri
 
 	// Load ends with arrows
 	s.Ends, _ = r.LoadEnds(ctx, sessionID)
+	r.attachAttachmentIDs(ctx, sessionID, s.Ends)
 
 	return &s, nil
+}
+
+// attachAttachmentIDs populates EndOut.AttachmentIDs for every end in a session
+// using a single bulk query, so the client can render per-end thumbnails
+// without a follow-up list call per end. Errors are swallowed — missing
+// attachment IDs degrade gracefully (gallery just shows empty).
+func (r *ScoringRepo) attachAttachmentIDs(ctx context.Context, sessionID string, ends []EndOut) {
+	if len(ends) == 0 {
+		return
+	}
+	for i := range ends {
+		ends[i].AttachmentIDs = []string{}
+	}
+	rows, err := r.DB.Query(ctx, `
+		SELECT a.id, a.owner_id
+		FROM attachments a
+		JOIN ends e ON e.id = a.owner_id
+		WHERE a.owner_type = 'session_end' AND e.session_id = $1
+		ORDER BY a.created_at`, sessionID)
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	byEnd := map[string][]string{}
+	for rows.Next() {
+		var id, endID string
+		if err := rows.Scan(&id, &endID); err != nil {
+			continue
+		}
+		byEnd[endID] = append(byEnd[endID], id)
+	}
+	for i := range ends {
+		if ids, ok := byEnd[ends[i].ID]; ok {
+			ends[i].AttachmentIDs = ids
+		}
+	}
 }
 
 func (r *ScoringRepo) ListSessions(ctx context.Context, userID string, templateID, dateFrom, dateTo, search *string) ([]SessionSummary, error) {
@@ -356,7 +394,7 @@ func (r *ScoringRepo) SubmitEnd(ctx context.Context, sessionID, stageID string, 
 	sid := stageID
 	return &EndOut{
 		ID: endID, EndNumber: endNumber, EndTotal: endTotal,
-		StageID: &sid, Arrows: arrowOuts, CreatedAt: now,
+		StageID: &sid, Arrows: arrowOuts, AttachmentIDs: []string{}, CreatedAt: now,
 	}, nil
 }
 
@@ -864,6 +902,7 @@ func (r *ScoringRepo) LoadEnds(ctx context.Context, sessionID string) ([]EndOut,
 			continue
 		}
 		e.Arrows, _ = r.loadArrows(ctx, e.ID)
+		e.AttachmentIDs = []string{}
 		ends = append(ends, e)
 	}
 	return ends, nil

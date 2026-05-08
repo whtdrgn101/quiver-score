@@ -245,6 +245,24 @@ def test_delete_nonexistent_attachment(client, auth_headers):
 # ── Account-deletion prefix wipe ───────────────────────────────────────
 
 
+def test_session_response_embeds_attachment_ids(client, auth_headers, create_round):
+    """GET /sessions/{id} should embed attachment_ids on each end so the web
+    app can render per-end thumbnails without a follow-up list call."""
+    end_id, session_id = _create_end(client, auth_headers, create_round)
+
+    # Empty before any uploads.
+    detail = client.get(f"/api/v1/sessions/{session_id}", headers=auth_headers).json()
+    end = next(e for e in detail["ends"] if e["id"] == end_id)
+    assert end["attachment_ids"] == []
+
+    # Upload two attachments and confirm their IDs appear on the end.
+    a1 = _upload(client, auth_headers, "session_end", end_id).json()
+    a2 = _upload(client, auth_headers, "session_end", end_id).json()
+    detail = client.get(f"/api/v1/sessions/{session_id}", headers=auth_headers).json()
+    end = next(e for e in detail["ends"] if e["id"] == end_id)
+    assert sorted(end["attachment_ids"]) == sorted([a1["id"], a2["id"]])
+
+
 def test_account_delete_wipes_attachments(client, register_user, create_equipment):
     """Account deletion should make the user's attachments inaccessible."""
     user = register_user()
