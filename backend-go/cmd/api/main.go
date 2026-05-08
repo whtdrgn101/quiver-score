@@ -115,7 +115,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, store storage.ObjectStore
 	authLimiter := middleware.NewRateLimiter(10, 5)   // 10/min, burst 5 (register, login, etc.)
 
 	// Create handlers
-	authHandler := &handler.AuthHandler{Users: userRepo, Email: emailSender, Cfg: cfg}
+	authHandler := &handler.AuthHandler{Users: userRepo, Email: emailSender, Storage: store, Cfg: cfg}
 	usersHandler := &handler.UsersHandler{Users: userRepo, Cfg: cfg}
 	roundsHandler := &handler.RoundsHandler{Rounds: roundRepo, Cfg: cfg}
 	equipmentHandler := &handler.EquipmentHandler{Equipment: equipmentRepo, Cfg: cfg}
