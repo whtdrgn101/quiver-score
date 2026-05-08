@@ -81,13 +81,18 @@ class ArrowsLocal extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-/// Photos taken of targets per end
+/// Photos taken of targets per end. Local file is the source of truth for
+/// offline scoring; once uploaded we store the server-assigned attachment ID
+/// so the sync layer can be idempotent on re-runs.
 class EndImages extends Table {
   TextColumn get id => text()();
   TextColumn get endId => text().references(EndsLocal, #id)();
   TextColumn get filePath => text()(); // local file path
   DateTimeColumn get capturedAt => dateTime()();
   BoolColumn get synced => boolean().withDefault(const Constant(false))();
+  // Server-assigned attachment ID, set after successful upload to
+  // /api/v1/attachments. NULL until first sync, then immutable.
+  TextColumn get serverAttachmentId => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

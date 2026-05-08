@@ -54,11 +54,23 @@ class SyncService {
     return Duration(seconds: seconds);
   }
 
-  void _scheduleRetry(int nextRetryCount) {
+  void _scheduleRetry(int nextRetryCount, {Duration? overrideDelay}) {
     _retryTimer?.cancel();
-    final delay = _backoffDelay(nextRetryCount);
+    final delay = overrideDelay ?? _backoffDelay(nextRetryCount);
     dev.log('Sync: scheduling retry in ${delay.inSeconds}s', name: 'SyncService');
     _retryTimer = Timer(delay, () => syncPendingItems());
+  }
+
+  /// If [err] is a 429 with a Retry-After header, return the requested wait.
+  /// Falls back to exponential backoff if the header is missing or unparseable.
+  Duration? _retryAfterFromError(Object err) {
+    if (err is! DioException) return null;
+    if (err.response?.statusCode != 429) return null;
+    final raw = err.response?.headers.value('retry-after');
+    if (raw == null) return null;
+    final seconds = int.tryParse(raw.trim());
+    if (seconds == null || seconds <= 0) return null;
+    return Duration(seconds: seconds);
   }
 
   /// Enqueue a mutation to be synced later
@@ -122,6 +134,7 @@ class SyncService {
 
       int highestRetry = 0;
       bool hasRetryable = false;
+      Duration? retryAfterOverride;
 
       for (final item in pending) {
         dev.log(
@@ -186,12 +199,15 @@ class SyncService {
           if (newRetry >= _maxRetries) continue;
           hasRetryable = true;
           if (newRetry > highestRetry) highestRetry = newRetry;
+          // If the server told us how long to wait (429 + Retry-After),
+          // honor that instead of exponential backoff.
+          retryAfterOverride ??= _retryAfterFromError(e);
           break;
         }
       }
 
       if (hasRetryable) {
-        _scheduleRetry(highestRetry);
+        _scheduleRetry(highestRetry, overrideDelay: retryAfterOverride);
       }
     } finally {
       _syncing = false;
@@ -299,19 +315,39 @@ class SyncService {
       String action, String entityId, Map<String, dynamic> payload) async {
     if (action != 'upload') return;
 
+    // Idempotency: if a previous run already uploaded this image and
+    // captured a server attachment ID, skip the network round-trip.
+    final existing = await (db.select(db.endImages)
+          ..where((t) => t.id.equals(entityId)))
+        .getSingleOrNull();
+    if (existing == null) {
+      dev.log('Sync: image row missing locally, skipping', name: 'SyncService');
+      return;
+    }
+    if (existing.serverAttachmentId != null) {
+      dev.log('Sync: image already uploaded (serverAttachmentId set), skipping',
+          name: 'SyncService');
+      await (db.update(db.endImages)
+            ..where((t) => t.id.equals(entityId)))
+          .write(const EndImagesCompanion(synced: Value(true)));
+      return;
+    }
+
     final endId = payload['end_id'] as String;
     final filePath = payload['file_path'] as String;
 
-    // Look up server IDs for the end and session
+    // Look up server end ID — owner_id for owner_type=session_end is the
+    // server's end UUID, not the local one. End sync must have run first.
     final end = await (db.select(db.endsLocal)
           ..where((t) => t.id.equals(endId)))
         .getSingle();
-    final session = await (db.select(db.scoringSessionsLocal)
-          ..where((t) => t.id.equals(end.sessionId)))
-        .getSingle();
 
-    final syncSessionId = session.serverId ?? session.id;
-    final syncEndId = end.serverId ?? end.id;
+    final ownerId = end.serverId;
+    if (ownerId == null) {
+      throw StateError(
+          'Cannot upload attachment: end ${end.id} has no serverId yet — '
+          'session/end sync must run first');
+    }
 
     final file = File(filePath);
     if (!await file.exists()) {
@@ -319,14 +355,15 @@ class SyncService {
       return;
     }
 
-    debugPrint('Sync: uploading image session=$syncSessionId '
-        'end=$syncEndId (localEnd=${end.id}, endServerId=${end.serverId})');
+    debugPrint('Sync: uploading attachment owner_type=session_end '
+        'owner_id=$ownerId (localEnd=${end.id})');
     dev.log(
-      'Sync: uploading image for session=$syncSessionId end=$syncEndId',
+      'Sync: uploading attachment for end=$ownerId',
       name: 'SyncService',
     );
 
-    // Compress before upload
+    // Compress before upload — server also resizes, but smaller body means
+    // a much faster upload over cellular.
     final originalSize = await file.length();
     final compressed = await FlutterImageCompress.compressWithFile(
       filePath,
@@ -355,8 +392,12 @@ class SyncService {
       ),
     });
 
-    await api.dio.post(
-      '/api/v1/scoring/$syncSessionId/ends/$syncEndId/images',
+    final response = await api.dio.post(
+      '/api/v1/attachments',
+      queryParameters: {
+        'owner_type': 'session_end',
+        'owner_id': ownerId,
+      },
       data: formData,
     );
 
@@ -367,11 +408,12 @@ class SyncService {
       } catch (_) {}
     }
 
-    // Mark local image as synced
+    final serverAttachmentId = response.data['id'] as String?;
     await (db.update(db.endImages)
           ..where((t) => t.id.equals(entityId)))
-        .write(const EndImagesCompanion(
-      synced: Value(true),
+        .write(EndImagesCompanion(
+      synced: const Value(true),
+      serverAttachmentId: Value(serverAttachmentId),
     ));
   }
 
