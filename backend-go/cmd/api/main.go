@@ -102,7 +102,6 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, store storage.ObjectStore
 	socialRepo := &repository.SocialRepo{DB: pool}
 	coachingRepo := &repository.CoachingRepo{DB: pool}
 	notificationRepo := &repository.NotificationRepo{DB: pool}
-	endImageRepo := &repository.EndImageRepo{DB: pool}
 	attachmentRepo := &repository.AttachmentRepo{DB: pool}
 
 	// Email sender
@@ -128,8 +127,6 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, store storage.ObjectStore
 	socialHandler := &handler.SocialHandler{Social: socialRepo, Cfg: cfg}
 	coachingHandler := &handler.CoachingHandler{Coaching: coachingRepo, Cfg: cfg}
 	notificationsHandler := &handler.NotificationsHandler{Notifications: notificationRepo, Cfg: cfg}
-	endImagesHandler := &handler.EndImagesHandler{Images: endImageRepo, Cfg: cfg}
-
 	// Attachments: GCS-backed image storage shared across owner types.
 	imagingProcessor := imaging.NewProcessor()
 	attachmentsHandler := &handler.AttachmentsHandler{
@@ -172,7 +169,6 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, store storage.ObjectStore
 	r.Route("/api/v1/social", socialHandler.Routes)
 	r.Route("/api/v1/coaching", coachingHandler.Routes)
 	r.Route("/api/v1/notifications", notificationsHandler.Routes)
-	r.Route("/api/v1/scoring", endImagesHandler.Routes)
 	r.Route("/api/v1/attachments", attachmentsHandler.Routes)
 
 	// Mount users/me as a group so we can add sub-routes

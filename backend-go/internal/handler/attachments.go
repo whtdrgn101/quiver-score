@@ -20,8 +20,7 @@ import (
 	"github.com/quiverscore/backend-go/internal/storage"
 )
 
-// maxAttachmentBytes caps raw multipart uploads. Matches the legacy
-// end_images limit so existing client UX doesn't change.
+// maxAttachmentBytes caps raw multipart uploads at 10 MB.
 const maxAttachmentBytes = 10 * 1024 * 1024
 
 // OwnerVerifier confirms an owner exists and belongs to the calling user.
