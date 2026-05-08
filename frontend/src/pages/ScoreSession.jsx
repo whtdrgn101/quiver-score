@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { getSession, submitEnd, completeSession, undoLastEnd, abandonSession, uploadEndImage, listSessionImages, getEndImage } from '../api/scoring';
+import { getSession, submitEnd, completeSession, undoLastEnd, abandonSession } from '../api/scoring';
+import { uploadAttachment } from '../api/attachments';
+import AttachmentImage from '../components/AttachmentImage';
 import { submitTournamentScore, submitRoundScore } from '../api/tournaments';
 import { addPendingEnd } from '../utils/pendingEnds';
 import { useOnline } from '../hooks/useOnline';
@@ -26,8 +28,9 @@ export default function ScoreSession() {
   const [actionError, setActionError] = useState('');
   const [photoPromptEnd, setPhotoPromptEnd] = useState(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [endImageCounts, setEndImageCounts] = useState({});
-  const [imageBlobUrls, setImageBlobUrls] = useState({});
+  // attachmentsByEnd: { endId: [attachmentId, ...] } — sourced from
+  // end.attachment_ids in GET /sessions/:id, no separate list call.
+  const [attachmentsByEnd, setAttachmentsByEnd] = useState({});
 
   const loadSession = useCallback(async () => {
     try {
@@ -36,6 +39,11 @@ export default function ScoreSession() {
       if (res.data.notes) setFinalNotes(res.data.notes);
       if (res.data.location) setFinalLocation(res.data.location);
       if (res.data.weather) setFinalWeather(res.data.weather);
+      const grouped = {};
+      for (const end of res.data.ends || []) {
+        grouped[end.id] = end.attachment_ids || [];
+      }
+      setAttachmentsByEnd(grouped);
       setLoadError(false);
     } catch {
       setLoadError(true);
@@ -46,23 +54,7 @@ export default function ScoreSession() {
 
   useEffect(() => {
     loadSession();
-    listSessionImages(sessionId).then((res) => {
-      const counts = {};
-      const firstPerEnd = {};
-      for (const img of res.data) {
-        counts[img.end_id] = (counts[img.end_id] || 0) + 1;
-        if (!firstPerEnd[img.end_id]) firstPerEnd[img.end_id] = img;
-      }
-      setEndImageCounts(counts);
-      Object.values(firstPerEnd).forEach(async (img) => {
-        try {
-          const r = await getEndImage(sessionId, img.id);
-          const url = URL.createObjectURL(r.data);
-          setImageBlobUrls((prev) => ({ ...prev, [img.end_id]: url }));
-        } catch { /* ignored */ }
-      });
-    }).catch(() => {});
-  }, [loadSession, sessionId]);
+  }, [loadSession]);
 
   const template = session?.template;
   const stages = useMemo(() => template?.stages ?? [], [template]);
@@ -432,7 +424,7 @@ export default function ScoreSession() {
             <label className={`flex-1 py-2 rounded-lg border border-emerald-500 text-emerald-600 text-sm font-medium text-center cursor-pointer hover:bg-emerald-50 dark:hover:bg-emerald-900/20 ${uploadingPhoto ? 'opacity-50' : ''}`}>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic"
+                accept="image/jpeg,image/png,image/webp"
                 capture="environment"
                 className="hidden"
                 disabled={uploadingPhoto}
@@ -441,13 +433,12 @@ export default function ScoreSession() {
                   if (!file) return;
                   setUploadingPhoto(true);
                   try {
-                    await uploadEndImage(sessionId, photoPromptEnd.id, file);
+                    const res = await uploadAttachment('session_end', photoPromptEnd.id, file);
                     const endId = photoPromptEnd.id;
-                    setEndImageCounts((prev) => ({ ...prev, [endId]: (prev[endId] || 0) + 1 }));
-                    if (!imageBlobUrls[endId]) {
-                      const url = URL.createObjectURL(file);
-                      setImageBlobUrls((prev) => ({ ...prev, [endId]: url }));
-                    }
+                    setAttachmentsByEnd((prev) => ({
+                      ...prev,
+                      [endId]: [...(prev[endId] || []), res.data.id],
+                    }));
                   } catch { /* ignored */ }
                   setUploadingPhoto(false);
                   setPhotoPromptEnd(null);
@@ -498,7 +489,7 @@ export default function ScoreSession() {
                       );
                     }
                     lastStageId = end.stage_id;
-                    const imgCount = endImageCounts[end.id] || 0;
+                    const attachmentIds = attachmentsByEnd[end.id] || [];
                     rows.push(
                       <tr key={end.id} className="border-t dark:border-gray-700">
                         <td className="px-3 py-2 dark:text-gray-300">{end.end_number}</td>
@@ -512,12 +503,13 @@ export default function ScoreSession() {
                                 {a.score_value}
                               </span>
                             ))}
-                            {imgCount > 0 && (
-                              imageBlobUrls[end.id] ? (
-                                <img src={imageBlobUrls[end.id]} alt="" className="w-7 h-7 rounded object-cover border border-gray-200 dark:border-gray-600 ml-1" />
-                              ) : (
-                                <div className="w-7 h-7 rounded bg-gray-200 dark:bg-gray-600 animate-pulse ml-1" />
-                              )
+                            {attachmentIds.length > 0 && (
+                              <AttachmentImage
+                                id={attachmentIds[0]}
+                                variant="thumb"
+                                className="w-7 h-7 rounded object-cover border border-gray-200 dark:border-gray-600 ml-1"
+                                alt=""
+                              />
                             )}
                           </div>
                         </td>
