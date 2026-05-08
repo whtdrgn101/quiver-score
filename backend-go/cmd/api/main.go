@@ -16,8 +16,10 @@ import (
 	"github.com/quiverscore/backend-go/internal/database"
 	"github.com/quiverscore/backend-go/internal/email"
 	"github.com/quiverscore/backend-go/internal/handler"
+	"github.com/quiverscore/backend-go/internal/imaging"
 	"github.com/quiverscore/backend-go/internal/middleware"
 	"github.com/quiverscore/backend-go/internal/repository"
+	"github.com/quiverscore/backend-go/internal/storage"
 )
 
 func main() {
@@ -38,7 +40,14 @@ func main() {
 
 	slog.Info("connected to database")
 
-	r := newRouter(cfg, pool)
+	store, err := storage.FromConfig(ctx, cfg)
+	if err != nil {
+		slog.Error("failed to init object storage", "error", err, "backend", cfg.StorageBackend)
+		os.Exit(1)
+	}
+	slog.Info("object storage initialized", "backend", cfg.StorageBackend)
+
+	r := newRouter(cfg, pool, store)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Port,
@@ -73,7 +82,7 @@ func main() {
 	slog.Info("server stopped")
 }
 
-func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
+func newRouter(cfg *config.Config, pool *pgxpool.Pool, store storage.ObjectStore) *chi.Mux {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestLogging)
@@ -94,6 +103,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	coachingRepo := &repository.CoachingRepo{DB: pool}
 	notificationRepo := &repository.NotificationRepo{DB: pool}
 	endImageRepo := &repository.EndImageRepo{DB: pool}
+	attachmentRepo := &repository.AttachmentRepo{DB: pool}
 
 	// Email sender
 	emailSender := &email.Sender{
@@ -120,6 +130,32 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	notificationsHandler := &handler.NotificationsHandler{Notifications: notificationRepo, Cfg: cfg}
 	endImagesHandler := &handler.EndImagesHandler{Images: endImageRepo, Cfg: cfg}
 
+	// Attachments: GCS-backed image storage shared across owner types.
+	imagingProcessor := imaging.NewProcessor()
+	attachmentsHandler := &handler.AttachmentsHandler{
+		Repo:    attachmentRepo,
+		Storage: store,
+		Imaging: imagingProcessor,
+		Cfg:     cfg,
+		Owners: map[string]handler.OwnerConfig{
+			"session_end": {
+				Verifier:    handler.OwnerVerifierFunc(attachmentRepo.EndBelongsToUser),
+				RateLimiter: middleware.NewRateLimiterPerHour(200, 20),
+				MaxPerOwner: 20,
+			},
+			"equipment": {
+				Verifier:    handler.OwnerVerifierFunc(attachmentRepo.EquipmentBelongsToUser),
+				RateLimiter: middleware.NewRateLimiterPerHour(50, 10),
+				MaxPerOwner: 10,
+			},
+			"setup": {
+				Verifier:    handler.OwnerVerifierFunc(attachmentRepo.SetupBelongsToUser),
+				RateLimiter: middleware.NewRateLimiterPerHour(50, 10),
+				MaxPerOwner: 10,
+			},
+		},
+	}
+
 	r.Route("/api/v1/auth", func(ar chi.Router) {
 		if cfg.RateLimitEnabled {
 			ar.Use(middleware.RateLimit(authLimiter))
@@ -137,6 +173,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool) *chi.Mux {
 	r.Route("/api/v1/coaching", coachingHandler.Routes)
 	r.Route("/api/v1/notifications", notificationsHandler.Routes)
 	r.Route("/api/v1/scoring", endImagesHandler.Routes)
+	r.Route("/api/v1/attachments", attachmentsHandler.Routes)
 
 	// Mount users/me as a group so we can add sub-routes
 	r.Route("/api/v1/users/me", func(ur chi.Router) {
