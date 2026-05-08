@@ -20,6 +20,9 @@ type Config struct {
 	FrontendURL                      string
 	PasswordResetTokenExpireMinutes  int
 	EmailVerificationTokenExpireHours int
+	StorageBackend                   string // "gcs" | "local" | "memory"
+	GCSBucket                        string
+	LocalStoragePath                 string
 }
 
 func Load() *Config {
@@ -37,6 +40,9 @@ func Load() *Config {
 		FrontendURL:                      envOrDefault("FRONTEND_URL", "http://localhost:5173"),
 		PasswordResetTokenExpireMinutes:  envOrDefaultInt("PASSWORD_RESET_TOKEN_EXPIRE_MINUTES", 60),
 		EmailVerificationTokenExpireHours: envOrDefaultInt("EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS", 24),
+		StorageBackend:                   envOrDefault("STORAGE_BACKEND", "local"),
+		GCSBucket:                        envOrDefault("GCS_BUCKET", ""),
+		LocalStoragePath:                 envOrDefault("LOCAL_STORAGE_PATH", "./tmp/storage"),
 	}
 }
 
