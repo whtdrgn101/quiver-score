@@ -30,7 +30,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -44,6 +44,10 @@ class AppDatabase extends _$AppDatabase {
             await migrator.createTable(setupCache);
             await migrator.createTable(setupEquipmentCache);
             await migrator.createTable(clubCache);
+          }
+          if (from < 4) {
+            await customStatement(
+                'ALTER TABLE end_images ADD COLUMN server_attachment_id TEXT');
           }
         },
       );
