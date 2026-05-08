@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { getSession, createShareLink, revokeShareLink, exportSessionCsv, exportSessionPdf, listSessionImages, uploadEndImage, deleteEndImage, getEndImage } from '../api/scoring';
+import { getSession, createShareLink, revokeShareLink, exportSessionCsv, exportSessionPdf } from '../api/scoring';
+import { uploadAttachment, deleteAttachment } from '../api/attachments';
+import AttachmentImage from '../components/AttachmentImage';
 import ShareButtons from '../components/ShareButtons';
 import Spinner from '../components/Spinner';
 import EndBarChart from '../components/scoring/EndBarChart';
@@ -11,18 +13,12 @@ export default function SessionDetail() {
   const [session, setSession] = useState(null);
   const [shareUrl, setShareUrl] = useState('');
   const [copied, setCopied] = useState(false);
-  const [imagesByEnd, setImagesByEnd] = useState({});
-  const [imageBlobUrls, setImageBlobUrls] = useState({});
-  const [viewImage, setViewImage] = useState(null);
+  // attachmentsByEnd: { endId: [attachmentId, ...] } — driven off the
+  // attachment_ids embedded in the GET /sessions/:id response, so we don't
+  // need a separate list call to know which ends have images.
+  const [attachmentsByEnd, setAttachmentsByEnd] = useState({});
+  const [viewing, setViewing] = useState(null); // { endId, attachmentId }
   const [uploading, setUploading] = useState(null);
-
-  const loadImageBlob = useCallback(async (img) => {
-    try {
-      const res = await getEndImage(sessionId, img.id);
-      const url = URL.createObjectURL(res.data);
-      setImageBlobUrls((prev) => ({ ...prev, [img.id]: url }));
-    } catch { /* ignored */ }
-  }, [sessionId]);
 
   useEffect(() => {
     getSession(sessionId).then((res) => {
@@ -30,21 +26,13 @@ export default function SessionDetail() {
       if (res.data.share_token) {
         setShareUrl(`${window.location.origin}/shared/${res.data.share_token}`);
       }
-    });
-    listSessionImages(sessionId).then((res) => {
       const grouped = {};
-      for (const img of res.data) {
-        (grouped[img.end_id] ??= []).push(img);
+      for (const end of res.data.ends || []) {
+        grouped[end.id] = end.attachment_ids || [];
       }
-      setImagesByEnd(grouped);
-      res.data.forEach((img) => loadImageBlob(img));
-    }).catch(() => {});
-  }, [sessionId, loadImageBlob]);
-
-  useEffect(() => {
-    const urls = Object.values(imageBlobUrls);
-    return () => urls.forEach((u) => URL.revokeObjectURL(u));
-  }, [imageBlobUrls]);
+      setAttachmentsByEnd(grouped);
+    });
+  }, [sessionId]);
 
   if (!session) return <Spinner />;
 
@@ -116,31 +104,24 @@ export default function SessionDetail() {
   const handleImageUpload = async (endId, file) => {
     setUploading(endId);
     try {
-      const res = await uploadEndImage(sessionId, endId, file);
-      setImagesByEnd((prev) => ({
+      const res = await uploadAttachment('session_end', endId, file);
+      setAttachmentsByEnd((prev) => ({
         ...prev,
-        [endId]: [...(prev[endId] || []), res.data],
+        [endId]: [...(prev[endId] || []), res.data.id],
       }));
-      // Create blob URL from the original file for immediate display
-      const url = URL.createObjectURL(file);
-      setImageBlobUrls((prev) => ({ ...prev, [res.data.id]: url }));
     } catch { /* ignored */ }
     setUploading(null);
   };
 
-  const handleDeleteImage = async (imageId, endId) => {
+  const handleDeleteImage = async (attachmentId, endId) => {
     if (!confirm('Delete this photo?')) return;
     try {
-      await deleteEndImage(sessionId, imageId);
-      setImagesByEnd((prev) => ({
+      await deleteAttachment(attachmentId);
+      setAttachmentsByEnd((prev) => ({
         ...prev,
-        [endId]: (prev[endId] || []).filter((img) => img.id !== imageId),
+        [endId]: (prev[endId] || []).filter((id) => id !== attachmentId),
       }));
-      if (imageBlobUrls[imageId]) {
-        URL.revokeObjectURL(imageBlobUrls[imageId]);
-        setImageBlobUrls((prev) => { const next = { ...prev }; delete next[imageId]; return next; });
-      }
-      if (viewImage?.id === imageId) setViewImage(null);
+      if (viewing?.attachmentId === attachmentId) setViewing(null);
     } catch { /* ignored */ }
   };
 
@@ -228,7 +209,7 @@ export default function SessionDetail() {
               const runningTotal = session.ends
                 .slice(0, i + 1)
                 .reduce((s, e) => s + e.end_total, 0);
-              const endImages = imagesByEnd[end.id] || [];
+              const attachmentIds = attachmentsByEnd[end.id] || [];
               return (
                 <tr key={end.id} className="border-t dark:border-gray-700">
                   <td className="px-3 py-2 dark:text-gray-300">{end.end_number}</td>
@@ -243,26 +224,28 @@ export default function SessionDetail() {
                         </span>
                       ))}
                     </div>
-                    {(endImages.length > 0 || session.status !== 'abandoned') && (
+                    {(attachmentIds.length > 0 || session.status !== 'abandoned') && (
                       <div className="flex gap-1 justify-center mt-1 items-center">
-                        {endImages.map((img) => (
-                          <button key={img.id} onClick={() => setViewImage(img)} className="relative group">
-                            {imageBlobUrls[img.id] ? (
-                              <img
-                                src={imageBlobUrls[img.id]}
-                                alt="End target"
-                                className="w-8 h-8 rounded object-cover border border-gray-200 dark:border-gray-600"
-                              />
-                            ) : (
-                              <div className="w-8 h-8 rounded bg-gray-200 dark:bg-gray-600 animate-pulse" />
-                            )}
+                        {attachmentIds.map((aid) => (
+                          <button
+                            key={aid}
+                            onClick={() => setViewing({ endId: end.id, attachmentId: aid })}
+                            className="relative group"
+                            type="button"
+                            aria-label="View photo"
+                          >
+                            <AttachmentImage
+                              id={aid}
+                              variant="thumb"
+                              className="w-8 h-8 rounded object-cover border border-gray-200 dark:border-gray-600"
+                            />
                           </button>
                         ))}
                         {session.status !== 'abandoned' && (
                           <label className={`w-8 h-8 rounded border border-dashed border-gray-300 dark:border-gray-600 flex items-center justify-center cursor-pointer hover:border-emerald-500 ${uploading === end.id ? 'opacity-50' : ''}`}>
                             <input
                               type="file"
-                              accept="image/jpeg,image/png,image/webp,image/heic"
+                              accept="image/jpeg,image/png,image/webp"
                               className="hidden"
                               disabled={uploading === end.id}
                               onChange={(e) => {
@@ -320,31 +303,30 @@ export default function SessionDetail() {
       )}
 
       {/* Image viewer modal */}
-      {viewImage && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setViewImage(null)}>
+      {viewing && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setViewing(null)}>
           <div className="relative max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
-            {imageBlobUrls[viewImage.id] ? (
-              <img
-                src={imageBlobUrls[viewImage.id]}
-                alt="End target"
-                className="w-full rounded-lg"
-              />
-            ) : (
-              <div className="w-full h-64 bg-gray-700 rounded-lg animate-pulse" />
-            )}
+            <AttachmentImage
+              id={viewing.attachmentId}
+              variant="full"
+              alt="End target"
+              className="w-full rounded-lg"
+            />
             <div className="absolute top-2 right-2 flex gap-2">
               <button
-                onClick={() => handleDeleteImage(viewImage.id, viewImage.end_id)}
+                onClick={() => handleDeleteImage(viewing.attachmentId, viewing.endId)}
                 className="bg-red-600 text-white p-2 rounded-full hover:bg-red-700"
                 title="Delete photo"
+                type="button"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </button>
               <button
-                onClick={() => setViewImage(null)}
+                onClick={() => setViewing(null)}
                 className="bg-gray-800 text-white p-2 rounded-full hover:bg-gray-700"
+                type="button"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
