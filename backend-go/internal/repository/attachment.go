@@ -15,8 +15,8 @@ type AttachmentRepo struct {
 	DB *pgxpool.Pool
 }
 
-// AttachmentRow mirrors a row in the attachments table. JSON tags are tuned for
-// the API: storage keys and legacy_id are internal and not exposed to clients.
+// AttachmentRow mirrors a row in the attachments table. JSON tags are tuned
+// for the API: storage keys are internal and not exposed to clients.
 type AttachmentRow struct {
 	ID          string    `json:"id"`
 	UserID      string    `json:"user_id"`
@@ -29,15 +29,14 @@ type AttachmentRow struct {
 	ThumbSize   int       `json:"thumb_size"`
 	Width       int       `json:"width"`
 	Height      int       `json:"height"`
-	LegacyID    *string   `json:"-"`
 	CreatedAt   time.Time `json:"created_at"`
 }
 
 func (r *AttachmentRepo) Insert(ctx context.Context, a *AttachmentRow) error {
 	_, err := r.DB.Exec(ctx,
-		`INSERT INTO attachments (id, user_id, owner_type, owner_id, storage_key, thumb_key, content_type, full_size, thumb_size, width, height, legacy_id)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-		a.ID, a.UserID, a.OwnerType, a.OwnerID, a.StorageKey, a.ThumbKey, a.ContentType, a.FullSize, a.ThumbSize, a.Width, a.Height, a.LegacyID,
+		`INSERT INTO attachments (id, user_id, owner_type, owner_id, storage_key, thumb_key, content_type, full_size, thumb_size, width, height)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		a.ID, a.UserID, a.OwnerType, a.OwnerID, a.StorageKey, a.ThumbKey, a.ContentType, a.FullSize, a.ThumbSize, a.Width, a.Height,
 	)
 	return err
 }
@@ -45,10 +44,10 @@ func (r *AttachmentRepo) Insert(ctx context.Context, a *AttachmentRow) error {
 func (r *AttachmentRepo) Get(ctx context.Context, id, userID string) (*AttachmentRow, error) {
 	var a AttachmentRow
 	err := r.DB.QueryRow(ctx,
-		`SELECT id, user_id, owner_type, owner_id, storage_key, thumb_key, content_type, full_size, thumb_size, width, height, legacy_id, created_at
+		`SELECT id, user_id, owner_type, owner_id, storage_key, thumb_key, content_type, full_size, thumb_size, width, height, created_at
 		 FROM attachments WHERE id = $1 AND user_id = $2`,
 		id, userID,
-	).Scan(&a.ID, &a.UserID, &a.OwnerType, &a.OwnerID, &a.StorageKey, &a.ThumbKey, &a.ContentType, &a.FullSize, &a.ThumbSize, &a.Width, &a.Height, &a.LegacyID, &a.CreatedAt)
+	).Scan(&a.ID, &a.UserID, &a.OwnerType, &a.OwnerID, &a.StorageKey, &a.ThumbKey, &a.ContentType, &a.FullSize, &a.ThumbSize, &a.Width, &a.Height, &a.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -60,7 +59,7 @@ func (r *AttachmentRepo) Get(ctx context.Context, id, userID string) (*Attachmen
 
 func (r *AttachmentRepo) ListByOwner(ctx context.Context, ownerType, ownerID, userID string) ([]AttachmentRow, error) {
 	rows, err := r.DB.Query(ctx,
-		`SELECT id, user_id, owner_type, owner_id, storage_key, thumb_key, content_type, full_size, thumb_size, width, height, legacy_id, created_at
+		`SELECT id, user_id, owner_type, owner_id, storage_key, thumb_key, content_type, full_size, thumb_size, width, height, created_at
 		 FROM attachments
 		 WHERE owner_type = $1 AND owner_id = $2 AND user_id = $3
 		 ORDER BY created_at`,
@@ -74,7 +73,7 @@ func (r *AttachmentRepo) ListByOwner(ctx context.Context, ownerType, ownerID, us
 	var out []AttachmentRow
 	for rows.Next() {
 		var a AttachmentRow
-		if err := rows.Scan(&a.ID, &a.UserID, &a.OwnerType, &a.OwnerID, &a.StorageKey, &a.ThumbKey, &a.ContentType, &a.FullSize, &a.ThumbSize, &a.Width, &a.Height, &a.LegacyID, &a.CreatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.UserID, &a.OwnerType, &a.OwnerID, &a.StorageKey, &a.ThumbKey, &a.ContentType, &a.FullSize, &a.ThumbSize, &a.Width, &a.Height, &a.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, a)
@@ -89,9 +88,9 @@ func (r *AttachmentRepo) Delete(ctx context.Context, id, userID string) (*Attach
 	var a AttachmentRow
 	err := r.DB.QueryRow(ctx,
 		`DELETE FROM attachments WHERE id = $1 AND user_id = $2
-		 RETURNING id, user_id, owner_type, owner_id, storage_key, thumb_key, content_type, full_size, thumb_size, width, height, legacy_id, created_at`,
+		 RETURNING id, user_id, owner_type, owner_id, storage_key, thumb_key, content_type, full_size, thumb_size, width, height, created_at`,
 		id, userID,
-	).Scan(&a.ID, &a.UserID, &a.OwnerType, &a.OwnerID, &a.StorageKey, &a.ThumbKey, &a.ContentType, &a.FullSize, &a.ThumbSize, &a.Width, &a.Height, &a.LegacyID, &a.CreatedAt)
+	).Scan(&a.ID, &a.UserID, &a.OwnerType, &a.OwnerID, &a.StorageKey, &a.ThumbKey, &a.ContentType, &a.FullSize, &a.ThumbSize, &a.Width, &a.Height, &a.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrNotFound
 	}
