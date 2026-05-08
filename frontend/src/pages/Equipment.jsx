@@ -4,6 +4,7 @@ import { listEquipment, createEquipment, updateEquipment, deleteEquipment, getEq
 import { listSetups, createSetup, deleteSetup, getSetup, updateSetup, addEquipmentToSetup, removeEquipmentFromSetup } from '../api/setups';
 import { getSightMarks, createSightMark, deleteSightMark } from '../api/sightMarks';
 import Spinner from '../components/Spinner';
+import AttachmentGallery from '../components/AttachmentGallery';
 
 const CATEGORIES = [
   'riser', 'limbs', 'arrows', 'sight', 'stabilizer', 'rest', 'release', 'scope', 'string', 'other',
@@ -32,6 +33,7 @@ export default function Equipment() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [photosOpenId, setPhotosOpenId] = useState(null);
   const [form, setForm] = useState({ category: 'riser', name: '', brand: '', model: '', notes: '' });
   const [usageStats, setUsageStats] = useState([]);
 
@@ -363,21 +365,34 @@ export default function Equipment() {
                 </h2>
                 <div className="space-y-2">
                   {catItems.map((item) => (
-                    <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 flex items-center justify-between">
-                      <div>
-                        <div className="font-medium dark:text-gray-100">{item.name}</div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          {[item.brand, item.model].filter(Boolean).join(' · ')}
+                    <div key={item.id} className="bg-white dark:bg-gray-800 rounded-lg shadow">
+                      <div className="p-3 flex items-center justify-between">
+                        <div>
+                          <div className="font-medium dark:text-gray-100">{item.name}</div>
+                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                            {[item.brand, item.model].filter(Boolean).join(' · ')}
+                          </div>
+                        </div>
+                        <div className="flex gap-3 items-center">
+                          <button
+                            onClick={() => setPhotosOpenId(photosOpenId === item.id ? null : item.id)}
+                            className="text-sm text-emerald-600 hover:underline"
+                          >
+                            {photosOpenId === item.id ? 'Hide photos' : 'Photos'}
+                          </button>
+                          <button onClick={() => handleEdit(item)} className="text-sm text-emerald-600 hover:underline">
+                            Edit
+                          </button>
+                          <button onClick={() => handleDelete(item.id)} className="text-sm text-red-500 hover:underline">
+                            Delete
+                          </button>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={() => handleEdit(item)} className="text-sm text-emerald-600 hover:underline">
-                          Edit
-                        </button>
-                        <button onClick={() => handleDelete(item.id)} className="text-sm text-red-500 hover:underline">
-                          Delete
-                        </button>
-                      </div>
+                      {photosOpenId === item.id && (
+                        <div className="px-3 pb-3 border-t dark:border-gray-700 pt-3">
+                          <AttachmentGallery ownerType="equipment" ownerId={item.id} maxPerOwner={10} />
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -615,6 +630,11 @@ export default function Equipment() {
                             ))}
                           </div>
                         )}
+                      </div>
+
+                      {/* Setup Photos */}
+                      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
+                        <AttachmentGallery ownerType="setup" ownerId={expandedSetupId} maxPerOwner={10} />
                       </div>
 
                       {/* Sight Marks */}
