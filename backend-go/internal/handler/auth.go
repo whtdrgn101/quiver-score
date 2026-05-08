@@ -14,6 +14,7 @@ import (
 	"github.com/quiverscore/backend-go/internal/auth"
 	"github.com/quiverscore/backend-go/internal/config"
 	"github.com/quiverscore/backend-go/internal/middleware"
+	"github.com/quiverscore/backend-go/internal/storage"
 )
 
 type AuthUserRepository interface {
@@ -37,9 +38,10 @@ type AuthEmailSender interface {
 }
 
 type AuthHandler struct {
-	Users AuthUserRepository
-	Email AuthEmailSender
-	Cfg   *config.Config
+	Users   AuthUserRepository
+	Email   AuthEmailSender
+	Storage storage.ObjectStore // optional; when set, DeleteAccount wipes the user's prefix
+	Cfg     *config.Config
 }
 
 func (h *AuthHandler) Routes(r chi.Router) {
@@ -377,6 +379,19 @@ func (h *AuthHandler) DeleteAccount(w http.ResponseWriter, r *http.Request) {
 	if err := h.Users.DeleteUserData(r.Context(), userID); err != nil {
 		Error(w, http.StatusInternalServerError, "Internal server error")
 		return
+	}
+
+	// Wipe the user's storage prefix. The DB delete is the source of truth and
+	// has succeeded; if this fails, the bucket's 7-day soft-delete reaps the
+	// orphaned objects, so we log and continue rather than failing the request.
+	if h.Storage != nil {
+		if n, err := h.Storage.DeletePrefix(r.Context(), "users/"+userID+"/"); err != nil {
+			slog.Error("storage prefix wipe failed during account delete",
+				"user_id", userID, "deleted_objects", n, "error", err)
+		} else {
+			slog.Info("wiped user storage on account delete",
+				"user_id", userID, "deleted_objects", n)
+		}
 	}
 
 	JSON(w, http.StatusOK, map[string]string{"detail": "Account and all data deleted"})
