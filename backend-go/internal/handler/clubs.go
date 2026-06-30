@@ -56,12 +56,15 @@ type ClubRepository interface {
 	CompleteTournament(ctx context.Context, clubID, tournamentID, userID string) (*repository.TournamentOut, error)
 	WithdrawFromTournament(ctx context.Context, clubID, tournamentID, userID string) error
 	SubmitTournamentScore(ctx context.Context, clubID, tournamentID, userID, sessionID string) (int, int, error)
-	AddTournamentRound(ctx context.Context, id, clubID, tournamentID, userID, name string, templateID *string, advancement *int) (*repository.TournamentRoundOut, error)
+	AddTournamentRound(ctx context.Context, id, clubID, tournamentID, userID, name string, templateID *string, advancement *int, roundType string) (*repository.TournamentRoundOut, error)
 	ListTournamentRounds(ctx context.Context, clubID, tournamentID, userID string) ([]repository.TournamentRoundOut, error)
 	StartTournamentRound(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error)
 	SubmitTournamentRoundScore(ctx context.Context, clubID, tournamentID, roundID, userID, sessionID string) (*repository.TournamentRoundScoreOut, error)
 	GetTournamentRoundLeaderboard(ctx context.Context, clubID, tournamentID, roundID, userID string) ([]repository.TournamentRoundScoreOut, error)
 	CompleteTournamentRound(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error)
+	GetTournamentMatchups(ctx context.Context, roundID string) ([]repository.TournamentMatchupOut, error)
+	SubmitMatchupScore(ctx context.Context, clubID, tournamentID, roundID, matchupID, userID, sessionID string) (*repository.TournamentMatchupOut, error)
+	UpdateMatchup(ctx context.Context, clubID, tournamentID, roundID, matchupID, userID string, scoreA, scoreB *int, winnerID *string) (*repository.TournamentMatchupOut, error)
 }
 
 type ClubsHandler struct {
@@ -137,6 +140,11 @@ func (h *ClubsHandler) Routes(r chi.Router) {
 		cr.Post("/tournaments/{tournamentID}/rounds/{roundID}/submit-score", h.SubmitTournamentRoundScore)
 		cr.Get("/tournaments/{tournamentID}/rounds/{roundID}/leaderboard", h.GetTournamentRoundLeaderboard)
 		cr.Post("/tournaments/{tournamentID}/rounds/{roundID}/complete", h.CompleteTournamentRound)
+
+		// Tournament Matchups
+		cr.Get("/tournaments/{tournamentID}/rounds/{roundID}/matchups", h.GetTournamentMatchups)
+		cr.Post("/tournaments/{tournamentID}/rounds/{roundID}/matchups/{matchupID}/submit-score", h.SubmitTournamentMatchupScore)
+		cr.Put("/tournaments/{tournamentID}/rounds/{roundID}/matchups/{matchupID}", h.UpdateTournamentMatchup)
 	})
 }
 

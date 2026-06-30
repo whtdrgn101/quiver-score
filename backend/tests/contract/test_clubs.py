@@ -984,3 +984,27 @@ def test_complete_round_not_organizer(client, register_user, unique, create_roun
         headers=member["headers"],
     )
     assert resp.status_code in (403, 404)
+
+
+# ── Tournament Matchups Contract Tests ───────────────────────────────
+
+def test_tournament_matchups_endpoints(client, register_user, unique, create_round):
+    owner = register_user()
+    club = client.post("/api/v1/clubs", json={"name": unique("club")}, headers=owner["headers"]).json()
+    tourney, rnd = _create_started_tournament(client, owner, club["id"], unique, create_round)
+
+    r1 = client.post(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds",
+        json={"name": "Semifinals", "template_id": rnd["id"], "round_type": "elimination"},
+        headers=owner["headers"],
+    ).json()
+
+    # Get matchups (should be empty since the round is not started/seeded)
+    resp = client.get(
+        f"/api/v1/clubs/{club['id']}/tournaments/{tourney['id']}/rounds/{r1['id']}/matchups",
+        headers=owner["headers"],
+    )
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+    assert len(resp.json()) == 0
+

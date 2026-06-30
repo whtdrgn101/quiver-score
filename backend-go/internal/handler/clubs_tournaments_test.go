@@ -236,10 +236,10 @@ func TestAddTournamentRound_Success(t *testing.T) {
 	const tournamentID = "tourney-1"
 
 	h := clubsHandler(&mockClubRepo{
-		addTournamentRoundFn: func(_ context.Context, id, cID, tID, uID, name string, templateID *string, advancement *int) (*repository.TournamentRoundOut, error) {
+		addTournamentRoundFn: func(_ context.Context, id, cID, tID, uID, name string, templateID *string, advancement *int, roundType string) (*repository.TournamentRoundOut, error) {
 			return &repository.TournamentRoundOut{
 				ID: id, TournamentID: tID, RoundNumber: 1, Name: name,
-				TemplateID: templateID, Advancement: advancement, Status: "pending",
+				TemplateID: templateID, Advancement: advancement, Status: "pending", RoundType: roundType,
 			}, nil
 		},
 	})
@@ -290,7 +290,7 @@ func TestAddTournamentRound_Forbidden(t *testing.T) {
 	const tournamentID = "tourney-1"
 
 	h := clubsHandler(&mockClubRepo{
-		addTournamentRoundFn: func(_ context.Context, _, _, _, _, _ string, _ *string, _ *int) (*repository.TournamentRoundOut, error) {
+		addTournamentRoundFn: func(_ context.Context, _, _, _, _, _ string, _ *string, _ *int, _ string) (*repository.TournamentRoundOut, error) {
 			return nil, pgx.ErrNoRows
 		},
 	})
@@ -1085,3 +1085,128 @@ func TestSubmitTournamentScore_NotFound(t *testing.T) {
 		t.Fatalf("expected 404, got %d", rr.Code)
 	}
 }
+
+// ── Tournament Matchups Tests ────────────────────────────────────────
+
+func TestGetTournamentMatchups_Success(t *testing.T) {
+	roundID := uuid.New().String()
+	mock := &mockClubRepo{
+		getTournamentMatchupsFn: func(_ context.Context, rID string) ([]repository.TournamentMatchupOut, error) {
+			return []repository.TournamentMatchupOut{
+				{
+					ID:          "m1",
+					RoundID:     rID,
+					MatchNumber: 1,
+				},
+			}, nil
+		},
+	}
+	h := clubsHandler(mock)
+
+	req := httptest.NewRequest(http.MethodGet, "/rounds/r1/matchups", nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uuid.New().String())
+	req = req.WithContext(ctx)
+	req = clubsChiParams(req, map[string]string{"clubID": "c1", "tournamentID": "t1", "roundID": roundID})
+
+	rr := httptest.NewRecorder()
+	h.GetTournamentMatchups(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var result []repository.TournamentMatchupOut
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(result) != 1 || result[0].ID != "m1" {
+		t.Errorf("expected 1 matchup with ID 'm1', got %v", result)
+	}
+}
+
+func TestSubmitTournamentMatchupScore_Success(t *testing.T) {
+	userID := uuid.New().String()
+	roundID := uuid.New().String()
+	matchupID := uuid.New().String()
+	sessionID := uuid.New().String()
+
+	mock := &mockClubRepo{
+		submitMatchupScoreFn: func(_ context.Context, clubID, tourneyID, rID, mID, uID, sID string) (*repository.TournamentMatchupOut, error) {
+			score := 335
+			return &repository.TournamentMatchupOut{
+				ID:          mID,
+				RoundID:     rID,
+				MatchNumber: 1,
+				ScoreA:      &score,
+			}, nil
+		},
+	}
+	h := clubsHandler(mock)
+
+	req := httptest.NewRequest(http.MethodPost, "/rounds/r1/matchups/m1/submit-score?session_id="+sessionID, nil)
+	ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+	req = req.WithContext(ctx)
+	req = clubsChiParams(req, map[string]string{"clubID": "c1", "tournamentID": "t1", "roundID": roundID, "matchupID": matchupID})
+
+	rr := httptest.NewRecorder()
+	h.SubmitTournamentMatchupScore(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var result repository.TournamentMatchupOut
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if result.ID != matchupID || result.ScoreA == nil || *result.ScoreA != 335 {
+		t.Errorf("expected matchup score 335, got %v", result)
+	}
+}
+
+func TestUpdateTournamentMatchup_Success(t *testing.T) {
+	userID := uuid.New().String()
+	roundID := uuid.New().String()
+	matchupID := uuid.New().String()
+
+	mock := &mockClubRepo{
+		updateMatchupFn: func(_ context.Context, clubID, tourneyID, rID, mID, uID string, scoreA, scoreB *int, winnerID *string) (*repository.TournamentMatchupOut, error) {
+			return &repository.TournamentMatchupOut{
+				ID:          mID,
+				RoundID:     rID,
+				MatchNumber: 1,
+				ScoreA:      scoreA,
+				ScoreB:      scoreB,
+				WinnerID:    winnerID,
+			}, nil
+		},
+	}
+	h := clubsHandler(mock)
+
+	scoreA := 340
+	scoreB := 338
+	winnerID := "partA-id"
+
+	req := clubsAuthedBody(http.MethodPut, "/rounds/r1/matchups/m1", userID, map[string]any{
+		"score_a":   scoreA,
+		"score_b":   scoreB,
+		"winner_id": winnerID,
+	})
+	req = clubsChiParams(req, map[string]string{"clubID": "c1", "tournamentID": "t1", "roundID": roundID, "matchupID": matchupID})
+
+	rr := httptest.NewRecorder()
+	h.UpdateTournamentMatchup(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var result repository.TournamentMatchupOut
+	if err := json.NewDecoder(rr.Body).Decode(&result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if result.ID != matchupID || result.ScoreA == nil || *result.ScoreA != 340 || result.WinnerID == nil || *result.WinnerID != "partA-id" {
+		t.Errorf("unexpected matchup output: %v", result)
+	}
+}
+

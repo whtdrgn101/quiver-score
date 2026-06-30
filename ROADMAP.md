@@ -133,17 +133,17 @@ Bring tournament participation to the Flutter app, building on the web tournamen
 
 ### Phase 22: Head-to-Head Matchups
 
-- [ ] Bracket-style head-to-head pairing within tournament rounds
-- [ ] Matchup table: round_id, participant_a, participant_b, winner_id
-- [ ] Auto-generate pairings from round leaderboard (1 vs N, 2 vs N-1, etc.)
-- [ ] Visual bracket display on web and mobile
-- [ ] Support byes for non-power-of-2 participant counts
+- [x] Bracket-style head-to-head pairing within tournament rounds
+- [x] Matchup table: round_id, participant_a, participant_b, winner_id
+- [x] Auto-generate pairings from round leaderboard (1 vs N, 2 vs N-1, etc.)
+- [x] Visual bracket display on web and mobile (Mobile view completed; Web view deferred)
+- [x] Support byes for non-power-of-2 participant counts
 
 ### Phase 23: Tournament Bracket Visualization
 
 - [ ] Visual bracket progression showing round-over-round results (web)
-- [ ] Bracket view on mobile
-- [ ] Show advancement flow across rounds with scores
+- [x] Bracket view on mobile
+- [x] Show advancement flow across rounds with scores
 
 ### Phase 24: Biometric App Lock
 

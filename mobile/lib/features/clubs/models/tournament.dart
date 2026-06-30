@@ -170,6 +170,7 @@ class TournamentRound {
   final String? templateName;
   final int? advancement;
   final String status;
+  final String roundType;
   final DateTime? startedAt;
   final DateTime? completedAt;
   final DateTime createdAt;
@@ -183,6 +184,7 @@ class TournamentRound {
     this.templateName,
     this.advancement,
     required this.status,
+    required this.roundType,
     this.startedAt,
     this.completedAt,
     required this.createdAt,
@@ -198,6 +200,7 @@ class TournamentRound {
       templateName: json['template_name'] as String?,
       advancement: json['advancement'] as int?,
       status: json['status'] as String,
+      roundType: json['round_type'] as String? ?? 'qualification',
       startedAt: json['started_at'] != null
           ? DateTime.parse(json['started_at'] as String)
           : null,
@@ -208,6 +211,54 @@ class TournamentRound {
     );
   }
 }
+
+class TournamentMatchup {
+  final String id;
+  final String roundId;
+  final int matchNumber;
+  final String? participantAId;
+  final String? participantAName;
+  final String? participantBId;
+  final String? participantBName;
+  final int? scoreA;
+  final int? scoreB;
+  final String? winnerId;
+  final String? winnerName;
+  final DateTime createdAt;
+
+  const TournamentMatchup({
+    required this.id,
+    required this.roundId,
+    required this.matchNumber,
+    this.participantAId,
+    this.participantAName,
+    this.participantBId,
+    this.participantBName,
+    this.scoreA,
+    this.scoreB,
+    this.winnerId,
+    this.winnerName,
+    required this.createdAt,
+  });
+
+  factory TournamentMatchup.fromJson(Map<String, dynamic> json) {
+    return TournamentMatchup(
+      id: json['id'] as String,
+      roundId: json['round_id'] as String,
+      matchNumber: json['match_number'] as int,
+      participantAId: json['participant_a_id'] as String?,
+      participantAName: json['participant_a_name'] as String?,
+      participantBId: json['participant_b_id'] as String?,
+      participantBName: json['participant_b_name'] as String?,
+      scoreA: json['score_a'] as int?,
+      scoreB: json['score_b'] as int?,
+      winnerId: json['winner_id'] as String?,
+      winnerName: json['winner_name'] as String?,
+      createdAt: DateTime.parse(json['created_at'] as String),
+    );
+  }
+}
+
 
 class TournamentLeaderboardEntry {
   final int rank;
@@ -285,6 +336,7 @@ class TournamentContext {
   final String roundId;
   final String tournamentName;
   final String roundName;
+  final String? matchupId;
 
   const TournamentContext({
     required this.clubId,
@@ -292,5 +344,6 @@ class TournamentContext {
     required this.roundId,
     required this.tournamentName,
     required this.roundName,
+    this.matchupId,
   });
 }

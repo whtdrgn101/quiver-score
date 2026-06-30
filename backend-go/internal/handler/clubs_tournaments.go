@@ -195,6 +195,7 @@ type tournamentRoundCreate struct {
 	Name        string  `json:"name"`
 	TemplateID  *string `json:"template_id"`
 	Advancement *int    `json:"advancement"`
+	RoundType   string  `json:"round_type"`
 }
 
 func (h *ClubsHandler) AddTournamentRound(w http.ResponseWriter, r *http.Request) {
@@ -212,7 +213,7 @@ func (h *ClubsHandler) AddTournamentRound(w http.ResponseWriter, r *http.Request
 	}
 
 	id := uuid.New().String()
-	round, err := h.Clubs.AddTournamentRound(r.Context(), id, clubID, tournamentID, userID, req.Name, req.TemplateID, req.Advancement)
+	round, err := h.Clubs.AddTournamentRound(r.Context(), id, clubID, tournamentID, userID, req.Name, req.TemplateID, req.Advancement, req.RoundType)
 	if err != nil {
 		Error(w, http.StatusForbidden, "Cannot add round")
 		return
@@ -300,3 +301,67 @@ func (h *ClubsHandler) CompleteTournamentRound(w http.ResponseWriter, r *http.Re
 
 	JSON(w, http.StatusOK, round)
 }
+
+// ── Tournament Matchups ──────────────────────────────────────────────
+
+func (h *ClubsHandler) GetTournamentMatchups(w http.ResponseWriter, r *http.Request) {
+	roundID := chi.URLParam(r, "roundID")
+
+	matchups, err := h.Clubs.GetTournamentMatchups(r.Context(), roundID)
+	if err != nil {
+		Error(w, http.StatusNotFound, "Matchups not found")
+		return
+	}
+
+	JSON(w, http.StatusOK, matchups)
+}
+
+func (h *ClubsHandler) SubmitTournamentMatchupScore(w http.ResponseWriter, r *http.Request) {
+	clubID := chi.URLParam(r, "clubID")
+	tournamentID := chi.URLParam(r, "tournamentID")
+	roundID := chi.URLParam(r, "roundID")
+	matchupID := chi.URLParam(r, "matchupID")
+	userID := middleware.GetUserID(r.Context())
+
+	sessionID := r.URL.Query().Get("session_id")
+	if sessionID == "" {
+		ValidationError(w, "session_id query parameter is required")
+		return
+	}
+
+	matchup, err := h.Clubs.SubmitMatchupScore(r.Context(), clubID, tournamentID, roundID, matchupID, userID, sessionID)
+	if err != nil {
+		Error(w, http.StatusNotFound, err.Error())
+		return
+	}
+
+	JSON(w, http.StatusOK, matchup)
+}
+
+type tournamentMatchupUpdate struct {
+	ScoreA   *int    `json:"score_a"`
+	ScoreB   *int    `json:"score_b"`
+	WinnerID *string `json:"winner_id"`
+}
+
+func (h *ClubsHandler) UpdateTournamentMatchup(w http.ResponseWriter, r *http.Request) {
+	clubID := chi.URLParam(r, "clubID")
+	tournamentID := chi.URLParam(r, "tournamentID")
+	roundID := chi.URLParam(r, "roundID")
+	matchupID := chi.URLParam(r, "matchupID")
+	userID := middleware.GetUserID(r.Context())
+
+	var req tournamentMatchupUpdate
+	if !Decode(w, r, &req) {
+		return
+	}
+
+	matchup, err := h.Clubs.UpdateMatchup(r.Context(), clubID, tournamentID, roundID, matchupID, userID, req.ScoreA, req.ScoreB, req.WinnerID)
+	if err != nil {
+		Error(w, http.StatusForbidden, "Cannot update matchup")
+		return
+	}
+
+	JSON(w, http.StatusOK, matchup)
+}
+

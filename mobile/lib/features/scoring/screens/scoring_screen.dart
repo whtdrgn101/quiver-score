@@ -329,10 +329,17 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
       final serverId = localSession.serverId ?? session.id;
 
       final api = ref.read(apiClientProvider);
-      await api.dio.post(
-        '/api/v1/clubs/${tc.clubId}/tournaments/${tc.tournamentId}'
-        '/rounds/${tc.roundId}/submit-score?session_id=$serverId',
-      );
+      if (tc.matchupId != null) {
+        await api.dio.post(
+          '/api/v1/clubs/${tc.clubId}/tournaments/${tc.tournamentId}'
+          '/rounds/${tc.roundId}/matchups/${tc.matchupId}/submit-score?session_id=$serverId',
+        );
+      } else {
+        await api.dio.post(
+          '/api/v1/clubs/${tc.clubId}/tournaments/${tc.tournamentId}'
+          '/rounds/${tc.roundId}/submit-score?session_id=$serverId',
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

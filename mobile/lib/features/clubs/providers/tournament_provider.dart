@@ -63,6 +63,21 @@ final roundLeaderboardProvider =
       .toList();
 });
 
+final tournamentMatchupsProvider =
+    FutureProvider.family<List<TournamentMatchup>,
+        ({String clubId, String tournamentId, String roundId})>(
+        (ref, params) async {
+  final api = ref.read(apiClientProvider);
+  final response = await api.dio.get(
+    '/api/v1/clubs/${params.clubId}/tournaments/${params.tournamentId}'
+    '/rounds/${params.roundId}/matchups',
+  );
+  final list = response.data as List;
+  return list
+      .map((j) => TournamentMatchup.fromJson(j as Map<String, dynamic>))
+      .toList();
+});
+
 Future<void> submitTournamentRoundScore(
   WidgetRef ref, {
   required String clubId,
@@ -76,3 +91,41 @@ Future<void> submitTournamentRoundScore(
     '/rounds/$roundId/submit-score?session_id=$sessionId',
   );
 }
+
+Future<void> submitMatchupScore(
+  WidgetRef ref, {
+  required String clubId,
+  required String tournamentId,
+  required String roundId,
+  required String matchupId,
+  required String sessionId,
+}) async {
+  final api = ref.read(apiClientProvider);
+  await api.dio.post(
+    '/api/v1/clubs/$clubId/tournaments/$tournamentId'
+    '/rounds/$roundId/matchups/$matchupId/submit-score?session_id=$sessionId',
+  );
+}
+
+Future<void> updateMatchupScore(
+  WidgetRef ref, {
+  required String clubId,
+  required String tournamentId,
+  required String roundId,
+  required String matchupId,
+  int? scoreA,
+  int? scoreB,
+  String? winnerId,
+}) async {
+  final api = ref.read(apiClientProvider);
+  await api.dio.put(
+    '/api/v1/clubs/$clubId/tournaments/$tournamentId'
+    '/rounds/$roundId/matchups/$matchupId',
+    data: {
+      if (scoreA != null) 'score_a': scoreA,
+      if (scoreB != null) 'score_b': scoreB,
+      if (winnerId != null) 'winner_id': winnerId,
+    },
+  );
+}
+

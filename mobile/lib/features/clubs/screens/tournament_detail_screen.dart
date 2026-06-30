@@ -7,6 +7,7 @@ import '../../scoring/providers/scoring_provider.dart';
 import '../../scoring/screens/scoring_screen.dart';
 import '../models/tournament.dart';
 import '../providers/tournament_provider.dart';
+import 'tournament_bracket_screen.dart';
 
 class TournamentDetailScreen extends ConsumerStatefulWidget {
   final String clubId;
@@ -307,7 +308,7 @@ class _TournamentDetailScreenState
                       ),
                     ),
                   ...rounds.map((round) =>
-                      _buildRoundRow(theme, round, currentUserId)),
+                      _buildRoundRow(theme, tournament, round, currentUserId)),
                 ],
               );
             },
@@ -323,7 +324,7 @@ class _TournamentDetailScreenState
   }
 
   Widget _buildRoundRow(
-      ThemeData theme, TournamentRound round, String? currentUserId) {
+      ThemeData theme, TournamentDetail tournament, TournamentRound round, String? currentUserId) {
     final isExpanded = _expandedRoundId == round.id;
     final (statusColor, statusBg) = _statusStyle(round.status);
 
@@ -394,14 +395,49 @@ class _TournamentDetailScreenState
           ),
         ),
         if (isExpanded)
-          _RoundLeaderboard(
-            clubId: widget.clubId,
-            tournamentId: widget.tournamentId,
-            roundId: round.id,
-            advancement: round.advancement,
-            roundCompleted: round.status == 'completed',
-            currentUserId: currentUserId,
-          ),
+          if (round.roundType == 'elimination')
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Elimination round head-to-head matches.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TournamentBracketScreen(
+                              clubId: widget.clubId,
+                              tournament: tournament,
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.account_tree_outlined),
+                      label: const Text('View Matchups & Bracket'),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            _RoundLeaderboard(
+              clubId: widget.clubId,
+              tournamentId: widget.tournamentId,
+              roundId: round.id,
+              advancement: round.advancement,
+              roundCompleted: round.status == 'completed',
+              currentUserId: currentUserId,
+            ),
         const Divider(height: 1),
       ],
     );

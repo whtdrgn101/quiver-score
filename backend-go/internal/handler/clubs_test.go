@@ -60,12 +60,15 @@ type mockClubRepo struct {
 	completeTournamentFn     func(ctx context.Context, clubID, tournamentID, userID string) (*repository.TournamentOut, error)
 	withdrawFromTournamentFn func(ctx context.Context, clubID, tournamentID, userID string) error
 	submitTournamentScoreFn          func(ctx context.Context, clubID, tournamentID, userID, sessionID string) (int, int, error)
-	addTournamentRoundFn             func(ctx context.Context, id, clubID, tournamentID, userID, name string, templateID *string, advancement *int) (*repository.TournamentRoundOut, error)
+	addTournamentRoundFn             func(ctx context.Context, id, clubID, tournamentID, userID, name string, templateID *string, advancement *int, roundType string) (*repository.TournamentRoundOut, error)
 	listTournamentRoundsFn           func(ctx context.Context, clubID, tournamentID, userID string) ([]repository.TournamentRoundOut, error)
 	startTournamentRoundFn           func(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error)
 	submitTournamentRoundScoreFn     func(ctx context.Context, clubID, tournamentID, roundID, userID, sessionID string) (*repository.TournamentRoundScoreOut, error)
 	getTournamentRoundLeaderboardFn  func(ctx context.Context, clubID, tournamentID, roundID, userID string) ([]repository.TournamentRoundScoreOut, error)
 	completeTournamentRoundFn        func(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error)
+	getTournamentMatchupsFn          func(ctx context.Context, roundID string) ([]repository.TournamentMatchupOut, error)
+	submitMatchupScoreFn             func(ctx context.Context, clubID, tournamentID, roundID, matchupID, userID, sessionID string) (*repository.TournamentMatchupOut, error)
+	updateMatchupFn                  func(ctx context.Context, clubID, tournamentID, roundID, matchupID, userID string, scoreA, scoreB *int, winnerID *string) (*repository.TournamentMatchupOut, error)
 }
 
 func (m *mockClubRepo) Create(ctx context.Context, id, name string, description *string, ownerID string) (*repository.ClubOut, error) {
@@ -185,8 +188,8 @@ func (m *mockClubRepo) WithdrawFromTournament(ctx context.Context, clubID, tourn
 func (m *mockClubRepo) SubmitTournamentScore(ctx context.Context, clubID, tournamentID, userID, sessionID string) (int, int, error) {
 	return m.submitTournamentScoreFn(ctx, clubID, tournamentID, userID, sessionID)
 }
-func (m *mockClubRepo) AddTournamentRound(ctx context.Context, id, clubID, tournamentID, userID, name string, templateID *string, advancement *int) (*repository.TournamentRoundOut, error) {
-	return m.addTournamentRoundFn(ctx, id, clubID, tournamentID, userID, name, templateID, advancement)
+func (m *mockClubRepo) AddTournamentRound(ctx context.Context, id, clubID, tournamentID, userID, name string, templateID *string, advancement *int, roundType string) (*repository.TournamentRoundOut, error) {
+	return m.addTournamentRoundFn(ctx, id, clubID, tournamentID, userID, name, templateID, advancement, roundType)
 }
 func (m *mockClubRepo) ListTournamentRounds(ctx context.Context, clubID, tournamentID, userID string) ([]repository.TournamentRoundOut, error) {
 	return m.listTournamentRoundsFn(ctx, clubID, tournamentID, userID)
@@ -202,6 +205,15 @@ func (m *mockClubRepo) GetTournamentRoundLeaderboard(ctx context.Context, clubID
 }
 func (m *mockClubRepo) CompleteTournamentRound(ctx context.Context, clubID, tournamentID, roundID, userID string) (*repository.TournamentRoundOut, error) {
 	return m.completeTournamentRoundFn(ctx, clubID, tournamentID, roundID, userID)
+}
+func (m *mockClubRepo) GetTournamentMatchups(ctx context.Context, roundID string) ([]repository.TournamentMatchupOut, error) {
+	return m.getTournamentMatchupsFn(ctx, roundID)
+}
+func (m *mockClubRepo) SubmitMatchupScore(ctx context.Context, clubID, tournamentID, roundID, matchupID, userID, sessionID string) (*repository.TournamentMatchupOut, error) {
+	return m.submitMatchupScoreFn(ctx, clubID, tournamentID, roundID, matchupID, userID, sessionID)
+}
+func (m *mockClubRepo) UpdateMatchup(ctx context.Context, clubID, tournamentID, roundID, matchupID, userID string, scoreA, scoreB *int, winnerID *string) (*repository.TournamentMatchupOut, error) {
+	return m.updateMatchupFn(ctx, clubID, tournamentID, roundID, matchupID, userID, scoreA, scoreB, winnerID)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────
