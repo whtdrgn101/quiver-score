@@ -149,3 +149,32 @@ Bring tournament participation to the Flutter app, building on the web tournamen
 - [x] Biometric unlock gates app access, not token refresh — complements offline auth
 - [x] Fallback to device PIN/pattern when biometrics unavailable
 - [x] Persist biometric preference in local storage
+
+---
+
+## Platform Maintenance
+
+Dependency currency is reviewed periodically. On **2026-06-30** all safe (in-range,
+non-breaking) updates were applied across every stack (Go, web npm incl. axios
+1.18, Flutter pub, Python), the Node-20 CI action was bumped (`setup-uv` → v8), and
+the dead FastAPI app left over from the Phase 10 cutover was removed — `backend/`
+is now genuinely migration-only (alembic + SQLAlchemy models + asyncpg). The
+following **major** upgrades were deferred because each is a breaking change that
+needs its own branch and test pass.
+
+### Phase 25: Web Framework Major Upgrades
+
+- [ ] React Router 6 → 7 (data-router APIs; biggest migration) — re-verify all routes incl. `/clubs/:clubId/tournaments/:tournamentId/bracket`
+- [ ] Vite 7 → 8 (+ `@vitejs/plugin-react` 5 → 6)
+- [ ] ESLint 9 → 10 (+ `@eslint/js` 10, `globals` 17)
+- [ ] Adopt `eslint-plugin-react-hooks` 7.1 stricter rules (currently pinned at `~7.0.1`) and fix the 3 findings it surfaces: `set-state-in-effect` in `Layout.jsx:22` and `AttachmentGallery.jsx:36`, and the `ThemeToggle` component defined inside `Layout`'s render
+- [ ] Re-run the full Playwright e2e suite after each major
+
+### Phase 26: Mobile Framework Major Upgrades
+
+- [ ] Riverpod 2 → 3 (`flutter_riverpod`, `riverpod_annotation`/`riverpod_generator` → 4.x) — provider API migration
+- [ ] `local_auth` 2 → 3 — biometric API changes; re-verify the Phase 24 app lock
+- [ ] `drift` 2.28 → 2.34 (+ `drift_dev`); `sqlite3_flutter_libs` 0.5 → 0.6
+- [ ] `freezed` 3.1 → 3.2, `json_serializable` 6.14, `mockito` 5.7, `build_runner` 2.15 — regenerate codegen
+- [ ] Clear the 2 `use_build_context_synchronously` warnings + 34 analyzer infos surfaced by current lints
+- [ ] Re-run widget/integration tests and exercise scoring / sync / biometric flows

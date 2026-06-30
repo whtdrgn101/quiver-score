@@ -11,4 +11,5 @@ COPY alembic.ini ./
 COPY alembic/ alembic/
 COPY app/ app/
 
-CMD ["sh", "-c", "uv run alembic upgrade head && uv run uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Migration-only image: the deploy runs this as a Cloud Run *job*. No server.
+CMD ["uv", "run", "alembic", "upgrade", "head"]
