@@ -53,6 +53,7 @@ export default function ScoreSession() {
   }, [sessionId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadSession is a reusable loader; its setState runs after the await
     loadSession();
   }, [loadSession]);
 

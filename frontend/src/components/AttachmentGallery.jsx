@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { listAttachments, uploadAttachment, deleteAttachment } from '../api/attachments';
 import AttachmentImage from './AttachmentImage';
 
@@ -21,19 +21,25 @@ export default function AttachmentGallery({ ownerType, ownerId, readOnly = false
   const [error, setError] = useState('');
   const [viewing, setViewing] = useState(null);
 
-  const refresh = useCallback(async () => {
+  // Load photos on mount / owner change. setState happens after the await
+  // (with a cancellation guard), not synchronously in the effect body.
+  useEffect(() => {
     if (!ownerId) return;
-    try {
-      const res = await listAttachments(ownerType, ownerId);
-      setItems(res.data);
-    } catch {
-      setError('Failed to load photos');
-    } finally {
-      setLoading(false);
-    }
+    let active = true;
+    (async () => {
+      try {
+        const res = await listAttachments(ownerType, ownerId);
+        if (active) setItems(res.data);
+      } catch {
+        if (active) setError('Failed to load photos');
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [ownerType, ownerId]);
-
-  useEffect(() => { refresh(); }, [refresh]);
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];

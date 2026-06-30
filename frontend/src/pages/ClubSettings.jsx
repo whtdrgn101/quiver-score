@@ -68,6 +68,7 @@ export default function ClubSettings() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- load is a reusable loader; its setState runs after the await
   useEffect(() => { load(); }, [clubId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const flash = (msg) => { setSuccess(msg); setError(''); setTimeout(() => setSuccess(''), 3000); };

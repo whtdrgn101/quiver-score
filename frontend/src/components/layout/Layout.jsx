@@ -7,9 +7,26 @@ import { getSessions, abandonSession } from '../../api/scoring';
 import { resendVerification } from '../../api/auth';
 import NotificationBell from '../NotificationBell';
 
+// Declared at module scope (not inside Layout) so it isn't recreated each render.
+function ThemeToggle() {
+  const { dark, toggleTheme } = useTheme();
+  return (
+    <button onClick={toggleTheme} className="p-1 rounded hover:bg-emerald-600" title={dark ? 'Light mode' : 'Dark mode'}>
+      {dark ? (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+      ) : (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
 export default function Layout({ children, fullWidth = false }) {
   const { user, logout } = useAuth();
-  const { dark, toggleTheme } = useTheme();
   const { online, pendingCount, syncing, syncPending } = useOnline();
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,9 +35,13 @@ export default function Layout({ children, fullWidth = false }) {
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
 
-  useEffect(() => {
+  // Close the mobile menu on navigation. Done during render (React's "adjust
+  // state when a value changes" pattern) instead of in an effect.
+  const [lastPath, setLastPath] = useState(location.pathname);
+  if (location.pathname !== lastPath) {
+    setLastPath(location.pathname);
     setMenuOpen(false);
-  }, [location.pathname]);
+  }
 
   useEffect(() => {
     if (!user) return;
@@ -57,20 +78,6 @@ export default function Layout({ children, fullWidth = false }) {
 
   const showBanner = activeSession && !location.pathname.startsWith('/score/');
   const showVerificationBanner = user && !user.email_verified;
-
-  const ThemeToggle = () => (
-    <button onClick={toggleTheme} className="p-1 rounded hover:bg-emerald-600" title={dark ? 'Light mode' : 'Dark mode'}>
-      {dark ? (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-      ) : (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-        </svg>
-      )}
-    </button>
-  );
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

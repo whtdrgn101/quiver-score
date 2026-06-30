@@ -162,13 +162,17 @@ is now genuinely migration-only (alembic + SQLAlchemy models + asyncpg). The
 following **major** upgrades were deferred because each is a breaking change that
 needs its own branch and test pass.
 
-### Phase 25: Web Framework Major Upgrades
+### Phase 25: Web Framework Major Upgrades ✅ (mostly)
 
-- [ ] React Router 6 → 7 (data-router APIs; biggest migration) — re-verify all routes incl. `/clubs/:clubId/tournaments/:tournamentId/bracket`
-- [ ] Vite 7 → 8 (+ `@vitejs/plugin-react` 5 → 6)
-- [ ] ESLint 9 → 10 (+ `@eslint/js` 10, `globals` 17)
-- [ ] Adopt `eslint-plugin-react-hooks` 7.1 stricter rules (currently pinned at `~7.0.1`) and fix the 3 findings it surfaces: `set-state-in-effect` in `Layout.jsx:22` and `AttachmentGallery.jsx:36`, and the `ThemeToggle` component defined inside `Layout`'s render
-- [ ] Re-run the full Playwright e2e suite after each major
+Completed 2026-06-30 (except Vite, deferred below). Lint clean, build green, routing e2e passing.
+
+- [x] React Router 6 → 7 (`react-router-dom` 7.18) — app uses only the stable component API (no data-router/loaders), so no code changes; clean peer resolution
+- [x] ESLint 9 → 10 (+ `@eslint/js` 10, `globals` 17, `eslint-plugin-react-refresh` 0.5)
+- [x] Adopt `eslint-plugin-react-hooks` 7.1 (unpinned from `~7.0.1`) — extracted `ThemeToggle` out of `Layout`'s render, fixed `set-state-in-effect` in `AttachmentGallery` (cancellation guard) and `Layout` (render-time menu reset). Kept the rule as an **error**; 3 intentional loading/reusable-loader cases documented with scoped disables (`ClubDetail`, `ClubSettings`, `ScoreSession`).
+- [ ] **Vite 7 → 8 — DEFERRED.** `@vitejs/plugin-react@6` (Vite 8 / Rolldown) pulls `@rolldown/plugin-babel` → `@babel/core@8.0.0-rc.4`, which can't resolve cleanly against the Babel 7 tree. Revisit once Babel 8 / Rolldown-Vite are stable (avoid forcing `--legacy-peer-deps` in a product). Staying on Vite 7.3.6 (latest v7).
+- [x] Re-ran e2e after each major (route-mocked bracket spec; backend-dependent specs need `docker compose` and weren't run locally — see note)
+
+> Note: web e2e is not in CI (only lint + build are). Before relying on these majors in prod, run the full Playwright suite against a live backend (`docker compose -f docker-compose.yml -f docker-compose.go.yml up -d`).
 
 ### Phase 26: Mobile Framework Major Upgrades ✅ (mostly)
 

@@ -64,6 +64,7 @@ export default function ClubDetail() {
         if (!cancelled) setTabLoading(false);
       }
     };
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional loading indicator shown before the tab fetch
     setTabLoading(true);
     load();
     return () => { cancelled = true; };
