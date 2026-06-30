@@ -107,4 +107,13 @@ jobs:
         run: |
           npm install -g firebase-tools
           cd frontend
-          firebase deploy --only hosting --project $GCP_PROJECT
+          set +e
+          firebase deploy --only hosting --project $GCP_PROJECT 2>&1 | tee /tmp/fb_deploy.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            if grep -q "is the current active version" /tmp/fb_deploy.log; then
+              echo "Frontend build is identical to the live version — nothing to release. Treating as success."
+              exit 0
+            fi
+            exit "$status"
+          fi
