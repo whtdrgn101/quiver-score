@@ -1,7 +1,7 @@
 import 'dart:developer' as dev;
 
 import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../../core/api/api_client.dart';
 import '../../../core/storage/secure_storage.dart';

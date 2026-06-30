@@ -16,7 +16,7 @@ class MoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final userAsync = ref.watch(currentUserProvider);
-    final isBiometricsSupported = ref.watch(isBiometricsSupportedProvider).valueOrNull ?? false;
+    final isBiometricsSupported = ref.watch(isBiometricsSupportedProvider).value ?? false;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -203,7 +203,7 @@ class MoreScreen extends ConsumerWidget {
             onChanged: (val) {
               ref.read(biometricLockSettingProvider.notifier).toggle(val);
             },
-            activeColor: theme.colorScheme.primary,
+            activeThumbColor: theme.colorScheme.primary,
           ),
           const SizedBox(height: 8),
         ],

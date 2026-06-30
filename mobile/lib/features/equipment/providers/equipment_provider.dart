@@ -52,7 +52,7 @@ class EquipmentNotifier extends AsyncNotifier<List<Equipment>> {
     final db = ref.read(databaseProvider);
     await db.into(db.equipmentCache).insert(_toCompanion(item));
 
-    state = AsyncData([...state.valueOrNull ?? [], item]
+    state = AsyncData([...state.value ?? [], item]
       ..sort((a, b) => a.name.compareTo(b.name)));
     return item;
   }
@@ -66,7 +66,7 @@ class EquipmentNotifier extends AsyncNotifier<List<Equipment>> {
     await (db.update(db.equipmentCache)..where((t) => t.id.equals(id)))
         .write(_toCompanion(updated));
 
-    final items = <Equipment>[...state.valueOrNull ?? []];
+    final items = <Equipment>[...state.value ?? []];
     final idx = items.indexWhere((e) => e.id == id);
     if (idx >= 0) items[idx] = updated;
     state = AsyncData(items);
@@ -79,17 +79,14 @@ class EquipmentNotifier extends AsyncNotifier<List<Equipment>> {
     final db = ref.read(databaseProvider);
     await (db.delete(db.equipmentCache)..where((t) => t.id.equals(id))).go();
 
-    final items = <Equipment>[...state.valueOrNull ?? []];
+    final items = <Equipment>[...state.value ?? []];
     items.removeWhere((e) => e.id == id);
     state = AsyncData(items);
   }
 
   Future<void> refresh() async {
-    final previous = state.valueOrNull;
-    state = previous != null
-        ? AsyncLoading<List<Equipment>>()
-            .copyWithPrevious(AsyncData(previous))
-        : const AsyncLoading();
+    // Riverpod 3: keep the current data visible while reloading (guard only
+    // replaces state once the fetch resolves). copyWithPrevious is now internal.
     state = await AsyncValue.guard(_fetch);
   }
 

@@ -8,6 +8,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../api/api_client.dart';
 import '../database/database.dart';
@@ -42,7 +43,7 @@ class SyncService {
 
   SyncService({required this.db, required this.api, required this.ref}) {
     ref.listen(connectivityProvider, (prev, next) {
-      final isOnline = next.valueOrNull ?? false;
+      final isOnline = next.value ?? false;
       if (isOnline) {
         syncPendingItems();
       }
@@ -89,7 +90,7 @@ class SyncService {
     ));
 
     // Try to sync immediately if online
-    final isOnline = ref.read(connectivityProvider).valueOrNull ?? false;
+    final isOnline = ref.read(connectivityProvider).value ?? false;
     if (isOnline) {
       syncPendingItems();
     }

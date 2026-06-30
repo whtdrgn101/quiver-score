@@ -22,21 +22,25 @@ class TournamentBracketScreen extends ConsumerStatefulWidget {
       _TournamentBracketScreenState();
 }
 
-class _TournamentBracketScreenState extends ConsumerState<TournamentBracketScreen> {
+class _TournamentBracketScreenState
+    extends ConsumerState<TournamentBracketScreen> {
   @override
   Widget build(BuildContext context) {
     final roundsAsync = ref.watch(
-      tournamentRoundsProvider((clubId: widget.clubId, tournamentId: widget.tournament.id)),
+      tournamentRoundsProvider((
+        clubId: widget.clubId,
+        tournamentId: widget.tournament.id,
+      )),
     );
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('${widget.tournament.name} Bracket'),
-      ),
+      appBar: AppBar(title: Text('${widget.tournament.name} Bracket')),
       body: roundsAsync.when(
         data: (rounds) {
-          final elimRounds = rounds.where((r) => r.roundType == 'elimination').toList();
+          final elimRounds = rounds
+              .where((r) => r.roundType == 'elimination')
+              .toList();
 
           if (elimRounds.isEmpty) {
             return Center(
@@ -48,7 +52,9 @@ class _TournamentBracketScreenState extends ConsumerState<TournamentBracketScree
                     Icon(
                       Icons.account_tree_outlined,
                       size: 64,
-                      color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                      color: theme.colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.5,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
@@ -75,17 +81,21 @@ class _TournamentBracketScreenState extends ConsumerState<TournamentBracketScree
               children: [
                 TabBar(
                   isScrollable: elimRounds.length > 3,
-                  tabAlignment: elimRounds.length > 3 ? TabAlignment.start : null,
+                  tabAlignment: elimRounds.length > 3
+                      ? TabAlignment.start
+                      : null,
                   tabs: elimRounds.map((r) => Tab(text: r.name)).toList(),
                 ),
                 Expanded(
                   child: TabBarView(
                     children: elimRounds
-                        .map((round) => _BracketRoundView(
-                              clubId: widget.clubId,
-                              tournament: widget.tournament,
-                              round: round,
-                            ))
+                        .map(
+                          (round) => _BracketRoundView(
+                            clubId: widget.clubId,
+                            tournament: widget.tournament,
+                            round: round,
+                          ),
+                        )
                         .toList(),
                   ),
                 ),
@@ -117,7 +127,9 @@ class _BracketRoundView extends ConsumerWidget {
     TournamentMatchup matchup,
   ) async {
     final templateId = round.templateId ?? tournament.templateId;
-    await ref.read(scoringProvider.notifier).startSession(templateId: templateId);
+    await ref
+        .read(scoringProvider.notifier)
+        .startSession(templateId: templateId);
 
     if (context.mounted) {
       await Navigator.of(context).push(
@@ -134,9 +146,13 @@ class _BracketRoundView extends ConsumerWidget {
           ),
         ),
       );
-      ref.invalidate(tournamentMatchupsProvider(
-        (clubId: clubId, tournamentId: tournament.id, roundId: round.id),
-      ));
+      ref.invalidate(
+        tournamentMatchupsProvider((
+          clubId: clubId,
+          tournamentId: tournament.id,
+          roundId: round.id,
+        )),
+      );
     }
   }
 
@@ -145,10 +161,12 @@ class _BracketRoundView extends ConsumerWidget {
     WidgetRef ref,
     TournamentMatchup matchup,
   ) {
-    final scoreAController =
-        TextEditingController(text: matchup.scoreA?.toString() ?? '');
-    final scoreBController =
-        TextEditingController(text: matchup.scoreB?.toString() ?? '');
+    final scoreAController = TextEditingController(
+      text: matchup.scoreA?.toString() ?? '',
+    );
+    final scoreBController = TextEditingController(
+      text: matchup.scoreB?.toString() ?? '',
+    );
     String? selectedWinnerId = matchup.winnerId;
 
     showDialog(
@@ -161,10 +179,7 @@ class _BracketRoundView extends ConsumerWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Scores',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
+                Text('Scores', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -172,7 +187,8 @@ class _BracketRoundView extends ConsumerWidget {
                       child: TextField(
                         controller: scoreAController,
                         decoration: InputDecoration(
-                          labelText: matchup.participantAName ?? 'Participant A',
+                          labelText:
+                              matchup.participantAName ?? 'Participant A',
                           border: const OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
@@ -183,7 +199,8 @@ class _BracketRoundView extends ConsumerWidget {
                       child: TextField(
                         controller: scoreBController,
                         decoration: InputDecoration(
-                          labelText: matchup.participantBName ?? 'Participant B',
+                          labelText:
+                              matchup.participantBName ?? 'Participant B',
                           border: const OutlineInputBorder(),
                         ),
                         keyboardType: TextInputType.number,
@@ -197,25 +214,35 @@ class _BracketRoundView extends ConsumerWidget {
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 8),
-                if (matchup.participantAId != null)
-                  RadioListTile<String>(
-                    title: Text(matchup.participantAName ?? 'Participant A'),
-                    value: matchup.participantAId!,
-                    groupValue: selectedWinnerId,
-                    onChanged: (val) => setDialogState(() => selectedWinnerId = val),
-                  ),
-                if (matchup.participantBId != null)
-                  RadioListTile<String>(
-                    title: Text(matchup.participantBName ?? 'Participant B'),
-                    value: matchup.participantBId!,
-                    groupValue: selectedWinnerId,
-                    onChanged: (val) => setDialogState(() => selectedWinnerId = val),
-                  ),
-                RadioListTile<String?>(
-                  title: const Text('None (Pending)'),
-                  value: null,
+                // Flutter 3.32+: a RadioGroup ancestor manages the group value
+                // instead of per-Radio groupValue/onChanged.
+                RadioGroup<String?>(
                   groupValue: selectedWinnerId,
-                  onChanged: (val) => setDialogState(() => selectedWinnerId = val),
+                  onChanged: (val) =>
+                      setDialogState(() => selectedWinnerId = val),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (matchup.participantAId != null)
+                        RadioListTile<String?>(
+                          title: Text(
+                            matchup.participantAName ?? 'Participant A',
+                          ),
+                          value: matchup.participantAId!,
+                        ),
+                      if (matchup.participantBId != null)
+                        RadioListTile<String?>(
+                          title: Text(
+                            matchup.participantBName ?? 'Participant B',
+                          ),
+                          value: matchup.participantBId!,
+                        ),
+                      const RadioListTile<String?>(
+                        title: Text('None (Pending)'),
+                        value: null,
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -241,9 +268,13 @@ class _BracketRoundView extends ConsumerWidget {
                     scoreB: scoreB,
                     winnerId: selectedWinnerId,
                   );
-                  ref.invalidate(tournamentMatchupsProvider(
-                    (clubId: clubId, tournamentId: tournament.id, roundId: round.id),
-                  ));
+                  ref.invalidate(
+                    tournamentMatchupsProvider((
+                      clubId: clubId,
+                      tournamentId: tournament.id,
+                      roundId: round.id,
+                    )),
+                  );
                   if (ctx.mounted) Navigator.pop(ctx);
                 } catch (e) {
                   if (ctx.mounted) {
@@ -264,11 +295,13 @@ class _BracketRoundView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final matchupsAsync = ref.watch(
-      tournamentMatchupsProvider(
-        (clubId: clubId, tournamentId: tournament.id, roundId: round.id),
-      ),
+      tournamentMatchupsProvider((
+        clubId: clubId,
+        tournamentId: tournament.id,
+        roundId: round.id,
+      )),
     );
-    final currentUser = ref.watch(currentUserProvider).valueOrNull;
+    final currentUser = ref.watch(currentUserProvider).value;
     final isOrganizer = currentUser?.id == tournament.organizerId;
     final theme = Theme.of(context);
 
@@ -286,33 +319,51 @@ class _BracketRoundView extends ConsumerWidget {
         }
 
         return RefreshIndicator(
-          onRefresh: () async => ref.invalidate(tournamentMatchupsProvider(
-            (clubId: clubId, tournamentId: tournament.id, roundId: round.id),
-          )),
+          onRefresh: () async => ref.invalidate(
+            tournamentMatchupsProvider((
+              clubId: clubId,
+              tournamentId: tournament.id,
+              roundId: round.id,
+            )),
+          ),
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: matchups.length,
             itemBuilder: (context, index) {
               final matchup = matchups[index];
 
-              final isPartAUser = matchup.participantAId != null &&
+              final isPartAUser =
+                  matchup.participantAId != null &&
                   currentUser?.id != null &&
-                  tournament.participants
-                      .any((p) => p.userId == currentUser!.id && p.userId == matchup.participantAId);
-              final isPartBUser = matchup.participantBId != null &&
+                  tournament.participants.any(
+                    (p) =>
+                        p.userId == currentUser!.id &&
+                        p.userId == matchup.participantAId,
+                  );
+              final isPartBUser =
+                  matchup.participantBId != null &&
                   currentUser?.id != null &&
-                  tournament.participants
-                      .any((p) => p.userId == currentUser!.id && p.userId == matchup.participantBId);
+                  tournament.participants.any(
+                    (p) =>
+                        p.userId == currentUser!.id &&
+                        p.userId == matchup.participantBId,
+                  );
               final isUserInMatch = isPartAUser || isPartBUser;
 
               final isCompleted = matchup.winnerId != null;
-              final isPartAWinner = matchup.winnerId != null && matchup.winnerId == matchup.participantAId;
-              final isPartBWinner = matchup.winnerId != null && matchup.winnerId == matchup.participantBId;
+              final isPartAWinner =
+                  matchup.winnerId != null &&
+                  matchup.winnerId == matchup.participantAId;
+              final isPartBWinner =
+                  matchup.winnerId != null &&
+                  matchup.winnerId == matchup.participantBId;
 
-              final canUserScore = round.status == 'in_progress' &&
+              final canUserScore =
+                  round.status == 'in_progress' &&
                   isUserInMatch &&
                   !isCompleted &&
-                  ((isPartAUser && matchup.scoreA == null) || (isPartBUser && matchup.scoreB == null));
+                  ((isPartAUser && matchup.scoreA == null) ||
+                      (isPartBUser && matchup.scoreB == null));
 
               return Card(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -332,7 +383,10 @@ class _BracketRoundView extends ConsumerWidget {
                           ),
                           if (isCompleted)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.green.shade50,
                                 borderRadius: BorderRadius.circular(12),
@@ -345,9 +399,13 @@ class _BracketRoundView extends ConsumerWidget {
                                 ),
                               ),
                             )
-                          else if (matchup.participantAId == null || matchup.participantBId == null)
+                          else if (matchup.participantAId == null ||
+                              matchup.participantBId == null)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.blue.shade50,
                                 borderRadius: BorderRadius.circular(12),
@@ -362,7 +420,10 @@ class _BracketRoundView extends ConsumerWidget {
                             )
                           else
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.amber.shade50,
                                 borderRadius: BorderRadius.circular(12),
@@ -400,14 +461,16 @@ class _BracketRoundView extends ConsumerWidget {
                           children: [
                             if (isOrganizer)
                               TextButton.icon(
-                                onPressed: () => _showEditMatchDialog(context, ref, matchup),
+                                onPressed: () =>
+                                    _showEditMatchDialog(context, ref, matchup),
                                 icon: const Icon(Icons.edit, size: 18),
                                 label: const Text('Edit Match'),
                               ),
                             if (canUserScore) ...[
                               const SizedBox(width: 8),
                               FilledButton.icon(
-                                onPressed: () => _scoreMatch(context, ref, matchup),
+                                onPressed: () =>
+                                    _scoreMatch(context, ref, matchup),
                                 icon: const Icon(Icons.play_arrow, size: 18),
                                 label: const Text('Score My Match'),
                               ),
@@ -461,7 +524,9 @@ class _MatchupPlayerRow extends StatelessWidget {
             Text(
               name + (isUser ? ' (You)' : ''),
               style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: isWinner || isUser ? FontWeight.bold : FontWeight.normal,
+                fontWeight: isWinner || isUser
+                    ? FontWeight.bold
+                    : FontWeight.normal,
                 color: isWinner ? theme.colorScheme.primary : null,
               ),
             ),

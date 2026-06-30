@@ -68,7 +68,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final pendingCount = ref.watch(pendingSyncCountProvider).valueOrNull ?? 0;
+    final pendingCount = ref.watch(pendingSyncCountProvider).value ?? 0;
 
     return Scaffold(
       appBar: AppBar(

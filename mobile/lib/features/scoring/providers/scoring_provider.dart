@@ -1,12 +1,13 @@
 import 'package:drift/drift.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/database.dart';
 import '../../../core/sync/sync_service.dart';
 
-final scoringProvider =
-    StateNotifierProvider<ScoringNotifier, ScoringState>((ref) {
+final scoringProvider = StateNotifierProvider<ScoringNotifier, ScoringState>((
+  ref,
+) {
   return ScoringNotifier(
     db: ref.watch(databaseProvider),
     syncService: ref.watch(syncServiceProvider),
@@ -47,7 +48,7 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
   static const _uuid = Uuid();
 
   ScoringNotifier({required this.db, required this.syncService})
-      : super(const ScoringState());
+    : super(const ScoringState());
 
   /// Start a new scoring session
   Future<String> startSession({
@@ -60,17 +61,19 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     final id = _uuid.v4();
     final now = DateTime.now();
 
-    await db.into(db.scoringSessionsLocal).insert(
-      ScoringSessionsLocalCompanion.insert(
-        id: id,
-        templateId: templateId,
-        setupProfileId: Value(setupProfileId),
-        notes: Value(notes),
-        location: Value(location),
-        weather: Value(weather),
-        startedAt: now,
-      ),
-    );
+    await db
+        .into(db.scoringSessionsLocal)
+        .insert(
+          ScoringSessionsLocalCompanion.insert(
+            id: id,
+            templateId: templateId,
+            setupProfileId: Value(setupProfileId),
+            notes: Value(notes),
+            location: Value(location),
+            weather: Value(weather),
+            startedAt: now,
+          ),
+        );
 
     // Enqueue for sync
     await syncService.enqueue(
@@ -79,10 +82,10 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
       action: 'create',
       payload: {
         'template_id': templateId,
-        if (setupProfileId != null) 'setup_profile_id': setupProfileId,
-        if (notes != null) 'notes': notes,
-        if (location != null) 'location': location,
-        if (weather != null) 'weather': weather,
+        'setup_profile_id': ?setupProfileId,
+        'notes': ?notes,
+        'location': ?location,
+        'weather': ?weather,
       },
     );
 
@@ -92,21 +95,23 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
 
   /// Load an existing session and its ends
   Future<void> loadSession(String sessionId) async {
-    final session = await (db.select(db.scoringSessionsLocal)
-          ..where((t) => t.id.equals(sessionId)))
-        .getSingle();
+    final session = await (db.select(
+      db.scoringSessionsLocal,
+    )..where((t) => t.id.equals(sessionId))).getSingle();
 
-    final ends = await (db.select(db.endsLocal)
-          ..where((t) => t.sessionId.equals(sessionId))
-          ..orderBy([(t) => OrderingTerm.asc(t.endNumber)]))
-        .get();
+    final ends =
+        await (db.select(db.endsLocal)
+              ..where((t) => t.sessionId.equals(sessionId))
+              ..orderBy([(t) => OrderingTerm.asc(t.endNumber)]))
+            .get();
 
     final arrowsByEnd = <String, List<ArrowsLocalData>>{};
     for (final end in ends) {
-      final arrows = await (db.select(db.arrowsLocal)
-            ..where((t) => t.endId.equals(end.id))
-            ..orderBy([(t) => OrderingTerm.asc(t.arrowNumber)]))
-          .get();
+      final arrows =
+          await (db.select(db.arrowsLocal)
+                ..where((t) => t.endId.equals(end.id))
+                ..orderBy([(t) => OrderingTerm.asc(t.arrowNumber)]))
+              .get();
       arrowsByEnd[end.id] = arrows;
     }
 
@@ -139,53 +144,65 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     }
 
     // Insert end
-    await db.into(db.endsLocal).insert(EndsLocalCompanion.insert(
-      id: endId,
-      sessionId: session.id,
-      stageId: stageId,
-      endNumber: endNumber,
-      endTotal: Value(endTotal),
-      createdAt: DateTime.now(),
-    ));
+    await db
+        .into(db.endsLocal)
+        .insert(
+          EndsLocalCompanion.insert(
+            id: endId,
+            sessionId: session.id,
+            stageId: stageId,
+            endNumber: endNumber,
+            endTotal: Value(endTotal),
+            createdAt: DateTime.now(),
+          ),
+        );
 
     // Insert arrows
     final arrowRows = <ArrowsLocalData>[];
     for (var i = 0; i < arrows.length; i++) {
       final arrowId = _uuid.v4();
       final scoreNumeric = valueScoreMap[arrows[i].scoreValue] ?? 0;
-      await db.into(db.arrowsLocal).insert(ArrowsLocalCompanion.insert(
-        id: arrowId,
-        endId: endId,
-        arrowNumber: i + 1,
-        scoreValue: arrows[i].scoreValue,
-        scoreNumeric: scoreNumeric,
-        xPos: Value(arrows[i].xPos),
-        yPos: Value(arrows[i].yPos),
-      ));
-      arrowRows.add(ArrowsLocalData(
-        id: arrowId,
-        endId: endId,
-        arrowNumber: i + 1,
-        scoreValue: arrows[i].scoreValue,
-        scoreNumeric: scoreNumeric,
-        xPos: arrows[i].xPos,
-        yPos: arrows[i].yPos,
-      ));
+      await db
+          .into(db.arrowsLocal)
+          .insert(
+            ArrowsLocalCompanion.insert(
+              id: arrowId,
+              endId: endId,
+              arrowNumber: i + 1,
+              scoreValue: arrows[i].scoreValue,
+              scoreNumeric: scoreNumeric,
+              xPos: Value(arrows[i].xPos),
+              yPos: Value(arrows[i].yPos),
+            ),
+          );
+      arrowRows.add(
+        ArrowsLocalData(
+          id: arrowId,
+          endId: endId,
+          arrowNumber: i + 1,
+          scoreValue: arrows[i].scoreValue,
+          scoreNumeric: scoreNumeric,
+          xPos: arrows[i].xPos,
+          yPos: arrows[i].yPos,
+        ),
+      );
     }
 
     // Update session totals
     final newTotalScore = session.totalScore + endTotal;
     final newTotalArrows = session.totalArrows + arrows.length;
-    final newXCount = session.totalXCount +
-        arrows.where((a) => a.scoreValue == 'X').length;
+    final newXCount =
+        session.totalXCount + arrows.where((a) => a.scoreValue == 'X').length;
 
-    await (db.update(db.scoringSessionsLocal)
-          ..where((t) => t.id.equals(session.id)))
-        .write(ScoringSessionsLocalCompanion(
-      totalScore: Value(newTotalScore),
-      totalArrows: Value(newTotalArrows),
-      totalXCount: Value(newXCount),
-    ));
+    await (db.update(
+      db.scoringSessionsLocal,
+    )..where((t) => t.id.equals(session.id))).write(
+      ScoringSessionsLocalCompanion(
+        totalScore: Value(newTotalScore),
+        totalArrows: Value(newTotalArrows),
+        totalXCount: Value(newXCount),
+      ),
+    );
 
     // Enqueue for sync
     await syncService.enqueue(
@@ -196,11 +213,13 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
         'session_id': session.id,
         'stage_id': stageId,
         'arrows': arrows
-            .map((a) => {
-                  'score_value': a.scoreValue,
-                  if (a.xPos != null) 'x_pos': a.xPos,
-                  if (a.yPos != null) 'y_pos': a.yPos,
-                })
+            .map(
+              (a) => {
+                'score_value': a.scoreValue,
+                if (a.xPos != null) 'x_pos': a.xPos,
+                if (a.yPos != null) 'y_pos': a.yPos,
+              },
+            )
             .toList(),
       },
     );
@@ -224,32 +243,31 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     final xCount = lastArrows.where((a) => a.scoreValue == 'X').length;
 
     // Delete arrows, then end
-    await (db.delete(db.arrowsLocal)
-          ..where((t) => t.endId.equals(lastEnd.id)))
-        .go();
-    await (db.delete(db.endsLocal)
-          ..where((t) => t.id.equals(lastEnd.id)))
-        .go();
+    await (db.delete(
+      db.arrowsLocal,
+    )..where((t) => t.endId.equals(lastEnd.id))).go();
+    await (db.delete(db.endsLocal)..where((t) => t.id.equals(lastEnd.id))).go();
 
     // Also delete any images for this end
-    await (db.delete(db.endImages)
-          ..where((t) => t.endId.equals(lastEnd.id)))
-        .go();
+    await (db.delete(
+      db.endImages,
+    )..where((t) => t.endId.equals(lastEnd.id))).go();
 
     // Update session totals
-    await (db.update(db.scoringSessionsLocal)
-          ..where((t) => t.id.equals(session.id)))
-        .write(ScoringSessionsLocalCompanion(
-      totalScore: Value(session.totalScore - endScore),
-      totalArrows: Value(session.totalArrows - arrowCount),
-      totalXCount: Value(session.totalXCount - xCount),
-    ));
+    await (db.update(
+      db.scoringSessionsLocal,
+    )..where((t) => t.id.equals(session.id))).write(
+      ScoringSessionsLocalCompanion(
+        totalScore: Value(session.totalScore - endScore),
+        totalArrows: Value(session.totalArrows - arrowCount),
+        totalXCount: Value(session.totalXCount - xCount),
+      ),
+    );
 
     // Remove any unsynced sync queue entries for this end
-    await (db.delete(db.syncQueue)
-          ..where((t) =>
-              t.entityId.equals(lastEnd.id) & t.syncedAt.isNull()))
-        .go();
+    await (db.delete(
+      db.syncQueue,
+    )..where((t) => t.entityId.equals(lastEnd.id) & t.syncedAt.isNull())).go();
 
     await loadSession(session.id);
     return true;
@@ -265,26 +283,24 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     if (session == null) return;
 
     final now = DateTime.now();
-    await (db.update(db.scoringSessionsLocal)
-          ..where((t) => t.id.equals(session.id)))
-        .write(ScoringSessionsLocalCompanion(
-      status: const Value('completed'),
-      completedAt: Value(now),
-      synced: const Value(false),
-      notes: Value(notes),
-      location: Value(location),
-      weather: Value(weather),
-    ));
+    await (db.update(
+      db.scoringSessionsLocal,
+    )..where((t) => t.id.equals(session.id))).write(
+      ScoringSessionsLocalCompanion(
+        status: const Value('completed'),
+        completedAt: Value(now),
+        synced: const Value(false),
+        notes: Value(notes),
+        location: Value(location),
+        weather: Value(weather),
+      ),
+    );
 
     await syncService.enqueue(
       entityType: 'session',
       entityId: session.id,
       action: 'complete',
-      payload: {
-        if (notes != null) 'notes': notes,
-        if (location != null) 'location': location,
-        if (weather != null) 'weather': weather,
-      },
+      payload: {'notes': ?notes, 'location': ?location, 'weather': ?weather},
     );
 
     await loadSession(session.id);
@@ -295,12 +311,14 @@ class ScoringNotifier extends StateNotifier<ScoringState> {
     final session = state.activeSession;
     if (session == null) return;
 
-    await (db.update(db.scoringSessionsLocal)
-          ..where((t) => t.id.equals(session.id)))
-        .write(const ScoringSessionsLocalCompanion(
-      status: Value('abandoned'),
-      synced: Value(false),
-    ));
+    await (db.update(
+      db.scoringSessionsLocal,
+    )..where((t) => t.id.equals(session.id))).write(
+      const ScoringSessionsLocalCompanion(
+        status: Value('abandoned'),
+        synced: Value(false),
+      ),
+    );
 
     await syncService.enqueue(
       entityType: 'session',
@@ -322,9 +340,5 @@ class ArrowInput {
   final double? xPos;
   final double? yPos;
 
-  const ArrowInput({
-    required this.scoreValue,
-    this.xPos,
-    this.yPos,
-  });
+  const ArrowInput({required this.scoreValue, this.xPos, this.yPos});
 }

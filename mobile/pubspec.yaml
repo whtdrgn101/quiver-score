@@ -13,33 +13,34 @@ dependencies:
   cupertino_icons: ^1.0.8
 
   # State management
-  flutter_riverpod: ^2.6.1
-  riverpod_annotation: ^2.6.1
+  flutter_riverpod: ^3.3.2
 
   # Networking
   dio: ^5.9.2
   connectivity_plus: ^7.1.1
 
   # Local database
-  drift: ^2.28.2
+  drift: ^2.34.0
 
   # Secure storage (auth tokens)
   flutter_secure_storage: ^10.0.0
 
   # Biometric authentication
-  local_auth: ^2.3.0
+  local_auth: ^3.0.1
 
   # Camera & images
   image_picker: ^1.2.2
   path_provider: ^2.1.5
 
   # Utilities
+  meta: ^1.16.0          # directly imported (@visibleForTesting)
+  path: ^1.9.0           # directly imported for path joining
   uuid: ^4.5.3
   intl: ^0.20.2
-  json_annotation: ^4.9.0
+  json_annotation: ^4.12.0
   freezed_annotation: ^3.1.0
   url_launcher: ^6.3.2
-  sqlite3_flutter_libs: ">=0.5.0 <0.6.0"
+  sqlite3_flutter_libs: ^0.6.0
   flutter_image_compress: ^2.4.0
 
 dev_dependencies:
@@ -47,12 +48,13 @@ dev_dependencies:
     sdk: flutter
 
   flutter_lints: ^6.0.0
-  build_runner: ^2.4.15
-  json_serializable: ^6.9.5
-  freezed: ^3.0.6
-  riverpod_generator: ^2.6.5
-  drift_dev: ^2.27.0
-  mockito: ^5.4.6
+  build_runner: ^2.15.0
+  json_serializable: ^6.14.0
+  freezed: ^3.2.0
+  drift_dev: ^2.34.0
+  # 5.7.0 needs analyzer ^13 (meta 1.18.3) which requires a newer Flutter SDK
+  # than 3.41.9 pins; cap here until the SDK is bumped.
+  mockito: ^5.6.4
   flutter_launcher_icons: ^0.14.3
 
 flutter_launcher_icons:

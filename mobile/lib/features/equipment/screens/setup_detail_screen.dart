@@ -158,8 +158,8 @@ class SetupDetailScreen extends ConsumerWidget {
 
   Future<void> _showEquipmentPicker(
       BuildContext context, WidgetRef ref) async {
-    final allEquipment = ref.read(equipmentProvider).valueOrNull ?? [];
-    final detail = ref.read(setupDetailProvider(setupId)).valueOrNull;
+    final allEquipment = ref.read(equipmentProvider).value ?? [];
+    final detail = ref.read(setupDetailProvider(setupId)).value;
     final linkedIds =
         detail?.equipment.map((e) => e.id).toSet() ?? <String>{};
     final available =

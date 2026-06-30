@@ -119,12 +119,12 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
     );
 
     if (confirmed == true && mounted) {
-      final user = ref.read(currentUserProvider).valueOrNull;
+      final user = ref.read(currentUserProvider).value;
       if (user == null) return;
       await ref
           .read(clubsProvider.notifier)
           .leaveClub(widget.clubId, user.id);
-      if (mounted) Navigator.pop(context);
+      if (context.mounted) Navigator.pop(context);
     }
   }
 }

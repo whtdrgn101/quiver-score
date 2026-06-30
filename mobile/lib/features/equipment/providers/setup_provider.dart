@@ -69,17 +69,14 @@ class SetupListNotifier extends AsyncNotifier<List<SetupSummary>> {
           ..where((t) => t.setupId.equals(id)))
         .go();
 
-    final items = <SetupSummary>[...state.valueOrNull ?? []];
+    final items = <SetupSummary>[...state.value ?? []];
     items.removeWhere((s) => s.id == id);
     state = AsyncData(items);
   }
 
   Future<void> refresh() async {
-    final previous = state.valueOrNull;
-    state = previous != null
-        ? AsyncLoading<List<SetupSummary>>()
-            .copyWithPrevious(AsyncData(previous))
-        : const AsyncLoading();
+    // Riverpod 3: keep the current data visible while reloading (guard only
+    // replaces state once the fetch resolves). copyWithPrevious is now internal.
     state = await AsyncValue.guard(_fetch);
   }
 

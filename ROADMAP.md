@@ -170,11 +170,15 @@ needs its own branch and test pass.
 - [ ] Adopt `eslint-plugin-react-hooks` 7.1 stricter rules (currently pinned at `~7.0.1`) and fix the 3 findings it surfaces: `set-state-in-effect` in `Layout.jsx:22` and `AttachmentGallery.jsx:36`, and the `ThemeToggle` component defined inside `Layout`'s render
 - [ ] Re-run the full Playwright e2e suite after each major
 
-### Phase 26: Mobile Framework Major Upgrades
+### Phase 26: Mobile Framework Major Upgrades ✅ (mostly)
 
-- [ ] Riverpod 2 → 3 (`flutter_riverpod`, `riverpod_annotation`/`riverpod_generator` → 4.x) — provider API migration
-- [ ] `local_auth` 2 → 3 — biometric API changes; re-verify the Phase 24 app lock
-- [ ] `drift` 2.28 → 2.34 (+ `drift_dev`); `sqlite3_flutter_libs` 0.5 → 0.6
-- [ ] `freezed` 3.1 → 3.2, `json_serializable` 6.14, `mockito` 5.7, `build_runner` 2.15 — regenerate codegen
-- [ ] Clear the 2 `use_build_context_synchronously` warnings + 34 analyzer infos surfaced by current lints
-- [ ] Re-run widget/integration tests and exercise scoring / sync / biometric flows
+Completed 2026-06-30. Mobile now analyzes with zero issues; 89 tests pass.
+
+- [x] Riverpod 2 → 3 (`flutter_riverpod`) — StateNotifier/StateProvider via `legacy.dart`, `valueOrNull` → `.value`, `copyWithPrevious` (now internal) dropped from `refresh()`. (Unused `riverpod_annotation`/`riverpod_generator` removed — no `@riverpod` codegen in the project.)
+- [x] `local_auth` 2 → 3 — `authenticate()` options flattened (`stickyAuth` → `persistAcrossBackgrounding`)
+- [x] `drift` 2.28 → 2.34 (+ `drift_dev`); `sqlite3_flutter_libs` 0.5 → 0.6
+- [x] `freezed` 3.1 → 3.2, `json_serializable` 6.14, `build_runner` 2.15 — codegen regenerated
+- [x] Clear analyzer deprecations + infos (RadioGroup, withValues, initialValue, context.mounted, encryptedSharedPreferences, meta/path deps)
+- [x] Fixed 2 pre-existing build errors in the Phase 20 challenges feature (caught now that analyze is clean)
+- [ ] **`mockito` capped at 5.6.4** — 5.7 needs `analyzer ^13` (`meta 1.18.3`), which requires a newer Flutter SDK than 3.41.9. Bump alongside a Flutter SDK upgrade.
+- [ ] **On-device verification still required** before release: scoring, offline sync, and the Phase 24 biometric app lock (no widget tests cover these; mobile is not in CI).

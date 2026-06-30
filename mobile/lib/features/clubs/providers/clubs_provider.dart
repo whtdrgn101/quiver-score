@@ -53,16 +53,14 @@ class ClubsNotifier extends AsyncNotifier<List<Club>> {
     final db = ref.read(databaseProvider);
     await (db.delete(db.clubCache)..where((t) => t.id.equals(clubId))).go();
 
-    final items = <Club>[...state.valueOrNull ?? []];
+    final items = <Club>[...state.value ?? []];
     items.removeWhere((c) => c.id == clubId);
     state = AsyncData(items);
   }
 
   Future<void> refresh() async {
-    final previous = state.valueOrNull;
-    state = previous != null
-        ? AsyncLoading<List<Club>>().copyWithPrevious(AsyncData(previous))
-        : const AsyncLoading();
+    // Riverpod 3: keep the current data visible while reloading (guard only
+    // replaces state once the fetch resolves). copyWithPrevious is now internal.
     state = await AsyncValue.guard(_fetch);
   }
 
