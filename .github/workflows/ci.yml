@@ -24,6 +24,27 @@ jobs:
       - name: Run tests
         run: go test ./... -v
 
+  migrations-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Ensure a single Alembic head
+        run: |
+          count=$(uv run alembic heads | grep -c .)
+          if [ "$count" -ne 1 ]; then
+            echo "::error::Found $count Alembic heads (expected 1). The migration history has forked — run 'uv run alembic merge heads' to resolve before merging."
+            uv run alembic heads
+            exit 1
+          fi
+          echo "OK: single Alembic head."
+
   frontend-build:
     runs-on: ubuntu-latest
     defaults:
