@@ -3,29 +3,21 @@ name = "backend"
 version = "0.1.0"
 description = "QuiverScore - Target Archery Score Tracking API"
 requires-python = ">=3.12"
+# Runtime is the Go API (backend-go/). This Python project exists ONLY to run
+# Alembic migrations on deploy, so deps are limited to what alembic/env.py and
+# the SQLAlchemy models need. The former FastAPI app was removed (Phase 10
+# cutover finally cleaned up). Contract tests (dev group) hit the live Go API
+# over httpx and need no app code.
 dependencies = [
-    "alembic>=1.18.3",
+    "alembic>=1.18.5",
     "asyncpg>=0.31.0",
-    "bcrypt>=5.0.0",
-    "email-validator>=2.3.0",
-    "fastapi>=0.128.5",
-    "pydantic-settings>=2.12.0",
-    "python-jose[cryptography]>=3.5.0",
-    "python-multipart>=0.0.22",
-    "sqlalchemy[asyncio]>=2.0.46",
-    "slowapi>=0.1.9",
-    "uvicorn[standard]>=0.40.0",
-    "httpx>=0.28.1",
-    "sendgrid>=6.11.0",
-    "reportlab>=4.0",
+    "pydantic-settings>=2.14.2",
+    "sqlalchemy[asyncio]>=2.0.51",
 ]
 
 [dependency-groups]
 dev = [
-    "aiosqlite>=0.22.1",
     "httpx>=0.28.1",
-    "pytest>=9.0.2",
-    "pytest-asyncio>=1.3.0",
-    "pytest-cov>=7.0.0",
-    "respx>=0.22.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
 ]
