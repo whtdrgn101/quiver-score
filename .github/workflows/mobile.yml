@@ -1,0 +1,47 @@
+name: Mobile CI
+
+# Separate from ci.yml on purpose: ci.yml is the deploy gate (deploy.yml calls
+# it via workflow_call), and the Flutter app deploys independently of the Go API
+# and web app. Path-filtered so it only runs when mobile code changes.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile.yml"
+  push:
+    branches: [main]
+    paths:
+      - "mobile/**"
+      - ".github/workflows/mobile.yml"
+
+jobs:
+  mobile-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.41.9"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Generated sources (*.g.dart, *.freezed.dart) are gitignored, so they
+      # must be regenerated before analyze/test will compile.
+      - name: Generate code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      # Fails on errors and warnings; infos are non-fatal by default.
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
