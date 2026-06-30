@@ -30,10 +30,11 @@ class BiometricService {
     try {
       return await _auth.authenticate(
         localizedReason: reason,
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: false, // Fallback to PIN/passcode/pattern
-        ),
+        // local_auth 3.x: options were flattened onto authenticate().
+        // stickyAuth -> persistAcrossBackgrounding; biometricOnly: false
+        // keeps the device PIN/passcode/pattern fallback.
+        biometricOnly: false,
+        persistAcrossBackgrounding: true,
       );
     } catch (_) {
       return false;
