@@ -331,19 +331,21 @@ class TournamentRoundScore {
 }
 
 class TournamentContext {
-  final String clubId;
-  final String tournamentId;
-  final String roundId;
-  final String tournamentName;
-  final String roundName;
+  final String? clubId;
+  final String? tournamentId;
+  final String? roundId;
+  final String? tournamentName;
+  final String? roundName;
   final String? matchupId;
+  final String? challengeId;
 
   const TournamentContext({
-    required this.clubId,
-    required this.tournamentId,
-    required this.roundId,
-    required this.tournamentName,
-    required this.roundName,
+    this.clubId,
+    this.tournamentId,
+    this.roundId,
+    this.tournamentName,
+    this.roundName,
     this.matchupId,
+    this.challengeId,
   });
 }

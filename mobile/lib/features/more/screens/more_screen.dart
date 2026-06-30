@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/biometric_provider.dart';
 import '../../equipment/screens/equipment_screen.dart';
+import '../../challenges/screens/challenge_list_screen.dart';
 import '../providers/user_provider.dart';
 import 'profile_edit_screen.dart';
 
@@ -127,6 +128,15 @@ class MoreScreen extends ConsumerWidget {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const EquipmentScreen()),
+          ),
+        ),
+        _MenuTile(
+          icon: Icons.emoji_events_outlined,
+          title: 'Challenges',
+          subtitle: 'Challenge your friends to shoot rounds',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ChallengeListScreen()),
           ),
         ),
 

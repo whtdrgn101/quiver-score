@@ -117,11 +117,11 @@ Bring tournament participation to the Flutter app, building on the web tournamen
 
 ## Future
 
-### Phase 20: Challenge Friends
+### Phase 20: Challenge Friends ✅
 
-- [ ] Challenge a friend to shoot the same round
-- [ ] Real-time or async comparison
-- [ ] Leverage existing social/follow infrastructure
+- [x] Challenge a friend to shoot the same round
+- [x] Real-time or async comparison
+- [x] Leverage existing social/follow infrastructure
 
 ### Phase 21: Push Notifications
 

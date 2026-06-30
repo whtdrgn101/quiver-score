@@ -100,6 +100,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, store storage.ObjectStore
 	scoringRepo := &repository.ScoringRepo{DB: pool}
 	clubRepo := &repository.ClubRepo{DB: pool}
 	socialRepo := &repository.SocialRepo{DB: pool}
+	challengesRepo := &repository.ChallengesRepo{DB: pool}
 	coachingRepo := &repository.CoachingRepo{DB: pool}
 	notificationRepo := &repository.NotificationRepo{DB: pool}
 	attachmentRepo := &repository.AttachmentRepo{DB: pool}
@@ -125,6 +126,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, store storage.ObjectStore
 	sharingHandler := &handler.SharingHandler{Scoring: scoringRepo, Users: userRepo, Rounds: roundRepo, Cfg: cfg}
 	clubsHandler := &handler.ClubsHandler{Clubs: clubRepo, Cfg: cfg}
 	socialHandler := &handler.SocialHandler{Social: socialRepo, Cfg: cfg}
+	challengesHandler := &handler.ChallengesHandler{Challenges: challengesRepo, Cfg: cfg}
 	coachingHandler := &handler.CoachingHandler{Coaching: coachingRepo, Cfg: cfg}
 	notificationsHandler := &handler.NotificationsHandler{Notifications: notificationRepo, Cfg: cfg}
 	// Attachments: GCS-backed image storage shared across owner types.
@@ -167,6 +169,7 @@ func newRouter(cfg *config.Config, pool *pgxpool.Pool, store storage.ObjectStore
 	r.Route("/api/v1/share", sharingHandler.Routes)
 	r.Route("/api/v1/clubs", clubsHandler.Routes)
 	r.Route("/api/v1/social", socialHandler.Routes)
+	r.Route("/api/v1/challenges", challengesHandler.Routes)
 	r.Route("/api/v1/coaching", coachingHandler.Routes)
 	r.Route("/api/v1/notifications", notificationsHandler.Routes)
 	r.Route("/api/v1/attachments", attachmentsHandler.Routes)

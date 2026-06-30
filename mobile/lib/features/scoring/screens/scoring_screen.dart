@@ -288,7 +288,9 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Round Complete'),
         content: Text(tc != null
-            ? 'Submit your score to ${tc.tournamentName}?'
+            ? (tc.challengeId != null
+                ? 'Submit your score to this challenge?'
+                : 'Submit your score to ${tc.tournamentName}?')
             : 'All ends have been scored. Complete this round?'),
         actions: [
           TextButton(
@@ -329,7 +331,12 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
       final serverId = localSession.serverId ?? session.id;
 
       final api = ref.read(apiClientProvider);
-      if (tc.matchupId != null) {
+      if (tc.challengeId != null) {
+        await api.dio.post(
+          '/api/v1/challenges/${tc.challengeId}/submit-score',
+          data: {'session_id': serverId},
+        );
+      } else if (tc.matchupId != null) {
         await api.dio.post(
           '/api/v1/clubs/${tc.clubId}/tournaments/${tc.tournamentId}'
           '/rounds/${tc.roundId}/matchups/${tc.matchupId}/submit-score?session_id=$serverId',
