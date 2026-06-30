@@ -99,7 +99,7 @@ jobs:
             --min-instances 1 \
             --max-instances 2 \
             --port 8080 \
-            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@EMAIL_API_KEY=${EMAIL_API_KEY}@@EMAIL_FROM=${EMAIL_FROM}@@FRONTEND_URL=${FRONTEND_URL}" \
+            --set-env-vars "^@@^DATABASE_URL=${DATABASE_URL}@@SECRET_KEY=${SECRET_KEY}@@CORS_ORIGINS=${CORS_ORIGINS}@@EMAIL_API_KEY=${EMAIL_API_KEY}@@EMAIL_FROM=${EMAIL_FROM}@@FRONTEND_URL=${FRONTEND_URL}@@STORAGE_BACKEND=gcs@@GCS_BUCKET=quiverscore-images-prod" \
             --format "value(status.url)" > /tmp/api_url.txt
           echo "api_url=$(cat /tmp/api_url.txt)" >> "$GITHUB_OUTPUT"
 

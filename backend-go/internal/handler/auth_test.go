@@ -12,6 +12,7 @@ import (
 	"github.com/quiverscore/backend-go/internal/auth"
 	"github.com/quiverscore/backend-go/internal/config"
 	"github.com/quiverscore/backend-go/internal/middleware"
+	"github.com/quiverscore/backend-go/internal/storage"
 )
 
 // ── Mock User Repository ─────────────────────────────────────────────
@@ -509,6 +510,60 @@ func TestDeleteAccount_RepoError(t *testing.T) {
 
 	if rr.Code != http.StatusInternalServerError {
 		t.Errorf("expected 500, got %d", rr.Code)
+	}
+}
+
+func TestDeleteAccount_WipesUserStoragePrefix(t *testing.T) {
+	store := storage.NewMemory()
+	ctx := context.Background()
+	// Seed three objects: two for user-1 under different owner types, one for user-2 we want preserved.
+	_ = store.Put(ctx, "users/user-1/attachments/a/full.jpg", "image/jpeg", strings.NewReader("a"))
+	_ = store.Put(ctx, "users/user-1/attachments/b/thumb.jpg", "image/jpeg", strings.NewReader("b"))
+	_ = store.Put(ctx, "users/user-2/attachments/c/full.jpg", "image/jpeg", strings.NewReader("c"))
+
+	h := &AuthHandler{
+		Users:   &mockAuthUserRepo{},
+		Email:   &mockAuthEmailSender{},
+		Storage: store,
+		Cfg:     testCfg,
+	}
+
+	body := strings.NewReader(`{"confirmation":"Yes, delete ALL of my data"}`)
+	req := httptest.NewRequest(http.MethodPost, "/delete-account", body)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "user-1"))
+	rr := httptest.NewRecorder()
+	h.DeleteAccount(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rr.Code, rr.Body.String())
+	}
+
+	// user-1's objects are gone.
+	if _, _, err := store.Get(ctx, "users/user-1/attachments/a/full.jpg"); err == nil {
+		t.Error("user-1 full still present after wipe")
+	}
+	if _, _, err := store.Get(ctx, "users/user-1/attachments/b/thumb.jpg"); err == nil {
+		t.Error("user-1 thumb still present after wipe")
+	}
+	// user-2's object is untouched.
+	if _, _, err := store.Get(ctx, "users/user-2/attachments/c/full.jpg"); err != nil {
+		t.Errorf("user-2 object was wiped: %v", err)
+	}
+}
+
+func TestDeleteAccount_NoStorageBackendStillSucceeds(t *testing.T) {
+	// Storage is optional. When nil (e.g. tests, or unwired environments) the
+	// account delete still succeeds.
+	h := &AuthHandler{Users: &mockAuthUserRepo{}, Email: &mockAuthEmailSender{}, Cfg: testCfg}
+
+	body := strings.NewReader(`{"confirmation":"Yes, delete ALL of my data"}`)
+	req := httptest.NewRequest(http.MethodPost, "/delete-account", body)
+	req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, "user-1"))
+	rr := httptest.NewRecorder()
+	h.DeleteAccount(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", rr.Code)
 	}
 }
 

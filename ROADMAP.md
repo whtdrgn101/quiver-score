@@ -52,6 +52,7 @@ Full migration from Python/FastAPI to Go. 253 contract tests covering all endpoi
 
 - **Phase 11** — End Images API: `end_images` table, Go handler for upload/download/delete (multipart, 10 MB max), 12 contract tests, 14 unit tests
 - **Phase 12** — Web UI: thumbnails in session detail, lightbox modal, photo capture during scoring flow
+- _Superseded by Phase 19 — `end_images` table and `/scoring/.../images` endpoints removed; image storage now lives in GCS via the generic `attachments` table._
 
 ### Mobile App (Phases 13–14) ✅
 
@@ -73,6 +74,14 @@ Full migration from Python/FastAPI to Go. 253 contract tests covering all endpoi
 ### Multi-Round Tournament Management — Web (Phase 17) ✅
 
 - **Phase 17** — Web tournament rounds UI: API wrappers for 6 round endpoints, organizer controls (add/start/complete rounds with advancement), participant round scoring flow threaded through RoundSelect → ScoreSession, per-round leaderboards with Advanced/Eliminated badges, scored indicators on round rows, re-score warning, user highlighting in leaderboards, post-submission confirmation with auto-navigate back to tournament
+
+### Image Storage Migration (Phase 19) ✅
+
+- **Infra** — `quiverscore-images-prod` and `-dev` GCS buckets in us-central1 with UBLA + Public Access Prevention enforced; default 7-day soft-delete; Cloud Run SA granted `roles/storage.objectAdmin`
+- **Go API** — `internal/storage` ObjectStore interface with GCS / local / memory backends + conformance suite; `internal/imaging` JPEG processor (1920px Q80 full + 320px Q70 thumb, decodes JPEG/PNG/WebP, rejects HEIC); generic polymorphic `attachments` table with owner_type ∈ {`session_end`, `equipment`, `setup`}; `/api/v1/attachments` handler with OwnerVerifier registry, per-user-per-owner-type rate limits, and per-owner caps; storage layout `users/{userID}/attachments/{attachmentID}/{full,thumb}.jpg`; account-deletion prefix wipe; 21 unit + 18 contract tests
+- **Web** — `<AttachmentImage>` (auth-fetch + blob URL) and `<AttachmentGallery>` components; SessionDetail and ScoreSession cut over to render thumbs from `attachment_ids` embedded on each end; equipment + setup expanded views got photo galleries; Playwright e2e for upload/view/delete
+- **Mobile (1.4.0+6)** — Drift schema v4 with `server_attachment_id` on `end_images` for sync idempotency; `_syncImage` posts to `/api/v1/attachments`; honors `Retry-After` on 429
+- **Cleanup** — legacy `end_images` table dropped; legacy `/scoring/.../images` endpoints + handler + repo + backfill command removed
 
 ---
 
@@ -107,18 +116,6 @@ Bring tournament participation to the Flutter app, building on the web tournamen
 ---
 
 ## Future
-
-### Phase 19: Image Storage Migration
-
-- [ ] Add GCS bucket for end images
-- [ ] Go API: write to GCS, store URL in `end_images.storage_url` column
-- [ ] Migration: add `storage_url` column, make `image_data` nullable
-- [ ] Backfill: move existing bytea data to GCS
-- [ ] Update GET endpoint: serve from GCS (signed URLs or proxy)
-- [ ] Drop `image_data` column after backfill verified
-- [ ] CDN via Cloud CDN or Firebase Hosting proxy
-- [ ] Generate thumbnails on upload for list views
-- [ ] Consider WebP conversion for bandwidth savings
 
 ### Phase 20: Challenge Friends
 

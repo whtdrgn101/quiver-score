@@ -26,4 +26,12 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // Playwright tests + the playwright config run in Node, not the browser,
+    // so they need node globals (Buffer, process, __dirname, etc.).
+    files: ['e2e/**/*.{js,jsx}', 'playwright.config.js'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
 ])

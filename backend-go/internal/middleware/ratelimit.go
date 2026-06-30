@@ -30,6 +30,19 @@ func NewRateLimiter(perMinute int, burst int) *RateLimiter {
 	return rl
 }
 
+// NewRateLimiterPerHour is the per-hour analogue of NewRateLimiter. Useful for
+// upload-style endpoints where a per-minute cap would either be too generous
+// (200/min = 12k/h) or lose precision (200/h ≈ 3/min after int truncation).
+func NewRateLimiterPerHour(perHour int, burst int) *RateLimiter {
+	rl := &RateLimiter{
+		visitors: make(map[string]*visitor),
+		rate:     float64(perHour) / 3600.0,
+		burst:    burst,
+	}
+	go rl.cleanup()
+	return rl
+}
+
 func (rl *RateLimiter) Allow(ip string) bool {
 	rl.mu.Lock()
 	defer rl.mu.Unlock()
