@@ -29,6 +29,16 @@ class FakeSecureStorage implements SecureStorage {
   @override
   Future<void> clearTokens() async => _data.clear();
 
+  @override
+  Future<void> setBiometricLockEnabled(bool enabled) async {
+    _data['biometric_enabled'] = enabled ? 'true' : 'false';
+  }
+
+  @override
+  Future<bool> isBiometricLockEnabled() async {
+    return _data['biometric_enabled'] == 'true';
+  }
+
   bool get isEmpty => _data.isEmpty;
 
   bool hasAccessToken() => _data.containsKey('access_token');

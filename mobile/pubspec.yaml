@@ -26,6 +26,9 @@ dependencies:
   # Secure storage (auth tokens)
   flutter_secure_storage: ^10.0.0
 
+  # Biometric authentication
+  local_auth: ^2.3.0
+
   # Camera & images
   image_picker: ^1.2.2
   path_provider: ^2.1.5

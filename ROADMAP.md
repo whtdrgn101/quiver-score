@@ -142,10 +142,10 @@ Bring tournament participation to the Flutter app, building on the web tournamen
 - [x] Bracket view on mobile
 - [x] Show advancement flow across rounds with scores
 
-### Phase 24: Biometric App Lock
+### Phase 24: Biometric App Lock ✅
 
-- [ ] Integrate `local_auth` Flutter package for Face ID / fingerprint
-- [ ] Optional biometric lock on app launch (user-configurable in settings)
-- [ ] Biometric unlock gates app access, not token refresh — complements offline auth
-- [ ] Fallback to device PIN/pattern when biometrics unavailable
-- [ ] Persist biometric preference in local storage
+- [x] Integrate `local_auth` Flutter package for Face ID / fingerprint
+- [x] Optional biometric lock on app launch (user-configurable in settings)
+- [x] Biometric unlock gates app access, not token refresh — complements offline auth
+- [x] Fallback to device PIN/pattern when biometrics unavailable
+- [x] Persist biometric preference in local storage

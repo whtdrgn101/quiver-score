@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/providers/auth_provider.dart';
+import '../../auth/providers/biometric_provider.dart';
 import '../../equipment/screens/equipment_screen.dart';
 import '../providers/user_provider.dart';
 import 'profile_edit_screen.dart';
@@ -14,6 +15,7 @@ class MoreScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final userAsync = ref.watch(currentUserProvider);
+    final isBiometricsSupported = ref.watch(isBiometricsSupportedProvider).valueOrNull ?? false;
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -174,6 +176,27 @@ class MoreScreen extends ConsumerWidget {
               color: theme.colorScheme.onSurfaceVariant,
             )),
         const SizedBox(height: 8),
+
+        if (isBiometricsSupported) ...[
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              'Biometric Lock',
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            ),
+            subtitle: Text(
+              'Require biometrics to open the app',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            secondary: Icon(Icons.fingerprint, color: theme.colorScheme.onSurface),
+            value: ref.watch(biometricLockSettingProvider),
+            onChanged: (val) {
+              ref.read(biometricLockSettingProvider.notifier).toggle(val);
+            },
+            activeColor: theme.colorScheme.primary,
+          ),
+          const SizedBox(height: 8),
+        ],
 
         _MenuTile(
           icon: Icons.logout,

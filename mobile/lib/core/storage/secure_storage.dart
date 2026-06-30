@@ -9,6 +9,7 @@ class SecureStorage {
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
   static const _userIdKey = 'user_id';
+  static const _biometricEnabledKey = 'biometric_enabled';
 
   final _storage = const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -36,6 +37,14 @@ class SecureStorage {
 
   Future<String?> getUserId() =>
       _storage.read(key: _userIdKey);
+
+  Future<void> setBiometricLockEnabled(bool enabled) =>
+      _storage.write(key: _biometricEnabledKey, value: enabled ? 'true' : 'false');
+
+  Future<bool> isBiometricLockEnabled() async {
+    final val = await _storage.read(key: _biometricEnabledKey);
+    return val == 'true';
+  }
 
   Future<void> clearTokens() => _storage.deleteAll();
 }

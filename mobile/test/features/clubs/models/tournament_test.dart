@@ -262,6 +262,7 @@ void main() {
         roundId: 'r1',
         tournamentName: 'Spring Championship',
         roundName: 'Qualifying',
+        matchupId: 'm1',
       );
 
       expect(ctx.clubId, 'c1');
@@ -269,6 +270,58 @@ void main() {
       expect(ctx.roundId, 'r1');
       expect(ctx.tournamentName, 'Spring Championship');
       expect(ctx.roundName, 'Qualifying');
+      expect(ctx.matchupId, 'm1');
+    });
+  });
+
+  group('TournamentMatchup', () {
+    test('fromJson parses all fields', () {
+      final json = {
+        'id': 'm1',
+        'round_id': 'r1',
+        'match_number': 1,
+        'participant_a_id': 'p1',
+        'participant_a_name': 'Alice',
+        'participant_b_id': 'p2',
+        'participant_b_name': 'Bob',
+        'score_a': 340,
+        'score_b': 338,
+        'winner_id': 'p1',
+        'winner_name': 'Alice',
+        'created_at': '2026-04-15T09:00:00Z',
+      };
+
+      final m = TournamentMatchup.fromJson(json);
+
+      expect(m.id, 'm1');
+      expect(m.roundId, 'r1');
+      expect(m.matchNumber, 1);
+      expect(m.participantAId, 'p1');
+      expect(m.participantAName, 'Alice');
+      expect(m.participantBId, 'p2');
+      expect(m.participantBName, 'Bob');
+      expect(m.scoreA, 340);
+      expect(m.scoreB, 338);
+      expect(m.winnerId, 'p1');
+      expect(m.winnerName, 'Alice');
+      expect(m.createdAt, isNotNull);
+    });
+
+    test('fromJson handles nulls for empty/bye matchups', () {
+      final json = {
+        'id': 'm2',
+        'round_id': 'r1',
+        'match_number': 2,
+        'created_at': '2026-04-15T09:00:00Z',
+      };
+
+      final m = TournamentMatchup.fromJson(json);
+
+      expect(m.participantAId, isNull);
+      expect(m.participantBId, isNull);
+      expect(m.scoreA, isNull);
+      expect(m.scoreB, isNull);
+      expect(m.winnerId, isNull);
     });
   });
 }
