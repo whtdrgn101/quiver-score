@@ -419,7 +419,7 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
                 if (confirm == true) {
                   final removed =
                       await ref.read(scoringProvider.notifier).undoLastEnd();
-                  if (removed && mounted) {
+                  if (removed && context.mounted) {
                     _loadStageInfo();
                     _loadImageCounts();
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -453,7 +453,7 @@ class _ScoringScreenState extends ConsumerState<ScoringScreen> {
                 );
                 if (confirm == true) {
                   await ref.read(scoringProvider.notifier).abandonSession();
-                  if (mounted) Navigator.of(context).pop();
+                  if (context.mounted) Navigator.of(context).pop();
                 }
               } else if (value == 'complete') {
                 await _completeAndSubmit();

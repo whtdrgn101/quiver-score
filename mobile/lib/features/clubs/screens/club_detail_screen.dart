@@ -124,7 +124,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
       await ref
           .read(clubsProvider.notifier)
           .leaveClub(widget.clubId, user.id);
-      if (mounted) Navigator.pop(context);
+      if (context.mounted) Navigator.pop(context);
     }
   }
 }

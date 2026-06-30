@@ -52,7 +52,7 @@ class _SendChallengeScreenState extends ConsumerState<SendChallengeScreen> {
                   );
                 }
                 return DropdownButtonFormField<String>(
-                  value: _selectedFriendId,
+                  initialValue: _selectedFriendId,
                   hint: const Text('Choose a friend'),
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
@@ -84,7 +84,7 @@ class _SendChallengeScreenState extends ConsumerState<SendChallengeScreen> {
                   return const Text('No round templates available.');
                 }
                 return DropdownButtonFormField<String>(
-                  value: _selectedTemplateId,
+                  initialValue: _selectedTemplateId,
                   hint: const Text('Choose a round template'),
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
@@ -111,7 +111,7 @@ class _SendChallengeScreenState extends ConsumerState<SendChallengeScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
-              value: _expiresInHours,
+              initialValue: _expiresInHours,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 filled: true,

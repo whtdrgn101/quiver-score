@@ -203,7 +203,7 @@ class MoreScreen extends ConsumerWidget {
             onChanged: (val) {
               ref.read(biometricLockSettingProvider.notifier).toggle(val);
             },
-            activeColor: theme.colorScheme.primary,
+            activeThumbColor: theme.colorScheme.primary,
           ),
           const SizedBox(height: 8),
         ],

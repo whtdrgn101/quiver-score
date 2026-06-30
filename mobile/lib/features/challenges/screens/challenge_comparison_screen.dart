@@ -172,7 +172,7 @@ class ChallengeComparisonScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: winnerColor.withOpacity(0.1),
+                    color: winnerColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: winnerColor),
                   ),
@@ -211,7 +211,7 @@ class ChallengeComparisonScreen extends ConsumerWidget {
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
                     itemCount: maxEnds,
-                    separatorBuilder: (_, __) => const Divider(),
+                    separatorBuilder: (_, _) => const Divider(),
                     itemBuilder: (ctx, index) {
                       final challengerEnd = index < challengerEnds.length
                           ? challengerEnds[index]

@@ -12,7 +12,9 @@ class SecureStorage {
   static const _biometricEnabledKey = 'biometric_enabled';
 
   final _storage = const FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    // encryptedSharedPreferences removed in v10 (Jetpack Security deprecated by
+    // Google); existing values auto-migrate to the new cipher on first access.
+    aOptions: AndroidOptions(),
     iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
   );
 

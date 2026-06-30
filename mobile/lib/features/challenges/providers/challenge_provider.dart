@@ -69,7 +69,7 @@ Future<Challenge> createChallenge(
     data: {
       'challengee_id': challengeeId,
       'template_id': templateId,
-      if (expiresInHours != null) 'expires_in_hours': expiresInHours,
+      'expires_in_hours': ?expiresInHours,
     },
   );
   return Challenge.fromJson(response.data as Map<String, dynamic>);
