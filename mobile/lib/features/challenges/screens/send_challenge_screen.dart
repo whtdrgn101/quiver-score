@@ -44,9 +44,9 @@ class _SendChallengeScreenState extends ConsumerState<SendChallengeScreen> {
                     color: Colors.amberAccent,
                     child: Padding(
                       padding: EdgeInsets.all(16.0),
-                      style: TextStyle(color: Colors.black87),
                       child: Text(
                         'You are not following anyone yet! Follow someone first to challenge them.',
+                        style: TextStyle(color: Colors.black87),
                       ),
                     ),
                   );
