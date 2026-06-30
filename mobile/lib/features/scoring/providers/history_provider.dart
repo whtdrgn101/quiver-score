@@ -113,11 +113,8 @@ class HistoryNotifier extends AsyncNotifier<List<SessionSummary>> {
   }
 
   Future<void> refresh() async {
-    final previous = state.valueOrNull;
-    state = previous != null
-        ? AsyncLoading<List<SessionSummary>>().copyWithPrevious(
-            AsyncData(previous))
-        : const AsyncLoading();
+    // Riverpod 3: keep the current data visible while reloading (guard only
+    // replaces state once the fetch resolves). copyWithPrevious is now internal.
     state = await AsyncValue.guard(_fetch);
   }
 }

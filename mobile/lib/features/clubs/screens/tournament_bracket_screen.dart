@@ -268,7 +268,7 @@ class _BracketRoundView extends ConsumerWidget {
         (clubId: clubId, tournamentId: tournament.id, roundId: round.id),
       ),
     );
-    final currentUser = ref.watch(currentUserProvider).valueOrNull;
+    final currentUser = ref.watch(currentUserProvider).value;
     final isOrganizer = currentUser?.id == tournament.organizerId;
     final theme = Theme.of(context);
 

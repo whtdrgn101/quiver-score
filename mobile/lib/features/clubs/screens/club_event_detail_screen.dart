@@ -19,7 +19,7 @@ class ClubEventDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final eventAsync = ref.watch(
         clubEventDetailProvider((clubId: clubId, eventId: eventId)));
-    final user = ref.watch(currentUserProvider).valueOrNull;
+    final user = ref.watch(currentUserProvider).value;
     final theme = Theme.of(context);
 
     return Scaffold(

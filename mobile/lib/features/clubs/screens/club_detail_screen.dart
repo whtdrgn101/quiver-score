@@ -119,7 +119,7 @@ class _ClubDetailScreenState extends ConsumerState<ClubDetailScreen>
     );
 
     if (confirmed == true && mounted) {
-      final user = ref.read(currentUserProvider).valueOrNull;
+      final user = ref.read(currentUserProvider).value;
       if (user == null) return;
       await ref
           .read(clubsProvider.notifier)

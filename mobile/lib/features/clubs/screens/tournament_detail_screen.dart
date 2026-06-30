@@ -122,7 +122,7 @@ class _TournamentDetailScreenState
     final detailAsync = ref.watch(tournamentDetailProvider(_params));
     final roundsAsync = ref.watch(tournamentRoundsProvider(_params));
     final leaderboardAsync = ref.watch(tournamentLeaderboardProvider(_params));
-    final currentUser = ref.watch(currentUserProvider).valueOrNull;
+    final currentUser = ref.watch(currentUserProvider).value;
     final theme = Theme.of(context);
 
     return Scaffold(

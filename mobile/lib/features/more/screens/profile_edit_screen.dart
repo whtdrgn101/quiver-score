@@ -153,7 +153,7 @@ class _ProfileEditScreenState extends ConsumerState<ProfileEditScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final userAsync = ref.watch(currentUserProvider);
-    final avatar = userAsync.valueOrNull?.avatar ?? widget.user.avatar;
+    final avatar = userAsync.value?.avatar ?? widget.user.avatar;
 
     return Scaffold(
       appBar: AppBar(
