@@ -25,3 +25,7 @@ export const submitRoundScore = (clubId, tournamentId, roundId, sessionId) =>
   client.post(`/clubs/${clubId}/tournaments/${tournamentId}/rounds/${roundId}/submit-score?session_id=${sessionId}`);
 export const getRoundLeaderboard = (clubId, tournamentId, roundId) =>
   client.get(`/clubs/${clubId}/tournaments/${tournamentId}/rounds/${roundId}/leaderboard`);
+
+// Tournament head-to-head matchups (elimination rounds)
+export const listMatchups = (clubId, tournamentId, roundId) =>
+  client.get(`/clubs/${clubId}/tournaments/${tournamentId}/rounds/${roundId}/matchups`);

@@ -30,6 +30,7 @@ import ClubEventDetail from './pages/ClubEventDetail';
 import CreateRound from './pages/CreateRound';
 import TournamentCreate from './pages/TournamentCreate';
 import TournamentDetail from './pages/TournamentDetail';
+import TournamentBracket from './pages/TournamentBracket';
 import CoachDashboard from './pages/CoachDashboard';
 import AthleteView from './pages/AthleteView';
 import Feed from './pages/Feed';
@@ -101,6 +102,17 @@ export default function App() {
                 <Route path="feed" element={<Feed />} />
                 <Route path="profile" element={<Profile />} />
               </Route>
+              {/* Full-width route (outside the max-w-5xl Layout group) */}
+              <Route
+                path="clubs/:clubId/tournaments/:tournamentId/bracket"
+                element={
+                  <ProtectedRoute>
+                    <Layout fullWidth>
+                      <TournamentBracket />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
               <Route path="*" element={<NotFound />} />
             </Routes>
             </ErrorBoundary>

@@ -103,6 +103,7 @@ export default function TournamentDetail() {
 
   // Find the active round (in_progress) or latest pending round for scoring
   const activeRound = rounds.find((r) => r.status === 'in_progress');
+  const hasEliminationRounds = rounds.some((r) => r.round_type === 'elimination');
   const canScore = tournament.status === 'in_progress' && isRegistered && myParticipant.status === 'active' && activeRound;
   const hasScored = activeRound && userScoredRound(activeRound.id);
 
@@ -269,14 +270,24 @@ export default function TournamentDetail() {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow mb-6">
         <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
           <h2 className="text-lg font-semibold dark:text-white">Rounds</h2>
-          {isOrganizer && tournament.status !== 'completed' && (
-            <button
-              onClick={openAddRoundForm}
-              className="text-sm px-3 py-1.5 rounded-lg font-medium border border-emerald-600 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
-            >
-              + Add Round
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {hasEliminationRounds && (
+              <button
+                onClick={() => navigate(`/clubs/${clubId}/tournaments/${tournamentId}/bracket`)}
+                className="text-sm px-3 py-1.5 rounded-lg font-medium border border-gray-300 text-gray-700 dark:text-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                View Bracket
+              </button>
+            )}
+            {isOrganizer && tournament.status !== 'completed' && (
+              <button
+                onClick={openAddRoundForm}
+                className="text-sm px-3 py-1.5 rounded-lg font-medium border border-emerald-600 text-emerald-600 dark:text-emerald-400 dark:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+              >
+                + Add Round
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Add round form */}

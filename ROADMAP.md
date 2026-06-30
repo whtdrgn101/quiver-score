@@ -133,12 +133,12 @@ Bring tournament participation to the Flutter app, building on the web tournamen
 - [x] Bracket-style head-to-head pairing within tournament rounds
 - [x] Matchup table: round_id, participant_a, participant_b, winner_id
 - [x] Auto-generate pairings from round leaderboard (1 vs N, 2 vs N-1, etc.)
-- [x] Visual bracket display on web and mobile (Mobile view completed; Web view deferred)
+- [x] Visual bracket display on web and mobile (Mobile + Web complete)
 - [x] Support byes for non-power-of-2 participant counts
 
-### Phase 23: Tournament Bracket Visualization
+### Phase 23: Tournament Bracket Visualization ✅
 
-- [ ] Visual bracket progression showing round-over-round results (web)
+- [x] Visual bracket progression showing round-over-round results (web) — true bracket tree at `/clubs/:clubId/tournaments/:tournamentId/bracket`, full-width route, winner/bye/champion rendering, Playwright e2e
 - [x] Bracket view on mobile
 - [x] Show advancement flow across rounds with scores
 

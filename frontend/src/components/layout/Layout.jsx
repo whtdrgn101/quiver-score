@@ -7,7 +7,7 @@ import { getSessions, abandonSession } from '../../api/scoring';
 import { resendVerification } from '../../api/auth';
 import NotificationBell from '../NotificationBell';
 
-export default function Layout({ children }) {
+export default function Layout({ children, fullWidth = false }) {
   const { user, logout } = useAuth();
   const { dark, toggleTheme } = useTheme();
   const { online, pendingCount, syncing, syncPending } = useOnline();
@@ -216,7 +216,7 @@ export default function Layout({ children }) {
           </div>
         </div>
       )}
-      <main className="max-w-5xl mx-auto px-4 py-6">
+      <main className={`${fullWidth ? 'max-w-none' : 'max-w-5xl'} mx-auto px-4 py-6`}>
         {children || <Outlet />}
       </main>
     </div>
